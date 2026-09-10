@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, Heading } from '@astryxdesign/core';
 import { PxTag, PxBtn, SITE_URL } from '../px';
 
@@ -59,11 +59,31 @@ export default function DemoPage() {
   const [k8s, setK8s] = useState<boolean | null>(null);
   const [auth, setAuth] = useState<boolean | null>(null);
 
+  /* Scroll anchoring for the grill: answering swaps in a shorter/taller
+     card while scrollY stays pinned, which used to flash the footer into
+     view. Capture the block height before the swap and compensate scrollY
+     by the delta (instant), keeping the question block stable. */
+  const swapRef = useRef<HTMLDivElement | null>(null);
+  const swapHeight = useRef<number | null>(null);
+  useEffect(() => {
+    const el = swapRef.current;
+    const oldH = swapHeight.current;
+    swapHeight.current = null;
+    if (el && oldH != null) {
+      const dh = el.offsetHeight - oldH;
+      if (dh !== 0) window.scrollBy({ top: dh, behavior: 'instant' });
+    }
+  }, [step]);
+  const goStep = (next: number) => {
+    swapHeight.current = swapRef.current?.offsetHeight ?? null;
+    setStep(next);
+  };
+
   const reset = () => {
-    setStep(0);
     setYears(null);
     setK8s(null);
     setAuth(null);
+    goStep(0);
   };
 
   const verdict: Verdict | null =
@@ -109,7 +129,7 @@ export default function DemoPage() {
 
             {/* Grill */}
             {step < 3 ? (
-              <div className="demo-grill">
+              <div className="demo-grill" ref={swapRef}>
                 <p className="demo-step">
                   Grill question {step + 1} of 3
                 </p>
@@ -126,7 +146,7 @@ export default function DemoPage() {
                           className={`demo-opt ${years === o ? 'sel' : ''}`}
                           onClick={() => {
                             setYears(o);
-                            setStep(1);
+                            goStep(1);
                           }}
                         >
                           {o}
@@ -146,7 +166,7 @@ export default function DemoPage() {
                         className="demo-opt"
                         onClick={() => {
                           setK8s(true);
-                          setStep(2);
+                          goStep(2);
                         }}
                       >
                         Yes
@@ -155,7 +175,7 @@ export default function DemoPage() {
                         className="demo-opt"
                         onClick={() => {
                           setK8s(false);
-                          setStep(2);
+                          goStep(2);
                         }}
                       >
                         No
@@ -174,7 +194,7 @@ export default function DemoPage() {
                         className="demo-opt"
                         onClick={() => {
                           setAuth(true);
-                          setStep(3);
+                          goStep(3);
                         }}
                       >
                         Yes
@@ -183,7 +203,7 @@ export default function DemoPage() {
                         className="demo-opt"
                         onClick={() => {
                           setAuth(false);
-                          setStep(3);
+                          goStep(3);
                         }}
                       >
                         No
@@ -198,7 +218,7 @@ export default function DemoPage() {
               </div>
             ) : (
               verdict && (
-                <div className="demo-verdict">
+                <div className="demo-verdict" ref={swapRef}>
                   {verdict.pass ? (
                     <Card className="demo-pass">
                       <div className="demo-verdict-mark go" aria-hidden="true">
