@@ -677,6 +677,11 @@ html {
   .nav-links {
     display: none;
   }
+  /* CLS fix: hero terminal type-on loop ends at ~588px tall on tablets.
+     Reserve it so the providers strip below never shifts. 8px rhythm. */
+  .terminal {
+    min-height: 600px;
+  }
 }
 @media (max-width: 620px) {
   .grid,
@@ -692,7 +697,10 @@ html {
   }
   .terminal {
     font-size: 18px;
-    min-height: 300px;
+    /* CLS fix: hero terminal type-on loop ends at 918px tall on phones
+       (measured end state, fonts loaded and fallback). Reserve it so the
+       providers strip below never shifts while the demo runs. */
+    min-height: 920px;
   }
   .hero-title {
     font-size: 24px !important;
