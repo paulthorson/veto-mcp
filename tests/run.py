@@ -73,8 +73,13 @@ def main() -> int:
             failed.append(short)
         for test, reason in result.skipped:
             print(f"  SKIP {short}.{test._testMethodName}: {reason[:110]}")
-        for test, _tb in result.failures + result.errors:
+        for test, tb in result.failures + result.errors:
             print(f"  FAIL {short}.{test._testMethodName}")
+            # Print the traceback so CI logs are diagnosable.
+            print("  " + "-" * 72)
+            for line in tb.strip().splitlines():
+                print(f"  {line}")
+            print("  " + "-" * 72)
 
     print("\n" + "=" * 76)
     print(f"{'module':<42}{'ran':>5}{'fail':>6}{'err':>5}{'skip':>6}{'secs':>8}")
