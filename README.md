@@ -14,6 +14,26 @@ across major boards** and **help apply without manual form filling**.
 | `list_boards()` | Supported boards and their status (`active` / `stub`). |
 | `track_applications()` | Everything recorded in `applications.json`. |
 
+## Enhancement plugins
+
+Beyond the core tools above, the server ships a full application
+pipeline. Every plugin registers its own MCP tools (via
+`register_tools`) and CLI commands (via `register_cli`), and every
+risk-sensitive path is adjudicated by the risk policy (see
+`docs/compliance.md`).
+
+| Area | Tools | What it does |
+|---|---|---|
+| **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Channels: chat (default), WhatsApp, Gmail — chosen in the onboarding wizard. Gmail replies are matched by a `[grill:<id>]` subject tag and ingested automatically. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
+| **Direct ATS apply** | `apply_via_ats` | Official ATS application endpoints only (Greenhouse/Lever/Ashby with employer-issued keys). Investigated honestly: no verified anonymous endpoint exists, so unsupported attempts return a clear error instead of guessing. |
+| **LinkedIn Easy Apply** | `easy_apply_fill` | **Fill-only.** Drives the Easy Apply modal (max 6 steps, Next/Continue/Review buttons only) and stops at the review screen. The human clicks submit. Any submit attempt by automation raises a fill-only violation. |
+| **Drip queue** | `queue_add`, `queue_list` (+ `queue-run` CLI) | Persistent, paced application queue. Respects the daily cap, pauses 2–7 minutes between applications, and adjudicates the whole run before starting. |
+| **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
+| **Interview prep** | `company_brief`, `prep_interview` | Company briefs (facts marked `unverified` when unfetched; no invented funding/headcount) and STAR stories built only from real profile achievements with metrics preserved verbatim. |
+| **Analytics** | `application_analytics` | Funnel, response rate by board, median time to response, stale applications. |
+| **Doctor** | `doctor` | Health check: profile, compliance acknowledgment, Playwright, sessions, preferences, boards. |
+| **Risk audit** | `risk_status` | The audit surface: per-board tier and search-allowed state, daily cap usage, registered plugins. |
+
 ## Onboarding wizard
 
 Run the interactive wizard once to build your saved profile — it asks
@@ -67,8 +87,11 @@ it to the agent.
 - **Adzuna** — key-gated stub. Set `ADZUNA_APP_ID` + `ADZUNA_APP_KEY`
   (from developer.adzuna.com) to activate; without them `search_jobs`
   returns a clear error.
-- **Glassdoor / ZipRecruiter** — stubs with clear TODOs (JS-rendered and
-  bot-protected; need the Phase 2 browser hook).
+- **ZipRecruiter** — active (scraping tier). Server-rendered
+  HTML/JSON-LD parsing, paced, CAPTCHA-aware, circuit-broken. Requires the
+  ToS-risk acknowledgment like other scraping-tier boards.
+- **Glassdoor** — stub with a clear TODO (JS-rendered and bot-protected;
+  needs the Phase 2 browser hook).
 
 ### Live-test status (2026-09-10, sandbox)
 
@@ -323,6 +346,11 @@ Sessions expire like normal logins — re-run `login_session(board)` when a
 site starts asking you to log in again.
 
 ## ⚠️ Risks / Terms-of-Service warning
+
+> The full policy lives in [`docs/compliance.md`](docs/compliance.md) —
+> tiers, budgets, circuit breakers, fill-only rules, and the audit
+> surface. The code (`compliance.py`, `governance/risk_policy.py`) is the
+> source of truth.
 
 - **Scraping LinkedIn and Indeed may violate their Terms of Service.**
   LinkedIn in particular aggressively blocks automation; the guest API used

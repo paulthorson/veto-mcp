@@ -24,6 +24,7 @@ if str(BASE_DIR) not in sys.path:
 
 import resume_builder  # noqa: E402
 import wizard  # noqa: E402
+import prefs  # noqa: E402
 
 
 def make_linkedin_zip(path: Path) -> None:
@@ -200,8 +201,38 @@ class TestWizardInteractive(unittest.TestCase):
         "Python, Algorithms",
         "",                  # work authorization (default US citizen)
         "Pioneer of computing.",
+        # collect_targets
+        "fintech, healthtech",  # target industries
+        "gambling",             # excluded industries
+        "startup, mid-size",    # company sizes
+        "",                     # role tracks (default IC)
+        "senior, staff",        # seniority levels
+        "",                     # job types (default full-time)
+        "Evil Corp",            # excluded companies
+        "crypto",               # excluded keywords
+        "Initech",              # preferred companies
+        # collect_compensation
+        "$300k",                # target salary
+        "$200k",                # salary floor
+        "high",                 # equity importance
+        # collect_logistics
+        "2 weeks",              # notice period
+        "",                     # available from (default immediately)
+        "up to 25%",            # willing to travel
+        "",                     # willing to relocate (default no)
+        "n",                    # needs visa sponsorship
+        "",                     # security clearance (default none)
+        "English, Spanish",     # languages
+        "AWS Solutions Architect",  # certifications
         # linkedin_ingestion
-        "3",                 # skip
+        "3",                    # skip
+        # maybe_create_watches
+        "n",                    # no watches
+        # collect_compliance
+        "strict",               # compliance mode
+        # collect_grill_channel
+        "y",                    # grill before each application
+        "",                     # grill channel (default chat)
     ]
 
     def test_main_writes_profile(self):
@@ -210,8 +241,14 @@ class TestWizardInteractive(unittest.TestCase):
             with mock.patch("builtins.input", side_effect=list(self.ANSWERS)), \
                  mock.patch.object(wizard, "PROFILES_DIR", tmp_path), \
                  mock.patch.object(wizard, "PROFILE_PATH",
-                                   tmp_path / "profile.json"):
-                rc = wizard.main()
+                                   tmp_path / "profile.json"), \
+                 mock.patch.object(wizard, "WATCHES_PATH",
+                                   tmp_path / "watches.json"), \
+                 mock.patch.object(wizard, "COMPLIANCE_PATH",
+                                   tmp_path / "compliance.json"), \
+                 mock.patch.object(prefs, "PREFS_FILE",
+                                   tmp_path / "preferences.json"):
+                rc = wizard.main([])
             self.assertEqual(rc, 0)
             profile = json.loads((tmp_path / "profile.json").read_text())
             self.assertEqual(profile["full_name"], "Ada Lovelace")
@@ -221,6 +258,117 @@ class TestWizardInteractive(unittest.TestCase):
             self.assertEqual(profile["location"], "New York, NY")
             self.assertEqual(profile["target_titles"], ["Software Engineer"])
             self.assertEqual(profile["skills"], ["Python", "Algorithms"])
+            # new sections
+            self.assertEqual(profile["target_industries"],
+                             ["fintech", "healthtech"])
+            self.assertEqual(profile["excluded_industries"], ["gambling"])
+            self.assertEqual(profile["company_sizes"],
+                             ["startup", "mid-size"])
+            self.assertEqual(profile["role_tracks"], ["IC"])
+            self.assertEqual(profile["seniority_levels"],
+                             ["senior", "staff"])
+            self.assertEqual(profile["job_types"], ["full-time"])
+            self.assertEqual(profile["target_salary"], "$300k")
+            self.assertEqual(profile["salary_floor"], "$200k")
+            self.assertEqual(profile["equity_importance"], "high")
+            self.assertEqual(profile["notice_period"], "2 weeks")
+            self.assertEqual(profile["available_from"], "immediately")
+            self.assertEqual(profile["willing_to_travel"], "up to 25%")
+            self.assertEqual(profile["willing_to_relocate"], "no")
+            self.assertEqual(profile["needs_sponsorship"], "no")
+            self.assertEqual(profile["security_clearance"], "none")
+            self.assertEqual(profile["languages"],
+                             ["English", "Spanish"])
+            self.assertEqual(profile["certifications"],
+                             ["AWS Solutions Architect"])
+            self.assertEqual(profile["excluded_companies"], ["Evil Corp"])
+            self.assertEqual(profile["excluded_keywords"], ["crypto"])
+            self.assertEqual(profile["preferred_companies"], ["Initech"])
+            self.assertEqual(profile["achievements"], [])
+            self.assertEqual(profile["career_highlights"], [])
+            self.assertEqual(profile["skill_years"], {})
+            # deal-breakers seeded into preferences.json
+            saved_prefs = json.loads(
+                (tmp_path / "preferences.json").read_text())
+            self.assertIn("Evil Corp", saved_prefs["blocked_companies"])
+            self.assertIn("gambling", saved_prefs["blocked_keywords"])
+            self.assertIn("crypto", saved_prefs["blocked_keywords"])
+            self.assertIn("Initech", saved_prefs["preferred_companies"])
+            # grill channel baked in at onboarding
+            self.assertTrue(saved_prefs["grill_on_apply"])
+            self.assertEqual(saved_prefs["grill_channel"], "chat")
+            # compliance mode recorded
+            state = json.loads((tmp_path / "compliance.json").read_text())
+            self.assertEqual(state["mode"], "strict")
+
+    def test_collect_compliance_standard_with_ack(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            compliance_path = Path(tmp) / "compliance.json"
+            with mock.patch("builtins.input",
+                            side_effect=["standard", "y"]), \
+                 mock.patch.object(wizard, "COMPLIANCE_PATH",
+                                   compliance_path):
+                mode = wizard.collect_compliance()
+            self.assertEqual(mode, "standard")
+            state = json.loads(compliance_path.read_text())
+            self.assertEqual(state["mode"], "standard")
+            self.assertTrue(state["risk_acknowledged"])
+
+    def test_collect_compliance_standard_declined_falls_back(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            compliance_path = Path(tmp) / "compliance.json"
+            with mock.patch("builtins.input",
+                            side_effect=["standard", "n"]), \
+                 mock.patch.object(wizard, "COMPLIANCE_PATH",
+                                   compliance_path):
+                mode = wizard.collect_compliance()
+            self.assertEqual(mode, "strict")
+            state = json.loads(compliance_path.read_text())
+            self.assertEqual(state["mode"], "strict")
+            self.assertFalse(state.get("risk_acknowledged", False))
+
+
+class TestWizardGrill(unittest.TestCase):
+    """collect_grill: per-role quantified wins, highlights, skill years."""
+
+    GRILL_ANSWERS = [
+        # role 1: two wins
+        "Cut p99 latency 40% by rewriting the hot path",
+        "Saved $2M/yr consolidating infra",
+        # role 2: one win, then empty to stop
+        "Grew DAU from 10k to 1M",
+        "",
+        # 3 career highlights (third empty)
+        "Shipped v2 to 5M users",
+        "Led a team of 5 engineers",
+        "",
+        # years per skill: Python=8, Rust skipped
+        "8",
+        "",
+    ]
+
+    def test_collect_grill(self):
+        profile = wizard.blank_profile()
+        profile["experience"] = [
+            {"title": "Staff Engineer", "company": "Initech",
+             "location": "", "start": "2020-01", "end": "",
+             "description": ""},
+            {"title": "Engineer", "company": "Initrode",
+             "location": "", "start": "2016-06", "end": "2019-12",
+             "description": ""},
+        ]
+        profile["skills"] = ["Python", "Rust"]
+        with mock.patch("builtins.input",
+                        side_effect=list(self.GRILL_ANSWERS)):
+            out = wizard.collect_grill(profile)
+        self.assertEqual(len(out["achievements"]), 3)
+        self.assertEqual(out["achievements"][0]["company"], "Initech")
+        self.assertIn("latency 40%", out["achievements"][0]["achievement"])
+        self.assertEqual(out["achievements"][2]["company"], "Initrode")
+        self.assertEqual(out["career_highlights"],
+                         ["Shipped v2 to 5M users",
+                          "Led a team of 5 engineers"])
+        self.assertEqual(out["skill_years"], {"Python": "8"})
 
 
 class TestResumeBuilder(unittest.TestCase):

@@ -4,6 +4,8 @@
 Run interactively::
 
     python3 wizard.py
+    python3 wizard.py --grill   # deep interrogation mode: per-role quantified
+                                # achievements, skill years, career highlights
 
 Answers can also be piped via stdin for scripted runs, e.g.::
 
@@ -13,6 +15,13 @@ The wizard collects contact info, job-search preferences, and skills,
 optionally ingests a LinkedIn data-export ZIP (or tries a public profile
 URL), and writes the merged result to ``profiles/profile.json``.
 
+Beyond the basics it also collects targeting (industries, company size,
+role track, seniority), compensation expectations, logistics (notice
+period, travel, sponsorship, clearance), and deal-breakers — which are
+also saved to ``preferences.json`` (blocklist) so searches respect them.
+In --grill mode it interrogates every role for quantified achievements,
+which power the resume builder and per-job tailoring.
+
 The written profile includes at least the keys the browser-apply hook
 needs: full_name (plus first_name/last_name), email, phone, location,
 linkedin_url, website, and cover_letter (empty unless the user supplies
@@ -21,6 +30,7 @@ one later).
 
 from __future__ import annotations
 
+import argparse
 import csv
 import io
 import json
@@ -28,9 +38,15 @@ import sys
 import zipfile
 from pathlib import Path
 
+import compliance
+import prefs
+import watch
+
 BASE_DIR = Path(__file__).resolve().parent
 PROFILES_DIR = BASE_DIR / "profiles"
 PROFILE_PATH = PROFILES_DIR / "profile.json"
+WATCHES_PATH = BASE_DIR / "watches.json"
+COMPLIANCE_PATH = compliance.COMPLIANCE_FILE
 
 # ---------------------------------------------------------------------------
 # Input helpers
@@ -49,6 +65,15 @@ def ask_list(prompt: str, default: str = "") -> list[str]:
     """Ask for a comma-separated list; returns a cleaned list."""
     raw = ask(prompt, default)
     return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def ask_yes_no(prompt: str, default: bool = False) -> bool:
+    """Ask a yes/no question; returns True for yes."""
+    hint = "Y/n" if default else "y/N"
+    answer = input(f"{prompt} [{hint}]: ").strip().lower()
+    if not answer:
+        return default
+    return answer in {"y", "yes"}
 
 
 def dedupe(items: list[str]) -> list[str]:
@@ -315,6 +340,33 @@ def blank_profile() -> dict:
         "work_authorization": "",
         "experience": [],
         "education": [],
+        # --- Targeting ---
+        "target_industries": [],
+        "excluded_industries": [],
+        "company_sizes": [],
+        "role_tracks": [],
+        "seniority_levels": [],
+        "job_types": [],
+        "excluded_companies": [],
+        "excluded_keywords": [],
+        "preferred_companies": [],
+        # --- Compensation ---
+        "target_salary": "",
+        "salary_floor": "",
+        "equity_importance": "medium",
+        # --- Logistics ---
+        "notice_period": "",
+        "available_from": "immediately",
+        "willing_to_travel": "",
+        "willing_to_relocate": "no",
+        "needs_sponsorship": "no",
+        "security_clearance": "none",
+        "certifications": [],
+        "languages": [],
+        # --- Grill-mode deep dive ---
+        "achievements": [],
+        "career_highlights": [],
+        "skill_years": {},
     }
 
 
@@ -364,6 +416,259 @@ def collect_basics() -> dict:
         "One-paragraph professional summary (optional)"
     )
     return profile
+
+
+def collect_targets(profile: dict) -> dict:
+    """Interactive Q&A for job targeting: industries, size, track, filters."""
+    print("\n--- Job targeting ---")
+    profile["target_industries"] = dedupe(ask_list(
+        "Target industries (comma-separated, e.g. fintech, healthtech)"
+    ))
+    profile["excluded_industries"] = dedupe(ask_list(
+        "Industries to avoid (comma-separated, optional)"
+    ))
+    profile["company_sizes"] = dedupe(ask_list(
+        "Company sizes (comma-separated: startup, mid-size, enterprise)"
+    ))
+    profile["role_tracks"] = dedupe(ask_list(
+        "Role tracks (comma-separated: IC, manager)", "IC"
+    ))
+    profile["seniority_levels"] = dedupe(ask_list(
+        "Seniority levels (comma-separated: entry, mid, senior, staff, principal)"
+    ))
+    profile["job_types"] = dedupe(ask_list(
+        "Job types (comma-separated: full-time, contract)", "full-time"
+    ))
+    profile["excluded_companies"] = dedupe(ask_list(
+        "Companies to exclude from searches (comma-separated, optional)"
+    ))
+    profile["excluded_keywords"] = dedupe(ask_list(
+        "Keywords to exclude (comma-separated, e.g. crypto, gambling)"
+    ))
+    profile["preferred_companies"] = dedupe(ask_list(
+        "Dream companies (comma-separated, optional)"
+    ))
+    return profile
+
+
+def collect_compensation(profile: dict) -> dict:
+    """Interactive Q&A for compensation expectations."""
+    print("\n--- Compensation ---")
+    profile["target_salary"] = ask("Target total compensation (optional)")
+    profile["salary_floor"] = ask(
+        "Absolute salary floor — below this, don't bother (optional)"
+    )
+    equity = ask("How important is equity? (low / medium / high)",
+                 "medium").lower()
+    while equity not in {"low", "medium", "high"}:
+        print("  Please choose one of: low / medium / high")
+        equity = ask("How important is equity? (low / medium / high)",
+                     "medium").lower()
+    profile["equity_importance"] = equity
+    return profile
+
+
+def collect_logistics(profile: dict) -> dict:
+    """Interactive Q&A for availability, travel, sponsorship, clearance."""
+    print("\n--- Logistics ---")
+    profile["notice_period"] = ask(
+        "Notice period (e.g. 2 weeks, immediate)"
+    )
+    profile["available_from"] = ask(
+        "Available to start", "immediately"
+    )
+    profile["willing_to_travel"] = ask(
+        "Willing to travel? (e.g. no, up to 25%)", "no"
+    )
+    profile["willing_to_relocate"] = ask(
+        "Willing to relocate? (yes / no)", "no"
+    ).lower()
+    profile["needs_sponsorship"] = (
+        "yes" if ask_yes_no("Do you need visa sponsorship?") else "no"
+    )
+    profile["security_clearance"] = ask(
+        "Security clearance (e.g. none, active TS/SCI)", "none"
+    )
+    profile["languages"] = dedupe(ask_list(
+        "Languages spoken (comma-separated)"
+    ))
+    profile["certifications"] = dedupe(ask_list(
+        "Certifications / licenses (comma-separated, optional)"
+    ))
+    return profile
+
+
+def collect_grill(profile: dict) -> dict:
+    """Deep interrogation mode: quantified achievements per role.
+
+    Walks every experience entry asking for up to two quantified wins
+    ("with numbers: %, $, users, latency"), then three career highlights,
+    then years of hands-on experience per skill. Empty answers skip —
+    everything here is optional, but the more numbers you give, the
+    stronger the tailored resumes and cover letters.
+    """
+    print("\n--- Grill mode: quantified achievements ---")
+    print("For each role, give your biggest wins WITH numbers "
+          "(%, $, users, latency, ...).")
+    print("Press Enter on an empty line to skip.\n")
+
+    achievements: list[dict] = []
+    for exp in profile.get("experience", []):
+        title = exp.get("title", "?")
+        company = exp.get("company", "?")
+        print(f"Role: {title} @ {company}")
+        for n in (1, 2):
+            win = ask(f"  Quantified win #{n}")
+            if not win:
+                break
+            achievements.append({
+                "company": company,
+                "title": title,
+                "achievement": win,
+            })
+    profile["achievements"] = achievements
+
+    print("\nTop 3 career highlights (one line each, empty to skip):")
+    highlights = []
+    for n in (1, 2, 3):
+        highlight = ask(f"  Highlight #{n}")
+        if highlight:
+            highlights.append(highlight)
+    profile["career_highlights"] = highlights
+
+    print("\nYears of hands-on experience per skill (empty to skip):")
+    skill_years: dict[str, str] = {}
+    for skill in profile.get("skills", []):
+        years = ask(f"  {skill}")
+        if years:
+            skill_years[skill] = years
+    profile["skill_years"] = skill_years
+    return profile
+
+
+def seed_preferences(profile: dict) -> dict:
+    """Merge the wizard's deal-breakers into preferences.json (dedupe)."""
+    current = prefs.load_preferences()
+    current["blocked_companies"] = dedupe(
+        current.get("blocked_companies", [])
+        + profile.get("excluded_companies", [])
+    )
+    current["blocked_keywords"] = dedupe(
+        current.get("blocked_keywords", [])
+        + profile.get("excluded_industries", [])
+        + profile.get("excluded_keywords", [])
+    )
+    current["preferred_companies"] = dedupe(
+        current.get("preferred_companies", [])
+        + profile.get("preferred_companies", [])
+    )
+    return prefs.save_preferences(current)
+
+
+def maybe_create_watches(profile: dict) -> list[str]:
+    """Offer to seed job watches from the user's target titles."""
+    titles = profile.get("target_titles", [])
+    if not titles:
+        return []
+    if not ask_yes_no(
+        "Create job watches for your top target titles now?"
+    ):
+        return []
+    location = (profile.get("preferred_locations") or [""])[0]
+    watches = watch.load_watches(WATCHES_PATH)
+    created = []
+    for title in titles[:3]:
+        name = f"{title} ({location})".strip()
+        watch.add_watch(watches, name=name, query=title,
+                        location=location or "", board="all")
+        created.append(name)
+    watch.save_watches(WATCHES_PATH, watches)
+    print(f"  Created {len(created)} watch(es): {', '.join(created)}")
+    print("  Run `python watch.py` (or schedule it via cron) to check them.")
+    return created
+
+
+def collect_compliance() -> str:
+    """Show the scraping ToS risk summary and record the user's mode choice.
+
+    strict  -> official APIs only (Greenhouse, Lever, Ashby, Adzuna).
+    standard -> all boards, but the user must explicitly acknowledge the
+               scraping ToS risk first.
+    """
+    print("\n--- Search compliance ---")
+    print("Job boards fall into two risk tiers:")
+    print("  official   Greenhouse, Lever, Ashby, Adzuna — public/official")
+    print("             APIs. ToS-friendly; always preferred.")
+    print("  scraping   LinkedIn, Indeed, Glassdoor, ZipRecruiter — HTML or")
+    print("             guest-endpoint scraping. May violate the site's Terms")
+    print("             of Service and can trigger HTTP 403/429, CAPTCHAs,")
+    print("             IP rate-limiting, or account restrictions.")
+    print("This tool stores no credentials and never auto-submits")
+    print("applications without your explicit confirmation.")
+    mode = ask(
+        "Compliance mode (strict = official APIs only, "
+        "standard = all boards)", "strict"
+    ).strip().lower()
+    while mode not in {"strict", "standard"}:
+        print("  Please choose one of: strict / standard")
+        mode = ask(
+            "Compliance mode (strict = official APIs only, "
+            "standard = all boards)", "strict"
+        ).strip().lower()
+    compliance.set_mode(mode, path=COMPLIANCE_PATH)
+    if mode == "standard":
+        print("\nStandard mode permits scraping-tier boards. Please confirm")
+        print("you understand the ToS risk described above.")
+        while True:
+            if ask_yes_no("Acknowledge the scraping ToS risk?", default=False):
+                compliance.acknowledge_risks(path=COMPLIANCE_PATH)
+                break
+            print("  Without acknowledgment, falling back to strict mode.")
+            mode = "strict"
+            compliance.set_mode(mode, path=COMPLIANCE_PATH)
+            break
+    print(f"  Compliance mode: {mode}")
+    return mode
+
+
+def collect_grill_channel() -> dict:
+    """Ask how the user wants to receive per-application grill questions.
+
+    Baked into onboarding: saved to preferences.json as grill_on_apply +
+    grill_channel so every install carries the user's channel choice.
+    """
+    print("\n--- Application grilling ---")
+    print("Before an application goes out, I can grill you with a few")
+    print("targeted questions (gaps between the job post and your profile)")
+    print("so the application is tailored with your real answers.")
+    on_apply = ask_yes_no(
+        "Grill me before each application? (recommended)", default=True
+    )
+    channel = "off"
+    if on_apply:
+        print("Where should the questions go?")
+        print("  chat      ask right here in chat")
+        print("  whatsapp  message you on WhatsApp (link it in the Muse app")
+        print("            under Messaging Channels when ready)")
+        print("  gmail     email you the questions; you reply with numbered")
+        print("            answers (connect Gmail in the Muse app first)")
+        channel = ask("Channel (chat/whatsapp/gmail)", "chat").strip().lower()
+        while channel not in {"chat", "whatsapp", "gmail"}:
+            print("  Please choose one of: chat / whatsapp / gmail")
+            channel = ask("Channel (chat/whatsapp/gmail)",
+                          "chat").strip().lower()
+        if channel == "whatsapp":
+            print("  Link WhatsApp any time from the Muse app: Messaging")
+            print("  Channels. Grilling works in chat until then.")
+        elif channel == "gmail":
+            print("  Connect Gmail any time from the Muse app's Connectors.")
+            print("  Grilling works in chat until then.")
+    current = prefs.load_preferences()
+    current["grill_on_apply"] = on_apply
+    current["grill_channel"] = channel
+    prefs.save_preferences(current)
+    print(f"  Grilling: {'on via ' + channel if on_apply else 'off'}")
+    return {"grill_on_apply": on_apply, "grill_channel": channel}
 
 
 def linkedin_ingestion() -> dict | None:
@@ -430,13 +735,45 @@ def print_summary(profile: dict) -> None:
     print(f"Education:  {len(profile['education'])} entr(y/ies) on file")
     print(f"Skills:     {', '.join(profile['skills']) or '(none)'}")
     print(f"Work auth:  {profile['work_authorization']}")
+    print(f"Industries: {', '.join(profile.get('target_industries', [])) or '(any)'}")
+    print(f"Excluded:   {', '.join(profile.get('excluded_companies', [])) or '(none)'}")
+    print(f"Job types:  {', '.join(profile.get('job_types', [])) or '(any)'}")
+    print(f"Target comp:{profile.get('target_salary') or '(not set)'}  "
+          f"Floor: {profile.get('salary_floor') or '(not set)'}")
+    print(f"Notice:     {profile.get('notice_period') or '(not set)'}, "
+          f"available {profile.get('available_from') or '(not set)'}")
+    print(f"Sponsor:    {profile.get('needs_sponsorship', 'no')}, "
+          f"clearance: {profile.get('security_clearance', 'none')}")
+    print(f"Wins:       {len(profile.get('achievements', []))} quantified "
+          f"achievement(s), "
+          f"{len(profile.get('career_highlights', []))} highlight(s)")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Job-Apply onboarding wizard: builds your profile."
+    )
+    parser.add_argument(
+        "--grill", action="store_true",
+        help="Deep interrogation mode: quantified achievements per role, "
+             "career highlights, and years per skill.",
+    )
+    args = parser.parse_args(argv)
+
     profile = collect_basics()
+    profile = collect_targets(profile)
+    profile = collect_compensation(profile)
+    profile = collect_logistics(profile)
+    if args.grill:
+        profile = collect_grill(profile)
     linkedin_data = linkedin_ingestion()
     if linkedin_data:
         profile = merge_profile(profile, linkedin_data)
+
+    seed_preferences(profile)
+    maybe_create_watches(profile)
+    mode = collect_compliance()
+    grill_cfg = collect_grill_channel()
 
     PROFILES_DIR.mkdir(parents=True, exist_ok=True)
     with PROFILE_PATH.open("w", encoding="utf-8") as fh:
@@ -445,6 +782,10 @@ def main() -> int:
 
     print_summary(profile)
     print(f"\nSaved profile to {PROFILE_PATH}")
+    print(f"Compliance mode: {mode} (recorded in compliance.json)")
+    grill_state = ("on via " + grill_cfg["grill_channel"]
+                   if grill_cfg["grill_on_apply"] else "off")
+    print(f"Grilling: {grill_state} (recorded in preferences.json)")
     print("\nNext steps:")
     print("  1. Generate your resume:")
     print("       python3 resume_builder.py")

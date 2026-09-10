@@ -300,6 +300,42 @@ def cmd_wizard(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+_PLUGIN_CLI_MODULES = (
+    "ats_apply",
+    "easy_apply",
+    "apply_queue",
+    "doctor",
+    "analytics",
+    "briefs",
+    "email_sync",
+    "grill",
+)
+
+
+def _plugin_cli_handlers(sub) -> dict:
+    """Register enhancement-plugin CLI commands on the subparsers.
+
+    Returns {command: handler}; existing core commands are never
+    overwritten. Missing plugins are skipped silently (server.py logs
+    them at startup).
+    """
+    handlers: dict = {}
+    for _mod_name in _PLUGIN_CLI_MODULES:
+        try:
+            _mod = __import__(_mod_name)
+        except ImportError:
+            continue
+        _register = getattr(_mod, "register_cli", None)
+        if _register is None:
+            continue
+        try:
+            for _cmd, _fn in dict(_register(sub)).items():
+                handlers.setdefault(_cmd, _fn)
+        except Exception:
+            continue
+    return handlers
+
+
 def _add_json_flag(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--json",
@@ -368,6 +404,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("wizard", help="Run the onboarding wizard (builds your profile).")
 
+    parser.set_defaults(
+        _plugin_handlers=_plugin_cli_handlers(sub),
+    )
+
     return parser
 
 
@@ -383,6 +423,7 @@ def main(argv: list[str] | None = None) -> int:
         "profile": cmd_profile,
         "wizard": cmd_wizard,
     }
+    handlers.update(getattr(args, "_plugin_handlers", {}))
     return handlers[args.command](args)
 
 

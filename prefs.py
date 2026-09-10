@@ -31,14 +31,24 @@ DEFAULT_PREFS: dict[str, list[str]] = {
     "blocked_keywords": [],
 }
 
+#: Scalar (non-list) preferences with their defaults. These are persisted
+#: alongside DEFAULT_PREFS; the onboarding wizard writes them.
+SCALAR_DEFAULTS: dict[str, Any] = {
+    "grill_on_apply": True,
+    "grill_channel": "chat",  # chat | whatsapp | gmail | off
+}
+
+GRILL_CHANNELS = {"chat", "whatsapp", "gmail", "off"}
+
 
 def _norm(text: str) -> str:
     return " ".join((text or "").lower().split())
 
 
-def load_preferences() -> dict[str, list[str]]:
+def load_preferences() -> dict[str, Any]:
     """Read preferences.json; return defaults when missing/corrupt."""
-    prefs = {k: list(v) for k, v in DEFAULT_PREFS.items()}
+    prefs: dict[str, Any] = {k: list(v) for k, v in DEFAULT_PREFS.items()}
+    prefs.update(SCALAR_DEFAULTS)
     try:
         data = json.loads(PREFS_FILE.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -47,16 +57,26 @@ def load_preferences() -> dict[str, list[str]]:
         log.warning("Could not parse %s: %s", PREFS_FILE, exc)
         return prefs
     if isinstance(data, dict):
-        for key in prefs:
+        for key in DEFAULT_PREFS:
             val = data.get(key)
             if isinstance(val, list):
                 prefs[key] = [str(v) for v in val]
+        prefs["grill_on_apply"] = bool(data.get("grill_on_apply", True))
+        channel = str(data.get("grill_channel", "chat")).strip().lower()
+        prefs["grill_channel"] = (
+            channel if channel in GRILL_CHANNELS else "chat"
+        )
     return prefs
 
 
-def save_preferences(prefs: dict[str, Any]) -> dict[str, list[str]]:
-    """Persist preferences (only known keys, string lists)."""
-    clean = {k: [str(v) for v in prefs.get(k, [])] for k in DEFAULT_PREFS}
+def save_preferences(prefs: dict[str, Any]) -> dict[str, Any]:
+    """Persist preferences: known list keys plus scalar grill settings."""
+    clean: dict[str, Any] = {
+        k: [str(v) for v in prefs.get(k, [])] for k in DEFAULT_PREFS
+    }
+    clean["grill_on_apply"] = bool(prefs.get("grill_on_apply", True))
+    channel = str(prefs.get("grill_channel", "chat")).strip().lower()
+    clean["grill_channel"] = channel if channel in GRILL_CHANNELS else "chat"
     PREFS_FILE.write_text(
         json.dumps(clean, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )

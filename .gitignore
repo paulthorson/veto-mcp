@@ -8,6 +8,8 @@ watches.json
 profiles/*.json
 sessions/
 preferences.json
+compliance.json
+apply_queue.json
 .DS_Store
 .env
 playwright-report/
@@ -17,3 +19,5 @@ site/node_modules/
 site/dist/
 
 profiles/resume.*
+grill_sessions.json
+notifications.jsonl

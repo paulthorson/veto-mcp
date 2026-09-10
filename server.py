@@ -4,8 +4,8 @@
 Exposes job-board search and assisted-application tools over the Model
 Context Protocol (MCP) so an AI agent can:
 
-  * search jobs across major boards (Indeed, LinkedIn; stubs for
-    Glassdoor / ZipRecruiter),
+  * search jobs across major boards (Indeed, LinkedIn, ZipRecruiter;
+    stub for Glassdoor),
   * fetch full job descriptions,
   * prepare (and, only with explicit user confirmation, record)
     job applications without manual form filling.
@@ -118,6 +118,57 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [job-apply-mcp] %(message)s",
 )
 log = logging.getLogger("job-apply-mcp")
+
+# ---------------------------------------------------------------------------
+# Enhancement plugins (grill, email sync, briefs, ATS apply, Easy Apply,
+# queue, analytics, doctor) and the risk/governance layer. Imported
+# defensively: the server must start even when one is missing; missing
+# pieces are skipped at registration with a warning.
+# ---------------------------------------------------------------------------
+try:
+    import compliance as _compliance
+except ImportError as exc:
+    log.warning("compliance.py unavailable; risk budgets disabled: %s", exc)
+    _compliance = None  # type: ignore[assignment]
+
+try:
+    from governance import risk_policy as _risk_policy
+except ImportError as exc:
+    log.warning(
+        "governance.risk_policy unavailable; risk gates disabled: %s", exc)
+    _risk_policy = None  # type: ignore[assignment]
+
+try:
+    from providers.ziprecruiter import (
+        ZipRecruiterProvider as _ZipRecruiterReal,
+    )
+except ImportError as exc:
+    log.warning(
+        "providers.ziprecruiter unavailable; ZipRecruiter stays a stub: %s",
+        exc,
+    )
+    _ZipRecruiterReal = None  # type: ignore[assignment]
+
+_PLUGIN_MODULES: list = []
+for _plugin_name in (
+    "ats_apply",
+    "easy_apply",
+    "apply_queue",
+    "doctor",
+    "analytics",
+    "briefs",
+    "email_sync",
+    "grill",
+):
+    try:
+        _PLUGIN_MODULES.append((_plugin_name, __import__(_plugin_name)))
+    except ImportError as exc:
+        log.warning(
+            "plugin %s unavailable; its tools are disabled: %s",
+            _plugin_name,
+            exc,
+        )
+del _plugin_name
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -486,7 +537,7 @@ class GlassdoorProvider(JobProvider):
         raise NotImplementedError("Glassdoor provider is a stub.")
 
 
-class ZipRecruiterProvider(JobProvider):
+class _ZipRecruiterStub(JobProvider):
     """Stub: ZipRecruiter search pages are JS-rendered and bot-protected."""
 
     name = "ziprecruiter"
@@ -507,10 +558,20 @@ PROVIDERS: dict[str, JobProvider] = {
     "indeed": IndeedProvider(),
     "linkedin": LinkedInProvider(),
     "glassdoor": GlassdoorProvider(),
-    "ziprecruiter": ZipRecruiterProvider(),
+    "ziprecruiter": (
+        _ZipRecruiterReal() if _ZipRecruiterReal is not None
+        else _ZipRecruiterStub()
+    ),
     **_API_PROVIDERS,
 }
-ACTIVE_BOARDS = {"indeed", "linkedin", "greenhouse", "lever", "ashby"}
+ACTIVE_BOARDS = {
+    "indeed",
+    "linkedin",
+    "greenhouse",
+    "lever",
+    "ashby",
+    "ziprecruiter",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -559,7 +620,6 @@ def list_boards() -> list[dict[str, str]]:
     notes = {
         "adzuna": "needs ADZUNA_APP_ID + ADZUNA_APP_KEY env vars (developer.adzuna.com)",
         "glassdoor": "not yet implemented; see provider TODO",
-        "ziprecruiter": "not yet implemented; see provider TODO",
     }
     return [
         {
@@ -605,7 +665,13 @@ def search_jobs(
     Returns:
         Deduplicated, preference-filtered list of jobs with id, title,
         company, location, url, board, snippet. Preferred-company matches
-        carry "preferred": True and sort first.
+        carry "preferred": True and sort first. Every result carries a
+        risk tag (board tier + disclosure).
+
+    Every board search is adjudicated by the risk policy first: blocked
+    boards (strict mode, exhausted budget, tripped circuit breaker,
+    governance veto) raise for an explicit board choice and are skipped
+    for "all". See the risk_status tool for the audit surface.
     """
     board = board.lower().strip()
     if board != "all" and board not in PROVIDERS:
@@ -619,18 +685,40 @@ def search_jobs(
     )
     results: list[dict[str, Any]] = []
     for name in targets:
+        # Risk gate (additive): every board search is adjudicated through
+        # the risk policy (tiers, search budgets, circuit breakers, the
+        # governance veto screen). A blocked board raises for an explicit
+        # board choice and is skipped for "all", mirroring stub-board
+        # behavior. Every adjudication is written to the audit ledger.
+        if _risk_policy is not None:
+            _search_verdict = _risk_policy.adjudicate_search(name, query)
+            if not _search_verdict.get("allowed", False):
+                _reason = _search_verdict.get("reason", "blocked by risk policy")
+                log.warning("search skipped for board %s: %s", name, _reason)
+                if board != "all":
+                    raise ValueError(f"Board {name!r} is not usable: {_reason}")
+                continue
         provider = PROVIDERS[name]
         try:
-            results.extend(
-                provider.search(query, location, limit=limit, remote_only=remote_only)
+            _found = provider.search(
+                query, location, limit=limit, remote_only=remote_only
             )
         except (NotImplementedError, RuntimeError) as exc:
-            # NotImplementedError: stub boards (glassdoor/ziprecruiter).
+            # NotImplementedError: stub boards (glassdoor).
             # RuntimeError: providers needing user credentials (adzuna
             # without ADZUNA_APP_ID/ADZUNA_APP_KEY). Surface as ValueError
             # so the tool contract stays consistent.
             log.warning("%s: %s", name, exc)
             raise ValueError(f"Board {name!r} is not usable: {exc}")
+        # Budget accounting + risk tagging. (The ZipRecruiter provider
+        # stamps its own tag; re-stamping here is idempotent.)
+        if _compliance is not None:
+            _compliance.record_search(name)
+            _tag = _compliance.result_risk_tag(name)
+            for _job in _found:
+                if isinstance(_job, dict):
+                    _job.update(_tag)
+        results.extend(_found)
     results = results[: limit * len(targets)]
 
     # Application-quality pipeline (all recall-friendly; each degrades to
@@ -908,6 +996,82 @@ def apply_to_job(
     if _gov_warnings:
         preview.setdefault("governance_warnings", []).extend(_gov_warnings)
 
+    # Apply-time grilling gate (additive): when enabled in preferences,
+    # the application pauses here until the candidate answers the grill
+    # questions (or skips them). Nothing is submitted or recorded first;
+    # the caller re-invokes apply_to_job with confirm=True afterwards.
+    _grill_mod = dict(_PLUGIN_MODULES).get("grill")
+    if _grill_mod is not None:
+        try:
+            _grill_prefs = _grill_mod.get_grill_prefs()
+        except Exception:
+            _grill_prefs = {}
+        if _grill_prefs.get("grill_on_apply") and _grill_prefs.get(
+            "grill_channel"
+        ) != "off":
+            _grill_state = _grill_mod.grill_status(job_id)
+            if not _grill_state.get("complete"):
+                if _grill_state.get("total", 0) == 0:
+                    try:
+                        _grill_mod.start_grill(
+                            job_id,
+                            {
+                                "title": preview.get("title", ""),
+                                "company": preview.get("company", ""),
+                                "location": preview.get("location", ""),
+                                "description": "",
+                            },
+                            profile,
+                        )
+                    except Exception as exc:
+                        log.warning(
+                            "grill start failed for %s: %s", job_id, exc
+                        )
+                return {
+                    "status": "grill_pending",
+                    "message": (
+                        "Grilling is enabled: answer these questions before "
+                        "the application proceeds. Nothing has been submitted "
+                        "or recorded. Answer via the grill_answer tool (chat), "
+                        "or reply to the grill email, then call apply_to_job "
+                        "again with confirm=True."
+                    ),
+                    "outbound": _grill_mod.outbound_for_channel(job_id),
+                    "grill_status": _grill_mod.grill_status(job_id),
+                }
+
+    # Risk-policy gate (additive): daily application cap, board tiers,
+    # scraping-tier fill-only enforcement, and the governance veto screen.
+    # Fail-closed: a blocked gate returns immediately; nothing is submitted
+    # or recorded, and the verdict lands in the audit ledger.
+    if _risk_policy is not None:
+        _via = "browser" if _browser_apply_enabled() else "manual"
+        _apply_verdict = _risk_policy.adjudicate_apply(
+            board,
+            job_title=str(preview.get("title", "")),
+            company=str(preview.get("company", "")),
+            via=_via,
+        )
+        if not _apply_verdict.get("allowed", False):
+            _governance_record_outcome(
+                job_id=job_id,
+                preview=preview,
+                passed=False,
+                note=f"risk-policy blocked: {_apply_verdict.get('reason', '')}",
+            )
+            return {
+                "status": "blocked",
+                "reason": _apply_verdict.get("reason", "blocked by risk policy"),
+                "tier": _apply_verdict.get("tier"),
+                "governance": _apply_verdict.get("governance"),
+            }
+        if _apply_verdict.get("fill_only"):
+            preview["fill_only"] = True
+            preview.setdefault("governance_warnings", []).append(
+                "Scraping-tier board: this flow fills the form only. "
+                "Review it yourself and click submit."
+            )
+
     if _browser_apply_enabled():
         _gov_browser_result = _apply_via_browser_and_record(
             job_id=job_id,
@@ -929,6 +1093,8 @@ def apply_to_job(
                 f"{_gov_browser_result.get('status')}"
             ),
         )
+        if _compliance is not None and not _gov_browser_result.get("error"):
+            _compliance.record_application()
         return _gov_browser_result
 
     entry = {
@@ -958,6 +1124,8 @@ def apply_to_job(
     applications = _load_applications()
     applications.append(entry)
     _save_applications(applications)
+    if _compliance is not None:
+        _compliance.record_application()
     _governance_record_outcome(
         job_id=job_id, preview=preview, passed=True, note="phase-1 recorded"
     )
@@ -1351,6 +1519,77 @@ def governance_status() -> dict[str, Any]:
             "veto_clearing": "human only: fix the application/profile and "
             "re-run (framework overturn_verdict also exists)",
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Enhancement plugin tools
+# ---------------------------------------------------------------------------
+
+
+def _register_plugin_tools() -> list[str]:
+    """Register each available plugin module's MCP tools.
+
+    Returns the names of the modules that registered successfully.
+    """
+    registered: list[str] = []
+    for _name, _mod in _PLUGIN_MODULES:
+        _register = getattr(_mod, "register_tools", None)
+        if _register is None:
+            continue
+        try:
+            _register(mcp)
+            registered.append(_name)
+        except Exception as exc:
+            log.warning(
+                "plugin %s tool registration failed: %s", _name, exc
+            )
+    return registered
+
+
+_REGISTERED_PLUGINS: list[str] = _register_plugin_tools()
+
+
+@mcp.tool()
+def risk_status() -> dict[str, Any]:
+    """Risk-policy status: board tiers, search/apply budgets, and plugins.
+
+    Returns:
+        Dict with per-board tier + whether search is currently allowed
+        (budget/circuit-breaker/strict-mode state), whether a new
+        application is allowed under the daily cap, which enhancement
+        plugins registered, and whether the risk-policy and compliance
+        modules are loaded. This is the audit surface for every
+        risk-gated search and application.
+    """
+    boards: dict[str, dict[str, Any]] = {}
+    for _board in PROVIDERS:
+        _tier = (
+            _compliance.board_tier(_board) if _compliance is not None
+            else "unknown"
+        )
+        if _compliance is not None:
+            _search_allowed, _search_reason = _compliance.check_search_allowed(
+                _board
+            )
+        else:
+            _search_allowed, _search_reason = True, ""
+        boards[_board] = {
+            "tier": _tier,
+            "search_allowed": _search_allowed,
+            "reason": _search_reason,
+        }
+    if _compliance is not None:
+        _apply_allowed, _apply_reason = _compliance.check_apply_allowed()
+    else:
+        _apply_allowed, _apply_reason = True, ""
+    return {
+        "boards": boards,
+        "apply_allowed": _apply_allowed,
+        "apply_reason": _apply_reason,
+        "plugins": _REGISTERED_PLUGINS,
+        "risk_policy_loaded": _risk_policy is not None,
+        "compliance_loaded": _compliance is not None,
     }
 
 
