@@ -6,7 +6,10 @@ import {
   Link,
 } from '@astryxdesign/core';
 import FeaturePage from './pages/FeaturePage';
+import DemoPage from './pages/DemoPage';
+import DocsPage from './pages/DocsPage';
 import type { PageSpec } from './pages/spec';
+import { PixelX, PxBtn, PxTag, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
 import specGrill from './pages/specs/the-grill';
 import specTailoring from './pages/specs/tailoring';
@@ -19,8 +22,6 @@ import specVeto from './pages/specs/veto-gates';
 import specHonesty from './pages/specs/honesty-check';
 import specQual from './pages/specs/qualification-scoring';
 import specLedger from './pages/specs/verdict-ledger';
-
-const GITHUB_URL = 'https://github.com/paulthorson/job-apply-mcp';
 
 const SPECS: Record<string, PageSpec> = {
   [specSearch.slug]: specSearch,
@@ -37,63 +38,7 @@ const SPECS: Record<string, PageSpec> = {
   [specLedger.slug]: specLedger,
 };
 
-/* ------------------------------------------------------------------ */
-/* Pixel primitives                                                     */
-/* ------------------------------------------------------------------ */
-
-function PixelX({ size = 30 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      shapeRendering="crispEdges"
-      className="brand-mark"
-      aria-hidden="true"
-    >
-      <rect width="16" height="16" fill="#0d0d12" />
-      <g fill="#ff4d5e">
-        <rect x="3" y="3" width="2" height="2" />
-        <rect x="11" y="3" width="2" height="2" />
-        <rect x="5" y="5" width="2" height="2" />
-        <rect x="9" y="5" width="2" height="2" />
-        <rect x="7" y="7" width="2" height="2" />
-        <rect x="5" y="9" width="2" height="2" />
-        <rect x="9" y="9" width="2" height="2" />
-        <rect x="3" y="11" width="2" height="2" />
-        <rect x="11" y="11" width="2" height="2" />
-      </g>
-    </svg>
-  );
-}
-
-function PxBtn({
-  variant = 'primary',
-  href,
-  children,
-  label,
-}: {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  href: string;
-  children: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <a className={`px-btn ${variant}`} href={href} aria-label={label}>
-      {children}
-    </a>
-  );
-}
-
-function PxTag({
-  variant = '',
-  children,
-}: {
-  variant?: '' | 'red' | 'amber';
-  children: React.ReactNode;
-}) {
-  return <span className={`px-tag ${variant}`}>{children}</span>;
-}
+/* Pixel primitives live in ./px and are shared across pages. */
 
 /* ------------------------------------------------------------------ */
 /* Terminal demo                                                        */
@@ -405,6 +350,8 @@ function SiteNav() {
           <a href="#features">Features</a>
           <a href="#how">How it works</a>
           <a href="#why-no">Why it says no</a>
+          <a href="#/demo">Demo</a>
+          <a href="#/docs">Docs</a>
           <a href="#/install">Install</a>
           <a href="#faq">FAQ</a>
         </nav>
@@ -437,7 +384,7 @@ function SiteFooter() {
         </div>
         <div className="footer-links">
           <Link href={GITHUB_URL} label="GitHub repository" target="_blank">→ GitHub repository</Link>
-          <Link href={`${GITHUB_URL}#readme`} label="Documentation" target="_blank">→ Documentation</Link>
+          <Link href="#/docs" label="Documentation">→ Documentation</Link>
           <Link href="#/install" label="Install">→ Install</Link>
         </div>
       </div>
@@ -496,6 +443,9 @@ function HomePage({ routeHash }: { routeHash: string }) {
               </div>
               <p className="hero-note">
                 {'>'} works with Claude Desktop, Cursor, Muse CLI — any MCP client_
+              </p>
+              <p className="hero-note">
+                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds →</a>
               </p>
             </div>
             <div className="hero-demo">
@@ -693,7 +643,11 @@ export default function App() {
   const hash = useRoute();
 
   useEffect(() => {
-    if (hash.startsWith('#/features/')) {
+    if (hash === '#/demo') {
+      document.title = 'Get vetoed — interactive demo — Veto';
+    } else if (hash === '#/docs') {
+      document.title = 'Docs — Veto';
+    } else if (hash.startsWith('#/features/')) {
       const slug = hash.slice('#/features/'.length);
       const spec = SPECS[slug];
       document.title = spec
@@ -703,6 +657,26 @@ export default function App() {
       document.title = 'Veto — the AI job applier that says no';
     }
   }, [hash]);
+
+  if (hash === '#/demo') {
+    return (
+      <div className="page">
+        <SiteNav />
+        <DemoPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (hash === '#/docs') {
+    return (
+      <div className="page">
+        <SiteNav />
+        <DocsPage />
+        <SiteFooter />
+      </div>
+    );
+  }
 
   if (hash.startsWith('#/features/')) {
     const slug = hash.slice('#/features/'.length);

@@ -1,11 +1,11 @@
-# Gatekeeper — the AI job applier that says no
+# Veto — the AI job applier that says no
 
 > Every AI job bot promises to blast 1,000 applications while you sleep.
 > This one searches 8 job boards, grills you over WhatsApp about the gaps
 > in your resume, tailors every application — and **refuses to submit the
 > ones you're not qualified for.**
 
-Gatekeeper is an open-source [MCP](https://modelcontextprotocol.io/)
+Veto is an open-source [MCP](https://modelcontextprotocol.io/)
 server that turns your AI assistant into a job-search agent with a
 conscience. It does the tedious parts — searching, tailoring, filling
 forms, tracking, following up — and enforces the judgment calls most
