@@ -101,6 +101,46 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
           </div>
         </section>
 
+        {spec.method != null ? (
+          <>
+            <div className="px-hr" aria-hidden="true" />
+
+            {/* UNDER THE HOOD */}
+            <section className="section">
+              <div className="wrap narrow">
+                <PxTag>Under the hood</PxTag>
+                <Heading level={2} className="section-title">
+                  {spec.method.heading}
+                </Heading>
+                <p className="section-sub method-intro">{spec.method.intro}</p>
+                {spec.method.source != null ? (
+                  <p className="method-source">
+                    <a href={spec.method.source.href}>{spec.method.source.label}</a>
+                  </p>
+                ) : null}
+                {spec.method.blocks.map((b) => (
+                  <div key={b.title} className="method-block">
+                    <h3 className="method-title">{b.title}</h3>
+                    <p className="method-body">{b.body}</p>
+                    {b.rows != null && b.rows.length > 0 ? (
+                      <table className="px-table">
+                        <tbody>
+                          {b.rows.map(([a, c], i) => (
+                            <tr key={i}>
+                              <th scope="row">{a}</th>
+                              <td>{c}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : null}
+
         <div className="px-hr" aria-hidden="true" />
 
         {/* HONEST LIMITATIONS */}
