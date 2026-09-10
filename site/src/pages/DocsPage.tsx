@@ -126,7 +126,7 @@ const MODULE_GROUPS: ToolGroup[] = [
   {
     label: 'Score',
     tools: [
-      { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority/salary/location 15, recency 5). Under 40 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
+      { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority/salary/location 15, recency 5). Under 60 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
       { name: 'decode-jd', desc: 'Reads a posting like a cynic: transparency score, overwork language, vagueness density, green flags. Verdicts of strong, mixed, or caution, every flag quoted.' },
     ],
   },
@@ -169,23 +169,86 @@ const MODULE_GROUPS: ToolGroup[] = [
 const TROUBLESHOOTING = [
   {
     q: 'Indeed returns 403s',
-    a: 'Indeed is heavily bot-protected from datacenter IPs. This is expected, not a bug. The fallback is the browser hook with a logged-in session: set JOB_MCP_BROWSER_APPLY=1 and confirm explicitly.',
+    a: 'Symptom: searches against Indeed fail with HTTP 403. Why: Indeed runs aggressive bot protection that blocks datacenter IPs on sight; the failure is expected, not a bug in the server. What to do: stop hitting it, the circuit breaker has already cooled the board down. The working fallback is the browser hook with your logged-in session: set JOB_MCP_BROWSER_APPLY=1 and confirm explicitly. A real session from a real browser passes checks a datacenter request never will.',
   },
   {
     q: 'LinkedIn rate-limits (429)',
-    a: 'Back off and let the circuit breaker do its job. It cools the board down for an hour, doubling on repeat blocks. Hammering it will only make the timeout longer.',
+    a: 'Symptom: LinkedIn calls start returning 429 and the board goes unavailable. Why: you tripped their rate limit, and the circuit breaker tripped with it. What to do: do nothing for a while. The breaker enforces a 1-hour cooldown that doubles on repeat blocks (up to 24 hours), and it clears itself after a successful request. Do not hammer the endpoint to "check"; each block makes the timeout longer. If LinkedIn is a critical board for you, spread queries across days.',
   },
   {
-    q: 'A board shows as unavailable',
-    a: 'Glassdoor is a stub. It says so to your face instead of failing weirdly. Adzuna needs a free API key from developer.adzuna.com before it activates.',
+    q: 'Glassdoor does nothing',
+    a: 'Symptom: Glassdoor results never arrive and the board reports itself as unavailable. Why: Glassdoor is a deliberate stub. It stays locked rather than silently failing or returning junk. What to do: nothing; that is the intended behavior. Search the other scraping-tier boards (LinkedIn, Indeed, ZipRecruiter) or switch to official-tier boards for clean coverage.',
+  },
+  {
+    q: 'Adzuna never activates',
+    a: 'Symptom: Adzuna stays dark no matter what you do. Why: unlike the other official boards, Adzuna needs credentials before it serves you. What to do: get a free API key at developer.adzuna.com (free tier is enough for job search), then drop it into your config and restart. The board lights up immediately once the key is present.',
   },
   {
     q: 'Easy Apply fill broke',
-    a: 'Scraping-tier boards change their markup without telling anyone. If the modal flow breaks after a LinkedIn redesign, report it on GitHub. Selectors get fixed, it just takes a few days.',
+    a: 'Symptom: LinkedIn Easy Apply fill fails or the modal flow stops mid-way. Why: scraping-tier boards redesign their markup without telling anyone, and selectors drift. The fill intentionally stops at the review step, so a broken selector looks like a stuck form. What to do: report it on GitHub with the URL you were on and a screenshot of the modal. Selectors get fixed; it just takes a few days. Meanwhile, fill-only means you can always finish by hand.',
   },
   {
-    q: 'The grill never completes',
-    a: 'The application stays grill_pending until every question is answered. Check grill_status for what\u2019s missing. Gmail replies need the [grill:<id>] subject tag to be matched.',
+    q: 'The grill never completes (grill_pending)',
+    a: 'Symptom: your application sits in grill_pending and nothing moves it. Why: the grill stays open until every question has an answer; an unanswered question is a stuck application, by design. What to do: call grill_status to see exactly which questions are still missing, then answer all of them. If you reply over Gmail, the subject line must carry the [grill:<id>] tag, that is how your reply gets matched to the session. A reply without the tag is just an email nobody reads.',
+  },
+  {
+    q: 'Search is blocked: risk acknowledgment missing',
+    a: 'Symptom: check_search_allowed refuses LinkedIn or Indeed with a consent error even though nothing is down. Why: standard mode requires explicit ToS-risk acknowledgment before any scraping-tier board unlocks; compliance.json has no timestamp for you. What to do: run the wizard (step 03) or call acknowledge_risks to record your consent. If you would rather not consent to scraping at all, switch to strict mode and use the official-tier boards instead.',
+  },
+  {
+    q: 'The MCP client does not see the tools',
+    a: 'Symptom: Claude Desktop / Cursor / the CLI shows no Veto tools after you edited the config. Why: the usual three: you replaced the whole config file instead of merging into the existing mcpServers object, the command path points at the system python instead of the project .venv, or the client never restarted. What to do: merge, don\'t replace; set the command to /home/hatch/workspace/job-apply-mcp/.venv/bin/python with args [/home/hatch/workspace/job-apply-mcp/server.py]; restart the client completely. If it still fails, run server.py directly in a terminal and read the traceback.',
+  },
+  {
+    q: 'The venv is broken (missing modules, weird errors)',
+    a: 'Symptom: imports fail, playwright is "installed" but chromium is missing, or pip errors you have never seen before. Why: the venv got polluted or partially built, usually from mixing system pip with the venv. What to do: delete .venv and rebuild it cleanly: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m playwright install chromium. Reinstall from scratch every time; debugging a sick venv is slower than replacing it.',
+  },
+  {
+    q: 'veto doctor fails',
+    a: 'Symptom: veto doctor (or cli.py doctor) reports FAIL on one or more checks. Why: setup is incomplete, and the doctor exists precisely to say which part. What to do: run it with --json if you want machine output, then fix the profile first, it is the most common failure: check_profile wants profile.json with the browser-hook keys, check_preferences wants a parseable preferences.json (missing file means defaults, which is fine), and check_boards wants the board list importable. Errors are hard failures; warnings (Playwright browsers, saved sessions) only degrade Phase 2.',
+  },
+];
+
+const FAQS = [
+  {
+    q: 'What is Veto?',
+    a: 'A governed 26-module job-search machine that finds, tailors, applies, and tracks. Find: one search across every enabled board, deduped and ranked. Tailor: per-job resumes and cover letters grounded in your real profile. Apply: human-paced, confirm-gated, fill-only on scraping boards. Track: applications.json holds your pipeline, and the analytics module reads it. The governance is the product: budgets, circuit breakers, honesty checks, and consent gates run in code, not in prompts.',
+  },
+  {
+    q: 'What is Veto not?',
+    a: 'Not a mass-apply spammer: 5 applications a day, hard cap, no exceptions. Not a credential thief: nothing in the codebase stores credentials; scraping flows use your own logged-in browser session. Not a lie factory: the tailor module is forbidden from inventing experience, employers, skills, or metrics. Anything unfetched is marked unverified; anything quoted comes from a source you can check.',
+  },
+  {
+    q: 'What does it cost?',
+    a: 'Nothing. Free and open source; this GitHub is public, the code is the documentation, and there is no premium tier waiting behind a curtain. The only thing that costs money is infrastructure you choose yourself (API keys, hosting), and the wizard tells you exactly which pieces are paid.',
+  },
+  {
+    q: 'What data does it keep?',
+    a: 'Your profile (from the LinkedIn export or wizard answers), applications.json (your recorded applications and stages), compliance.json (mode, risk acknowledgment timestamp, budgets, cooldowns), and grill_sessions.json (your grill answers). compliance.json is gitignored so your consent state never lands in a repo. No credentials are stored anywhere: board logins live in your own browser sessions, not in files Veto writes.',
+  },
+  {
+    q: 'Does it submit applications for me?',
+    a: 'Not without you. Every apply starts as a dry-run preview and needs your explicit confirmation to record anything. On scraping-tier boards it is fill-only: the agent fills the form and stops at the review step; the final submit click is always yours. On official boards, submission goes through the board\'s official ATS endpoints, with the apply_disclosure(board) shown in the preview first.',
+  },
+  {
+    q: 'Which boards are supported?',
+    a: 'Two tiers. Official (public APIs, preferred): Greenhouse, Lever, Ashby, Adzuna (Adzuna needs a free key from developer.adzuna.com). Scraping (HTML/guest-endpoint scraping, explicit consent required): LinkedIn, Indeed, ZipRecruiter. Glassdoor is a locked stub; it says so openly. Every result is tagged with its tier, so you always know what you are looking at.',
+  },
+  {
+    q: 'What honesty guarantees does it make?',
+    a: 'The tailor, cover letter, and interview modules never invent experience, employers, skills, or metrics; achievements and numbers are copied verbatim from your profile. The decode-jd module quotes every flag it raises: flags are quoted, not invented. Fit scoring is deterministic, skills 50, seniority/salary/location 15, recency 5, and postings under 60 are vetoed with a written reason. When a fact is missing, it says unverified instead of filling the gap.',
+  },
+  {
+    q: 'What happens when a board blocks me?',
+    a: 'The circuit breaker handles it: a 403, 429, or CAPTCHA calls record_block, which cools the board for 1 hour, doubling on repeat blocks, capped at 24 hours. Cooldowns and timestamps are visible in risk_status any time. CAPTCHAs are never bypassed, full stop. The breaker clears itself after a successful request. If you keep getting blocked, that is the site telling you to stop; use the browser hook or switch boards.',
+  },
+  {
+    q: 'How do the 5/day cap and the fit-score veto relate?',
+    a: 'The veto decides who gets one of your five slots. Postings scoring under 60 are vetoed with a reason and never consume a slot. The cap then applies to the survivors: at most 5 applications a day, 2-7 minutes apart. The bar (quality) and the cap (pace) are separate gates; a posting has to clear both to become an application.',
+  },
+  {
+    q: 'How do I get help?',
+    a: 'Run veto doctor first. It checks profile, compliance, browsers, sessions, preferences, and boards, and tells you exactly which piece is broken. For bugs, selector drift, or feature ideas, open an issue on GitHub; the report lands in a public queue the maintainer actually reads. For how-it-works questions, this manual and the risk policy section above are the source of truth.',
   },
 ];
 
@@ -215,6 +278,7 @@ export default function DocsPage() {
               <TocLink id="modules">New modules</TocLink>
               <TocLink id="risk">Risk policy</TocLink>
               <TocLink id="troubleshooting">Troubleshooting</TocLink>
+              <TocLink id="faq">FAQ</TocLink>
             </nav>
           </div>
         </section>
@@ -369,44 +433,162 @@ export default function DocsPage() {
               The rules the agent cannot argue with. Enforced in code, not in
               prompts.
             </p>
-            <div className="limits">
-              <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">{'>'}</span>
-                <p>
-                  <strong>Two tiers.</strong> Official (Greenhouse, Lever,
-                  Ashby, Adzuna) vs scraping (LinkedIn, Indeed, ZipRecruiter).
-                  Glassdoor stays locked.
+            <div className="tool-group">
+              <h4>Two tiers</h4>
+              <p className="tool-desc">
+                Every board is classified once, and every search result is
+                stamped with its tier (<code>tos_risk_tier</code>, plus a
+                plain-language notice). Official-tier boards expose public or
+                official APIs, so they are ToS-friendly and always preferred.
+                Scraping-tier boards are reached through HTML or
+                guest-endpoint scraping: it works until it doesn&rsquo;t, it
+                can violate the site&rsquo;s Terms of Service, and it triggers
+                HTTP 403/429, CAPTCHAs, IP rate-limiting, or account
+                restrictions. Glassdoor stays locked: it reports itself as a
+                stub instead of failing weirdly.
+              </p>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  margin: '16px 0 4px',
+                  fontSize: '16px',
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      textAlign: 'left',
+                      borderBottom: '2px solid var(--line)',
+                      fontFamily: 'var(--font-px)',
+                      fontSize: '12px',
+                      color: 'var(--amber)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    <th style={{ padding: '8px 12px 8px 0' }}>Tier</th>
+                    <th style={{ padding: '8px 12px 8px 0' }}>Boards</th>
+                    <th style={{ padding: '8px 0' }}>Source</th>
+                  </tr>
+                </thead>
+                <tbody style={{ color: 'var(--ink-dim)', lineHeight: 1.5 }}>
+                  <tr style={{ borderBottom: '2px dashed var(--line)' }}>
+                    <td style={{ padding: '10px 12px 10px 0', fontFamily: 'var(--font-term)', color: 'var(--go)' }}>
+                      official
+                    </td>
+                    <td style={{ padding: '10px 12px 10px 0' }}>
+                      Greenhouse, Lever, Ashby, Adzuna
+                    </td>
+                    <td style={{ padding: '10px 0' }}>
+                      Public or official APIs. ToS-clean, preferred.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 12px 10px 0', fontFamily: 'var(--font-term)', color: 'var(--go)' }}>
+                      scraping
+                    </td>
+                    <td style={{ padding: '10px 12px 10px 0' }}>
+                      LinkedIn, Indeed, Glassdoor, ZipRecruiter
+                    </td>
+                    <td style={{ padding: '10px 0' }}>
+                      HTML / guest-endpoint scraping. Explicit consent
+                      required; Glassdoor remains a locked stub.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="tool-group">
+              <h4>Modes</h4>
+              <p className="tool-desc">
+                <code>strict</code>: official APIs only. ToS-clean by
+                construction, no scraping at all. <code>standard</code>:
+                scraping-tier boards are allowed but daily-budgeted,
+                circuit-broken, tier-tagged, and gated behind explicit risk
+                acknowledgment. The mode persists in{' '}
+                <code>compliance.json</code>.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Search budgets</h4>
+              <p className="tool-desc">
+                1000 searches per day per official board, 40 per day per
+                scraping board. Scraping budgets are deliberately small:
+                politeness delays reduce load but do not make scraping
+                compliant. Budgets reset at midnight UTC, enforced by{' '}
+                <code>check_search_allowed</code> and spent by{' '}
+                <code>record_search</code>.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Application cap</h4>
+              <p className="tool-desc">
+                5 recorded applications per day across all boards, with random
+                2-7 minute pauses between them (<code>APPLY_PACE_SECONDS</code>{' '}
+                120-420), enforced by <code>check_apply_allowed</code>.
+                Human-paced by construction. No bulk blasts, ever.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Circuit breaker</h4>
+              <p className="tool-desc">
+                A 403, 429, or CAPTCHA calls <code>record_block</code>, which
+                trips a 1-hour cooldown, doubling on repeat blocks, capped at
+                24 hours. CAPTCHAs are never bypassed. The breaker resets via{' '}
+                <code>record_block_cleared</code> after a successful request.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Fill-only</h4>
+              <p className="tool-desc">
+                On scraping-tier boards the agent fills but never performs
+                the final submit click. The human reviews and submits. Every
+                apply flow must surface{' '}
+                <code>apply_disclosure(board)</code> in its preview, spelling
+                out the anti-bot risk and the mitigations in force.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Risk acknowledgment</h4>
+              <p className="tool-desc">
+                <code>acknowledge_risks</code> records your explicit consent,
+                with timestamp, in <code>compliance.json</code> (gitignored).
+                Until it is recorded, <code>check_search_allowed</code>{' '}
+                blocks every scraping-tier board. No acknowledgment, no
+                scraping.
+              </p>
+            </div>
+            <div className="tool-group">
+              <h4>Enforcement points</h4>
+              <div className="tool-row">
+                <span className="tool-name">search</span>
+                <p className="tool-desc">
+                  <code>check_search_allowed</code> gates every provider call;
+                  <code>record_search</code> spends daily budget;{' '}
+                  <code>record_block</code> trips the circuit breaker.
                 </p>
               </div>
-              <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">{'>'}</span>
-                <p>
-                  <strong>Search budgets:</strong> 1000/day per official
-                  board, 40/day per scraping board. Small by design.
+              <div className="tool-row">
+                <span className="tool-name">apply</span>
+                <p className="tool-desc">
+                  <code>check_apply_allowed</code> enforces the 5/day cap;
+                  apply previews must show{' '}
+                  <code>apply_disclosure(board)</code>.
                 </p>
               </div>
-              <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">{'>'}</span>
-                <p>
-                  <strong>Application cap:</strong> 5 per day across all
-                  boards, with random 2–7 minute pauses between them. No bulk
-                  blasts, ever.
+              <div className="tool-row">
+                <span className="tool-name">mode gate</span>
+                <p className="tool-desc">
+                  <code>is_board_allowed</code> blocks scraping-tier boards
+                  outright when the mode is <code>strict</code>.
                 </p>
               </div>
-              <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">{'>'}</span>
-                <p>
-                  <strong>Circuit breaker:</strong> a 403, 429, or CAPTCHA
-                  trips a 1-hour cooldown, doubling on repeat blocks, capped at
-                  24 hours. CAPTCHAs are never bypassed.
-                </p>
-              </div>
-              <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">{'>'}</span>
-                <p>
-                  <strong>Fill-only:</strong> on scraping-tier boards the
-                  agent may fill a form but never perform the final submit
-                  click. The human reviews and submits. Policy, not preference.
+              <div className="tool-row">
+                <span className="tool-name">live audit</span>
+                <p className="tool-desc">
+                  The <code>risk_status</code> tool and{' '}
+                  <code>status_summary()</code> report boards, budgets used,
+                  cooldowns, and cooldown timestamps any time you ask.
                 </p>
               </div>
             </div>
@@ -436,6 +618,31 @@ export default function DocsPage() {
             </div>
           </div>
         </section>
+
+        <div className="px-hr" aria-hidden="true" />
+
+        {/* FAQ */}
+        <section id="faq" className="section docs-sec">
+          <div className="wrap narrow">
+            <PxTag variant="amber">08</PxTag>
+            <Heading level={2} className="section-title">
+              FAQ
+            </Heading>
+            <p className="section-sub">
+              The questions everyone asks. Short answers, no fog.
+            </p>
+            <div className="faq">
+              {FAQS.map((t) => (
+                <details key={t.q} className="faq-item">
+                  <summary className="faq-q">{t.q}</summary>
+                  <p className="faq-a">{t.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="px-hr" aria-hidden="true" />
 
         {/* CTA */}
         <section className="section cta">
