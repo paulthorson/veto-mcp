@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Badge,
-  Button,
   Card,
   CodeBlock,
-  Divider,
   Heading,
   Link,
 } from '@astryxdesign/core';
@@ -12,22 +9,82 @@ import {
 const GITHUB_URL = 'https://github.com/paulthorson/job-apply-mcp';
 
 /* ------------------------------------------------------------------ */
-/* Terminal demo                                                       */
+/* Pixel primitives                                                     */
 /* ------------------------------------------------------------------ */
 
-type DemoLine = { text: string; kind: 'cmd' | 'ok' | 'info' | 'warn' };
+function PixelX({ size = 30 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      shapeRendering="crispEdges"
+      className="brand-mark"
+      aria-hidden="true"
+    >
+      <rect width="16" height="16" fill="#0d0d12" />
+      <g fill="#ff4d5e">
+        <rect x="3" y="3" width="2" height="2" />
+        <rect x="11" y="3" width="2" height="2" />
+        <rect x="5" y="5" width="2" height="2" />
+        <rect x="9" y="5" width="2" height="2" />
+        <rect x="7" y="7" width="2" height="2" />
+        <rect x="5" y="9" width="2" height="2" />
+        <rect x="9" y="9" width="2" height="2" />
+        <rect x="3" y="11" width="2" height="2" />
+        <rect x="11" y="11" width="2" height="2" />
+      </g>
+    </svg>
+  );
+}
+
+function PxBtn({
+  variant = 'primary',
+  href,
+  children,
+  label,
+}: {
+  variant?: 'primary' | 'secondary' | 'ghost';
+  href: string;
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <a className={`px-btn ${variant}`} href={href} aria-label={label}>
+      {children}
+    </a>
+  );
+}
+
+function PxTag({
+  variant = '',
+  children,
+}: {
+  variant?: '' | 'red' | 'amber';
+  children: React.ReactNode;
+}) {
+  return <span className={`px-tag ${variant}`}>{children}</span>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Terminal demo                                                        */
+/* ------------------------------------------------------------------ */
+
+type DemoLine = { text: string; kind: 'cmd' | 'ok' | 'info' | 'warn' | 'veto' };
 
 const DEMO_LINES: DemoLine[] = [
   { text: 'cli.py search "software engineer" --location "New York, NY"', kind: 'cmd' },
-  { text: '✓ 24 jobs — LinkedIn · Greenhouse · Lever · Ashby', kind: 'ok' },
-  { text: '  senior backend engineer · fintech · NYC · linkedin', kind: 'info' },
-  { text: '  platform engineer · devtools · remote · greenhouse', kind: 'info' },
+  { text: '✓ 24 jobs — LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
+  { text: '  senior backend eng · fintech · NYC · linkedin', kind: 'info' },
+  { text: '  platform eng · devtools · remote · greenhouse', kind: 'info' },
   { text: '  staff sre · infra · NYC · lever', kind: 'info' },
-  { text: 'cli.py apply job:linkedin:9f2c… --resume ~/resume.pdf', kind: 'cmd' },
-  { text: '→ dry run: nothing submitted. re-run with --confirm.', kind: 'warn' },
-  { text: '→ governance: qualified (0.87) · veto check passed', kind: 'ok' },
-  { text: 'cli.py apply job:linkedin:9f2c… --resume ~/resume.pdf --confirm', kind: 'cmd' },
-  { text: '✓ recorded — finish submitting at the apply link', kind: 'ok' },
+  { text: 'cli.py apply job:linkedin:9f2c --resume ~/resume.pdf --confirm', kind: 'cmd' },
+  { text: '→ grill: 3 questions → WhatsApp … 3/3 answered ✓', kind: 'info' },
+  { text: '→ honesty check: no invented skills ✓', kind: 'ok' },
+  { text: '→ qualification 0.87 · veto check passed ✓', kind: 'ok' },
+  { text: '✓ RECORDED — finish submitting at the apply link', kind: 'ok' },
+  { text: 'cli.py apply job:lever:staff --resume ~/resume.pdf --confirm', kind: 'cmd' },
+  { text: '✕ VETOED — needs 8+ yrs, profile shows 3. Not applying.', kind: 'veto' },
 ];
 
 function TerminalDemo() {
@@ -55,7 +112,7 @@ function TerminalDemo() {
           setShown([]);
           setPartial('');
           step();
-        }, 5000);
+        }, 6000);
         return;
       }
       const line = DEMO_LINES[lineIdx];
@@ -74,7 +131,7 @@ function TerminalDemo() {
       } else {
         setShown((s) => [...s, line]);
         lineIdx += 1;
-        later(step, 500);
+        later(step, line.kind === 'veto' ? 1100 : 500);
       }
     };
 
@@ -86,12 +143,12 @@ function TerminalDemo() {
   }, []);
 
   return (
-    <div className="terminal" role="img" aria-label="Animated demo: searching jobs, dry-run apply, governance check, confirmed apply">
+    <div className="terminal" role="img" aria-label="Animated demo: searching jobs, grill questions answered over WhatsApp, honesty and veto checks, one application recorded, one vetoed">
       <div className="terminal-bar">
         <span className="dot r" />
         <span className="dot y" />
         <span className="dot g" />
-        <span className="terminal-title">jobapply — zsh</span>
+        <span className="terminal-title">veto — zsh</span>
       </div>
       <div className="terminal-body">
         {shown.map((l, i) => (
@@ -113,98 +170,132 @@ function TerminalDemo() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Data                                                                */
+/* Data                                                                 */
 /* ------------------------------------------------------------------ */
 
 const PROVIDERS = [
-  { name: 'LinkedIn', note: 'guest API, no login', variant: 'success' as const },
-  { name: 'Indeed', note: 'public search', variant: 'success' as const },
-  { name: 'Greenhouse', note: 'public API', variant: 'success' as const },
-  { name: 'Lever', note: 'public API', variant: 'success' as const },
-  { name: 'Ashby', note: 'public API', variant: 'success' as const },
-  { name: 'Adzuna', note: 'API key', variant: 'info' as const },
-  { name: 'Glassdoor', note: 'soon', variant: 'neutral' as const },
-  { name: 'ZipRecruiter', note: 'soon', variant: 'neutral' as const },
+  { name: 'Greenhouse', note: 'public API', tier: 'go' as const },
+  { name: 'Lever', note: 'public API', tier: 'go' as const },
+  { name: 'Ashby', note: 'public API', tier: 'go' as const },
+  { name: 'Adzuna', note: 'needs API key', tier: 'amber' as const },
+  { name: 'LinkedIn', note: 'guest API', tier: 'amber' as const },
+  { name: 'Indeed', note: 'public search', tier: 'amber' as const },
+  { name: 'ZipRecruiter', note: 'paced + budgeted', tier: 'amber' as const },
+  { name: 'Glassdoor', note: 'boss level: locked', tier: 'red' as const },
 ];
 
 const FEATURES = [
   {
-    icon: '◎',
+    icon: '▦',
+    tone: '',
     title: 'Multi-board search',
-    body: 'One query fans out across LinkedIn, Indeed, Greenhouse, Lever, Ashby and Adzuna — deduped, ranked, returned as clean structured data.',
+    body: 'One query across 8 boards. Official APIs where they exist; polite, budgeted, circuit-broken scraping where they don\u2019t. Deduped and ranked.',
   },
   {
-    icon: '▶',
-    title: 'Agentic browser apply',
-    body: 'Phase 2 drives a real Chromium form: detects fields, fills from your profile, uploads your resume, screenshots everything. Submit only ever fires on your explicit confirm.',
+    icon: '?',
+    tone: 'red',
+    title: 'The grill',
+    body: 'Before anything moves, Veto interrogates you — missing skills, unquantified wins, salary, logistics — over chat, WhatsApp, or Gmail. The application waits for your answers.',
   },
   {
     icon: '✎',
-    title: 'Per-job resume tailoring',
-    body: 'Each application gets a resume and cover letter tuned to the posting — reordering and rephrasing what you actually have. Never invents experience.',
+    tone: '',
+    title: 'Tailoring, minus the lies',
+    body: 'Resume bullets reordered around the posting\u2019s keywords, cover letter referencing the actual role. Gaps are reported as gaps — never padded.',
   },
   {
-    icon: '◈',
-    title: 'Governance & qualification gates',
-    body: 'Every confirmed apply passes constitutional veto checks, a fit score against the job requirements, and lands in an auditable verdict ledger.',
-  },
-  {
-    icon: '⌁',
-    title: 'MCP + CLI, same engine',
-    body: 'Any MCP client — Claude Desktop, Cursor, Muse CLI — gets the full toolset, and cli.py mirrors it all in the terminal with --json for scripting.',
-  },
-  {
-    icon: '⛉',
-    title: 'Onboarding wizard',
-    body: 'Answer a few questions, drop in your LinkedIn data export, and get a saved profile plus a generated resume (Markdown, HTML, PDF).',
-  },
-  {
-    icon: '◉',
-    title: 'Job watches',
-    body: 'Save a search and get alerted when new matching roles appear. Built cron-friendly so it can check on a schedule.',
+    icon: '▣',
+    tone: 'amber',
+    title: 'Fill-only applying',
+    body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit — policy, not preference.',
   },
   {
     icon: '☰',
-    title: 'Application lifecycle',
-    body: 'Track every application from applied → interviewing → offer (or rejected), with follow-up nudges and response-rate analytics.',
+    tone: '',
+    title: 'Drip queue',
+    body: 'Applications queued at human pace: max 5 a day, random pauses between them. No bulk blasts, ever.',
   },
   {
-    icon: '⬢',
-    title: 'CI/CD + Docker',
-    body: 'GitHub Actions runs the full test suite on every push; tagged releases ship a Docker image to GHCR. Dependabot keeps it fresh.',
+    icon: '✉',
+    tone: '',
+    title: 'Recruiter email sync',
+    body: 'Recruiter emails classified, application stages auto-updated, follow-up drafts written. Sending always needs your confirm.',
+  },
+  {
+    icon: '◈',
+    tone: '',
+    title: 'Interview prep',
+    body: 'Company briefs with unverified facts marked as such. STAR stories built only from your real wins — metrics preserved verbatim.',
+  },
+  {
+    icon: '◉',
+    tone: '',
+    title: 'Lifecycle + analytics',
+    body: 'applied → interviewing → offer tracking, follow-up nudges, and response rate broken down by board.',
   },
 ];
 
 const STEPS = [
   {
     n: '01',
-    title: 'Connect your profile',
-    body: 'Run the onboarding wizard once. Answer a few questions or import your LinkedIn data export — it builds your saved applicant profile and generates your resume.',
+    title: 'Build your profile',
+    body: 'Run the wizard once. Import your LinkedIn export or answer a few questions. Pick how Veto reaches you: chat, WhatsApp, or Gmail.',
   },
   {
     n: '02',
-    title: 'Search & tailor',
-    body: 'Your agent searches every board at once, reads the full descriptions, scores each role against your profile, and tailors your resume and cover letter per job.',
+    title: 'Search & grill',
+    body: 'Your agent searches every board, scores each role against your profile, and grills you on the gaps before anything is allowed to move.',
   },
   {
     n: '03',
     title: 'Review & confirm',
-    body: 'Every application starts as a dry-run preview. Governance checks run, you review, and only your explicit confirm records or submits anything.',
+    body: 'Every application starts as a dry-run preview. The veto checks run, you review, and only your explicit confirm records anything.',
+  },
+];
+
+const NO_CARDS = [
+  {
+    icon: '⛨',
+    tone: 'red',
+    title: 'Veto gates',
+    body: 'Every confirmed application passes a constitutional veto screen first. A trip blocks it outright — and only a human can clear a veto.',
+  },
+  {
+    icon: '⊘',
+    tone: 'red',
+    title: 'Honesty check',
+    body: 'Cover letters are scanned for skills and years your profile can\u2019t back up. Invented experience blocks the application on the spot.',
+  },
+  {
+    icon: '◐',
+    tone: 'amber',
+    title: 'Qualification scoring',
+    body: 'Requirements are extracted from the posting and scored against your profile. Clear misses are refused with an explanation; borderline ones proceed with a warning.',
+  },
+  {
+    icon: '≣',
+    tone: '',
+    title: 'Verdict ledger',
+    body: 'Every pass and every block lands in an auditable ledger. Ask why anything happened and get an answer.',
   },
 ];
 
 const FAQS = [
   {
     q: 'Does it submit applications by itself?',
-    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm=True (or the CLI --confirm flag) records an application — and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. Browser auto-submit is opt-in behind an environment variable.',
+    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application — and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. LinkedIn Easy Apply is fill-only: the agent completes the modal and stops at the review screen. The final click is always yours.',
+  },
+  {
+    q: 'What is the grill?',
+    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile — missing skills, unquantified experience, salary, logistics, motivation. They arrive over chat, WhatsApp, or Gmail (your choice in the wizard). Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
   },
   {
     q: 'Will I get banned from LinkedIn or Indeed?',
-    a: 'Honest answer: scraping can violate their Terms of Service, and automated applying carries real risk — CAPTCHAs, throttles, account limits. The server stores no credentials, adds politeness delays, applies at human pace, and warns loudly. Use it as an assistant, not a bulk blaster.',
+    a: 'Honest answer: scraping can violate their Terms of Service, and automated applying carries real risk — CAPTCHAs, throttles, account limits. Veto stores no credentials, asks you to acknowledge the ToS risk before touching scraping-tier boards, budgets those searches tightly, backs off exponentially on 403/429/CAPTCHA, and caps applications at 5 a day. Use it as an assistant, not a bulk blaster.',
   },
   {
     q: 'Which boards work best?',
-    a: 'Greenhouse, Lever and Ashby — they expose public JSON APIs with no login, so they are fast and reliable. LinkedIn\u2019s guest API works but rate-limits occasionally. Indeed is heavily bot-protected from datacenter IPs; the browser hook with a logged-in session is the fallback there.',
+    a: 'Greenhouse, Lever and Ashby — they expose public JSON APIs with no login, so they are fast and reliable. LinkedIn\u2019s guest API and ZipRecruiter work but rate-limit occasionally. Indeed is heavily bot-protected from datacenter IPs; the browser hook with a logged-in session is the fallback there. Glassdoor is still a stub.',
   },
   {
     q: 'Do I need any API keys?',
@@ -220,11 +311,11 @@ const INSTALL_BASH = `git clone https://github.com/paulthorson/job-apply-mcp.git
 cd job-apply-mcp
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python cli.py wizard   # build your profile (LinkedIn import optional)`;
+.venv/bin/python cli.py wizard   # profile + channel + risk acknowledgment`;
 
 const INSTALL_MCP = `{
   "mcpServers": {
-    "job-apply": {
+    "veto": {
       "command": "/home/hatch/workspace/job-apply-mcp/.venv/bin/python",
       "args": ["/home/hatch/workspace/job-apply-mcp/server.py"],
       "env": {}
@@ -238,7 +329,7 @@ const INSTALL_CLI = `.venv/bin/python cli.py search "software engineer" --locati
 .venv/bin/python cli.py apply <job_id> --resume ~/resume.pdf --confirm`;
 
 /* ------------------------------------------------------------------ */
-/* Page                                                                */
+/* Page                                                                 */
 /* ------------------------------------------------------------------ */
 
 export default function App() {
@@ -246,24 +337,24 @@ export default function App() {
     <div className="page">
       <header className="nav">
         <div className="nav-inner">
-          <a className="brand" href="#top" aria-label="JobApply MCP home">
-            <span className="brand-mark" aria-hidden="true">✓</span>
-            <span className="brand-name">JobApply&nbsp;MCP</span>
+          <a className="brand" href="#top" aria-label="Veto home">
+            <PixelX />
+            <span className="brand-name">VETO<span className="x">_</span></span>
           </a>
           <nav className="nav-links" aria-label="Sections">
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
-            <a href="#governance">Governance</a>
+            <a href="#why-no">Why it says no</a>
             <a href="#install">Install</a>
             <a href="#faq">FAQ</a>
           </nav>
           <div className="nav-cta">
-            <Button variant="ghost" size="sm" href={GITHUB_URL} target="_blank" rel="noreferrer" label="GitHub repository">
+            <PxBtn variant="ghost" href={GITHUB_URL} label="GitHub repository">
               GitHub
-            </Button>
-            <Button variant="primary" size="sm" href="#install" label="Get started">
-              Get started
-            </Button>
+            </PxBtn>
+            <PxBtn variant="primary" href="#install" label="Get started">
+              Start
+            </PxBtn>
           </div>
         </div>
       </header>
@@ -273,26 +364,27 @@ export default function App() {
         <section className="hero">
           <div className="hero-inner">
             <div className="hero-copy">
-              <Badge variant="success" label="MCP server for agentic job search" />
+              <PxTag>Open-source MCP server</PxTag>
               <Heading level={1} type="display-1" className="hero-title">
-                Apply to jobs while you&nbsp;sleep.
+                The job bot that <span className="no">says&nbsp;no.</span>
               </Heading>
               <p className="hero-sub">
-                JobApply MCP gives your AI agent one interface to search LinkedIn,
-                Indeed, Greenhouse, Lever, Ashby and more — then helps it apply
-                without you ever touching a form. You stay in control: every
-                application starts as a preview and only submits on your say-so.
+                <strong>Veto</strong> plugs your AI assistant into 8 job boards.
+                It searches, grills you on your resume gaps over WhatsApp,
+                tailors every application — and <strong>vetoes the ones
+                you&rsquo;re not qualified for</strong>. It fills the forms.
+                You click submit. Nothing ships without your say-so.
               </p>
               <div className="hero-ctas">
-                <Button variant="primary" href="#install" label="Get started">
-                  Get started
-                </Button>
-                <Button variant="secondary" href={GITHUB_URL} target="_blank" rel="noreferrer" label="Star on GitHub">
+                <PxBtn variant="primary" href="#install" label="Get started">
+                  ▶ Get started
+                </PxBtn>
+                <PxBtn variant="secondary" href={GITHUB_URL} label="Star on GitHub">
                   ★ Star on GitHub
-                </Button>
+                </PxBtn>
               </div>
               <p className="hero-note">
-                Works with Claude Desktop, Cursor, Muse CLI — any MCP client.
+                {'>'} works with Claude Desktop, Cursor, Muse CLI — any MCP client_
               </p>
             </div>
             <div className="hero-demo">
@@ -304,11 +396,12 @@ export default function App() {
         {/* PROVIDERS */}
         <section className="strip" aria-label="Supported job boards">
           <div className="wrap">
-            <p className="strip-label">Searches across the boards you actually use</p>
+            <p className="strip-label">One query · eight boards</p>
             <div className="provider-row">
               {PROVIDERS.map((p) => (
                 <span key={p.name} className="provider">
-                  <Badge variant={p.variant} label={p.name} />
+                  <span className={`p-dot ${p.tier}`} aria-hidden="true" />
+                  {p.name}
                   <span className="provider-note">{p.note}</span>
                 </span>
               ))}
@@ -319,18 +412,18 @@ export default function App() {
         {/* FEATURES */}
         <section id="features" className="section">
           <div className="wrap">
-            <Badge variant="info" label="Features" />
+            <PxTag variant="red">Features</PxTag>
             <Heading level={2} className="section-title">
-              Everything between “find me jobs” and “you’re hired”
+              Everything between &ldquo;find me jobs&rdquo; and &ldquo;you&rsquo;re hired&rdquo;
             </Heading>
             <p className="section-sub">
-              One engine, two interfaces — an MCP server for your agent and a CLI
-              for you — covering the whole application funnel.
+              One engine, two interfaces — an MCP server for your agent and a
+              CLI for you — covering the whole application run.
             </p>
             <div className="grid">
               {FEATURES.map((f) => (
                 <Card key={f.title} className="feature-card">
-                  <div className="feature-icon" aria-hidden="true">{f.icon}</div>
+                  <div className={`feature-icon ${f.tone}`} aria-hidden="true">{f.icon}</div>
                   <Heading level={3} className="feature-title">{f.title}</Heading>
                   <p className="feature-body">{f.body}</p>
                 </Card>
@@ -339,19 +432,19 @@ export default function App() {
           </div>
         </section>
 
-        <div className="wrap"><Divider /></div>
+        <div className="px-hr" aria-hidden="true" />
 
         {/* HOW IT WORKS */}
         <section id="how" className="section">
           <div className="wrap">
-            <Badge variant="info" label="How it works" />
+            <PxTag variant="amber">How it works</PxTag>
             <Heading level={2} className="section-title">
               Three steps. Zero forms.
             </Heading>
             <div className="steps">
               {STEPS.map((s) => (
                 <Card key={s.n} className="step-card">
-                  <div className="step-n" aria-hidden="true">{s.n}</div>
+                  <div className="step-n" aria-hidden="true">[{s.n}]</div>
                   <Heading level={3} className="feature-title">{s.title}</Heading>
                   <p className="feature-body">{s.body}</p>
                 </Card>
@@ -360,84 +453,70 @@ export default function App() {
           </div>
         </section>
 
-        {/* GOVERNANCE */}
-        <section id="governance" className="section gov">
+        {/* WHY IT SAYS NO */}
+        <section id="why-no" className="section gov">
           <div className="wrap">
-            <Badge variant="warning" label="The differentiator" />
+            <PxTag variant="red">The differentiator</PxTag>
             <Heading level={2} className="section-title">
-              Governed applying, not spray-and-pray
+              Why it says no
             </Heading>
             <p className="section-sub">
-              JobApply MCP runs on an agentic governance framework, so the agent
-              applying on your behalf is held to rules — mechanically, not by vibes.
+              Every other apply-bot is optimized for volume. Veto is optimized
+              for not embarrassing you. The refusals are mechanical, not vibes —
+              enforced by an agentic governance framework with an audit trail.
             </p>
             <div className="grid gov-grid">
-              <Card className="feature-card">
-                <div className="feature-icon" aria-hidden="true">⛨</div>
-                <Heading level={3} className="feature-title">Veto gates</Heading>
-                <p className="feature-body">
-                  Every confirmed application passes constitutional veto checks
-                  first. A trip blocks the submission outright — and only a human
-                  can clear a veto.
-                </p>
-              </Card>
-              <Card className="feature-card">
-                <div className="feature-icon" aria-hidden="true">◐</div>
-                <Heading level={3} className="feature-title">Qualification checks</Heading>
-                <p className="feature-body">
-                  Your profile is scored against each posting’s requirements.
-                  Clearly unqualified roles are blocked with an explanation;
-                  borderline ones proceed with a visible warning.
-                </p>
-              </Card>
-              <Card className="feature-card">
-                <div className="feature-icon" aria-hidden="true">≣</div>
-                <Heading level={3} className="feature-title">Verdict ledger</Heading>
-                <p className="feature-body">
-                  Every pass and block is recorded to an auditable ledger — what
-                  was applied to, why it was allowed, and what was stopped.
-                </p>
-              </Card>
+              {NO_CARDS.map((c) => (
+                <Card key={c.title} className="feature-card">
+                  <div className={`feature-icon ${c.tone}`} aria-hidden="true">{c.icon}</div>
+                  <Heading level={3} className="feature-title">{c.title}</Heading>
+                  <p className="feature-body">{c.body}</p>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
 
-        <div className="wrap"><Divider /></div>
-
         {/* INSTALL */}
         <section id="install" className="section">
           <div className="wrap">
-            <Badge variant="info" label="Install" />
+            <PxTag>Install</PxTag>
             <Heading level={2} className="section-title">
               Running in five minutes
             </Heading>
             <div className="install-grid">
               <div>
-                <Heading level={3} className="install-h">1 · Clone &amp; set up</Heading>
-                <CodeBlock code={INSTALL_BASH} language="bash" hasCopyButton />
+                <Heading level={3} className="install-h"><span className="n">[1]</span> Clone &amp; set up</Heading>
+                <div className="px-code">
+                  <CodeBlock code={INSTALL_BASH} language="bash" hasCopyButton />
+                </div>
               </div>
               <div>
-                <Heading level={3} className="install-h">2 · Connect your AI assistant</Heading>
+                <Heading level={3} className="install-h"><span className="n">[2]</span> Connect your AI assistant</Heading>
                 <p className="install-p">
-                  Paste into Claude Desktop’s config (or any MCP client’s{' '}
+                  Paste into Claude Desktop&rsquo;s config (or any MCP client&rsquo;s{' '}
                   <code>mcpServers</code>):
                 </p>
-                <CodeBlock code={INSTALL_MCP} language="json" hasCopyButton />
+                <div className="px-code">
+                  <CodeBlock code={INSTALL_MCP} language="json" hasCopyButton />
+                </div>
               </div>
               <div>
-                <Heading level={3} className="install-h">3 · Or just use the terminal</Heading>
-                <CodeBlock code={INSTALL_CLI} language="bash" hasCopyButton />
+                <Heading level={3} className="install-h"><span className="n">[3]</span> Or just use the terminal</Heading>
+                <div className="px-code">
+                  <CodeBlock code={INSTALL_CLI} language="bash" hasCopyButton />
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <div className="wrap"><Divider /></div>
+        <div className="px-hr" aria-hidden="true" />
 
         {/* FAQ */}
         <section id="faq" className="section">
           <div className="wrap narrow">
-            <Badge variant="info" label="FAQ" />
+            <PxTag variant="amber">FAQ</PxTag>
             <Heading level={2} className="section-title">
               Honest answers
             </Heading>
@@ -455,20 +534,21 @@ export default function App() {
         {/* FINAL CTA */}
         <section className="section cta">
           <div className="wrap narrow cta-inner">
+            <p className="game-over">— insert coin —</p>
             <Heading level={2} className="section-title">
               Stop filling out forms.
             </Heading>
             <p className="section-sub">
-              Point your agent at the job market. Review the previews. Confirm
-              the ones worth your time.
+              Point your agent at the job market. Answer the grill. Confirm the
+              ones worth your time — Veto handles the rest, and refuses the rest.
             </p>
             <div className="hero-ctas center">
-              <Button variant="primary" href="#install" label="Get started">
-                Get started
-              </Button>
-              <Button variant="secondary" href={GITHUB_URL} target="_blank" rel="noreferrer" label="View on GitHub">
+              <PxBtn variant="primary" href="#install" label="Get started">
+                ▶ Get started
+              </PxBtn>
+              <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
                 View on GitHub
-              </Button>
+              </PxBtn>
             </div>
           </div>
         </section>
@@ -478,22 +558,23 @@ export default function App() {
         <div className="wrap footer-inner">
           <div>
             <span className="brand">
-              <span className="brand-mark" aria-hidden="true">✓</span>
-              <span className="brand-name">JobApply&nbsp;MCP</span>
+              <PixelX size={26} />
+              <span className="brand-name">VETO<span className="x">_</span></span>
             </span>
             <p className="footer-note">
-              Open source. Use at a human pace — and always verify a posting on
-              the live site before treating an application as complete.
+              Open source. Veto applies at human pace — and always verify a
+              posting on the live site before treating an application as complete.
             </p>
           </div>
           <div className="footer-links">
-            <Link href={GITHUB_URL} label="GitHub repository" target="_blank">GitHub repository</Link>
-            <Link href={`${GITHUB_URL}#readme`} label="Documentation" target="_blank">Documentation</Link>
-            <Link href="#install" label="Install">Install</Link>
+            <Link href={GITHUB_URL} label="GitHub repository" target="_blank">→ GitHub repository</Link>
+            <Link href={`${GITHUB_URL}#readme`} label="Documentation" target="_blank">→ Documentation</Link>
+            <Link href="#install" label="Install">→ Install</Link>
           </div>
         </div>
         <div className="wrap footer-base">
-          <span>Built with Meta’s Astryx design system.</span>
+          <span>Built with Meta&rsquo;s Astryx design system.</span>
+          <span>No CAPTCHAs were harmed.</span>
         </div>
       </footer>
     </div>
