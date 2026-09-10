@@ -5,8 +5,37 @@ import {
   Heading,
   Link,
 } from '@astryxdesign/core';
+import FeaturePage from './pages/FeaturePage';
+import type { PageSpec } from './pages/spec';
+import specSearch from './pages/specs/multi-board-search';
+import specGrill from './pages/specs/the-grill';
+import specTailoring from './pages/specs/tailoring';
+import specFillOnly from './pages/specs/fill-only-apply';
+import specQueue from './pages/specs/drip-queue';
+import specEmail from './pages/specs/email-sync';
+import specPrep from './pages/specs/interview-prep';
+import specAnalytics from './pages/specs/lifecycle-analytics';
+import specVeto from './pages/specs/veto-gates';
+import specHonesty from './pages/specs/honesty-check';
+import specQual from './pages/specs/qualification-scoring';
+import specLedger from './pages/specs/verdict-ledger';
 
 const GITHUB_URL = 'https://github.com/paulthorson/job-apply-mcp';
+
+const SPECS: Record<string, PageSpec> = {
+  [specSearch.slug]: specSearch,
+  [specGrill.slug]: specGrill,
+  [specTailoring.slug]: specTailoring,
+  [specFillOnly.slug]: specFillOnly,
+  [specQueue.slug]: specQueue,
+  [specEmail.slug]: specEmail,
+  [specPrep.slug]: specPrep,
+  [specAnalytics.slug]: specAnalytics,
+  [specVeto.slug]: specVeto,
+  [specHonesty.slug]: specHonesty,
+  [specQual.slug]: specQual,
+  [specLedger.slug]: specLedger,
+};
 
 /* ------------------------------------------------------------------ */
 /* Pixel primitives                                                     */
@@ -186,48 +215,56 @@ const PROVIDERS = [
 
 const FEATURES = [
   {
+    slug: 'multi-board-search',
     icon: '▦',
     tone: '',
     title: 'Multi-board search',
     body: 'One query across 8 boards. Official APIs where they exist; polite, budgeted, circuit-broken scraping where they don\u2019t. Deduped and ranked.',
   },
   {
+    slug: 'the-grill',
     icon: '?',
     tone: 'red',
     title: 'The grill',
     body: 'Before anything moves, Veto interrogates you — missing skills, unquantified wins, salary, logistics — over chat, WhatsApp, or Gmail. The application waits for your answers.',
   },
   {
+    slug: 'tailoring',
     icon: '✎',
     tone: '',
     title: 'Tailoring, minus the lies',
     body: 'Resume bullets reordered around the posting\u2019s keywords, cover letter referencing the actual role. Gaps are reported as gaps — never padded.',
   },
   {
+    slug: 'fill-only-apply',
     icon: '▣',
     tone: 'amber',
     title: 'Fill-only applying',
     body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit — policy, not preference.',
   },
   {
+    slug: 'drip-queue',
     icon: '☰',
     tone: '',
     title: 'Drip queue',
     body: 'Applications queued at human pace: max 5 a day, random pauses between them. No bulk blasts, ever.',
   },
   {
+    slug: 'email-sync',
     icon: '✉',
     tone: '',
     title: 'Recruiter email sync',
     body: 'Recruiter emails classified, application stages auto-updated, follow-up drafts written. Sending always needs your confirm.',
   },
   {
+    slug: 'interview-prep',
     icon: '◈',
     tone: '',
     title: 'Interview prep',
     body: 'Company briefs with unverified facts marked as such. STAR stories built only from your real wins — metrics preserved verbatim.',
   },
   {
+    slug: 'lifecycle-analytics',
     icon: '◉',
     tone: '',
     title: 'Lifecycle + analytics',
@@ -255,24 +292,28 @@ const STEPS = [
 
 const NO_CARDS = [
   {
+    slug: 'veto-gates',
     icon: '⛨',
     tone: 'red',
     title: 'Veto gates',
     body: 'Every confirmed application passes a constitutional veto screen first. A trip blocks it outright — and only a human can clear a veto.',
   },
   {
+    slug: 'honesty-check',
     icon: '⊘',
     tone: 'red',
     title: 'Honesty check',
     body: 'Cover letters are scanned for skills and years your profile can\u2019t back up. Invented experience blocks the application on the spot.',
   },
   {
+    slug: 'qualification-scoring',
     icon: '◐',
     tone: 'amber',
     title: 'Qualification scoring',
     body: 'Requirements are extracted from the posting and scored against your profile. Clear misses are refused with an explanation; borderline ones proceed with a warning.',
   },
   {
+    slug: 'verdict-ledger',
     icon: '≣',
     tone: '',
     title: 'Verdict ledger',
@@ -329,36 +370,106 @@ const INSTALL_CLI = `.venv/bin/python cli.py search "software engineer" --locati
 .venv/bin/python cli.py apply <job_id> --resume ~/resume.pdf --confirm`;
 
 /* ------------------------------------------------------------------ */
-/* Page                                                                 */
+/* Routing                                                              */
 /* ------------------------------------------------------------------ */
 
-export default function App() {
+function useRoute(): string {
+  const [hash, setHash] = useState(() =>
+    typeof window === 'undefined' ? '' : window.location.hash,
+  );
+  useEffect(() => {
+    const onChange = () => {
+      const h = window.location.hash;
+      setHash(h);
+      if (h.startsWith('#/')) window.scrollTo(0, 0);
+    };
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return hash;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared chrome                                                        */
+/* ------------------------------------------------------------------ */
+
+function SiteNav() {
+  return (
+    <header className="nav">
+      <div className="nav-inner">
+        <a className="brand" href="#/" aria-label="Veto home">
+          <PixelX />
+          <span className="brand-name">VETO<span className="x">_</span></span>
+        </a>
+        <nav className="nav-links" aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#how">How it works</a>
+          <a href="#why-no">Why it says no</a>
+          <a href="#/install">Install</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div className="nav-cta">
+          <PxBtn variant="ghost" href={GITHUB_URL} label="GitHub repository">
+            GitHub
+          </PxBtn>
+          <PxBtn variant="primary" href="#/install" label="Get started">
+            Start
+          </PxBtn>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="footer">
+      <div className="wrap footer-inner">
+        <div>
+          <span className="brand">
+            <PixelX size={26} />
+            <span className="brand-name">VETO<span className="x">_</span></span>
+          </span>
+          <p className="footer-note">
+            Open source. Veto applies at human pace — and always verify a
+            posting on the live site before treating an application as complete.
+          </p>
+        </div>
+        <div className="footer-links">
+          <Link href={GITHUB_URL} label="GitHub repository" target="_blank">→ GitHub repository</Link>
+          <Link href={`${GITHUB_URL}#readme`} label="Documentation" target="_blank">→ Documentation</Link>
+          <Link href="#/install" label="Install">→ Install</Link>
+        </div>
+      </div>
+      <div className="wrap footer-base">
+        <span>Built with Meta&rsquo;s Astryx design system.</span>
+        <span>No CAPTCHAs were harmed.</span>
+      </div>
+    </footer>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Home page                                                            */
+/* ------------------------------------------------------------------ */
+
+function HomePage({ routeHash }: { routeHash: string }) {
+  useEffect(() => {
+    if (routeHash === '#/install' || routeHash === '#install') {
+      document.getElementById('install')?.scrollIntoView();
+    } else if (
+      routeHash.startsWith('#') &&
+      !routeHash.startsWith('#/') &&
+      routeHash.length > 1
+    ) {
+      document.getElementById(routeHash.slice(1))?.scrollIntoView();
+    } else if (!routeHash.startsWith('#/')) {
+      window.scrollTo(0, 0);
+    }
+  }, [routeHash]);
+
   return (
     <div className="page">
-      <header className="nav">
-        <div className="nav-inner">
-          <a className="brand" href="#top" aria-label="Veto home">
-            <PixelX />
-            <span className="brand-name">VETO<span className="x">_</span></span>
-          </a>
-          <nav className="nav-links" aria-label="Sections">
-            <a href="#features">Features</a>
-            <a href="#how">How it works</a>
-            <a href="#why-no">Why it says no</a>
-            <a href="#install">Install</a>
-            <a href="#faq">FAQ</a>
-          </nav>
-          <div className="nav-cta">
-            <PxBtn variant="ghost" href={GITHUB_URL} label="GitHub repository">
-              GitHub
-            </PxBtn>
-            <PxBtn variant="primary" href="#install" label="Get started">
-              Start
-            </PxBtn>
-          </div>
-        </div>
-      </header>
-
       <main id="top">
         {/* HERO */}
         <section className="hero">
@@ -376,7 +487,7 @@ export default function App() {
                 You click submit. Nothing ships without your say-so.
               </p>
               <div className="hero-ctas">
-                <PxBtn variant="primary" href="#install" label="Get started">
+                <PxBtn variant="primary" href="#/install" label="Get started">
                   ▶ Get started
                 </PxBtn>
                 <PxBtn variant="secondary" href={GITHUB_URL} label="Star on GitHub">
@@ -418,15 +529,24 @@ export default function App() {
             </Heading>
             <p className="section-sub">
               One engine, two interfaces — an MCP server for your agent and a
-              CLI for you — covering the whole application run.
+              CLI for you — covering the whole application run. Click any card
+              for the full breakdown.
             </p>
             <div className="grid">
               {FEATURES.map((f) => (
-                <Card key={f.title} className="feature-card">
-                  <div className={`feature-icon ${f.tone}`} aria-hidden="true">{f.icon}</div>
-                  <Heading level={3} className="feature-title">{f.title}</Heading>
-                  <p className="feature-body">{f.body}</p>
-                </Card>
+                <a
+                  key={f.slug}
+                  href={`#/features/${f.slug}`}
+                  className="card-anchor"
+                  aria-label={`${f.title} — learn more`}
+                >
+                  <Card className="feature-card">
+                    <div className={`feature-icon ${f.tone}`} aria-hidden="true">{f.icon}</div>
+                    <Heading level={3} className="feature-title">{f.title}</Heading>
+                    <p className="feature-body">{f.body}</p>
+                    <span className="card-more">Read more →</span>
+                  </Card>
+                </a>
               ))}
             </div>
           </div>
@@ -467,11 +587,19 @@ export default function App() {
             </p>
             <div className="grid gov-grid">
               {NO_CARDS.map((c) => (
-                <Card key={c.title} className="feature-card">
-                  <div className={`feature-icon ${c.tone}`} aria-hidden="true">{c.icon}</div>
-                  <Heading level={3} className="feature-title">{c.title}</Heading>
-                  <p className="feature-body">{c.body}</p>
-                </Card>
+                <a
+                  key={c.slug}
+                  href={`#/features/${c.slug}`}
+                  className="card-anchor"
+                  aria-label={`${c.title} — learn more`}
+                >
+                  <Card className="feature-card">
+                    <div className={`feature-icon ${c.tone}`} aria-hidden="true">{c.icon}</div>
+                    <Heading level={3} className="feature-title">{c.title}</Heading>
+                    <p className="feature-body">{c.body}</p>
+                    <span className="card-more">Read more →</span>
+                  </Card>
+                </a>
               ))}
             </div>
           </div>
@@ -543,7 +671,7 @@ export default function App() {
               ones worth your time — Veto handles the rest, and refuses the rest.
             </p>
             <div className="hero-ctas center">
-              <PxBtn variant="primary" href="#install" label="Get started">
+              <PxBtn variant="primary" href="#/install" label="Get started">
                 ▶ Get started
               </PxBtn>
               <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
@@ -553,30 +681,48 @@ export default function App() {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
 
-      <footer className="footer">
-        <div className="wrap footer-inner">
-          <div>
-            <span className="brand">
-              <PixelX size={26} />
-              <span className="brand-name">VETO<span className="x">_</span></span>
-            </span>
-            <p className="footer-note">
-              Open source. Veto applies at human pace — and always verify a
-              posting on the live site before treating an application as complete.
-            </p>
-          </div>
-          <div className="footer-links">
-            <Link href={GITHUB_URL} label="GitHub repository" target="_blank">→ GitHub repository</Link>
-            <Link href={`${GITHUB_URL}#readme`} label="Documentation" target="_blank">→ Documentation</Link>
-            <Link href="#install" label="Install">→ Install</Link>
-          </div>
+/* ------------------------------------------------------------------ */
+/* Router                                                               */
+/* ------------------------------------------------------------------ */
+
+export default function App() {
+  const hash = useRoute();
+
+  useEffect(() => {
+    if (hash.startsWith('#/features/')) {
+      const slug = hash.slice('#/features/'.length);
+      const spec = SPECS[slug];
+      document.title = spec
+        ? `${spec.title} — Veto`
+        : 'Veto — the AI job applier that says no';
+    } else {
+      document.title = 'Veto — the AI job applier that says no';
+    }
+  }, [hash]);
+
+  if (hash.startsWith('#/features/')) {
+    const slug = hash.slice('#/features/'.length);
+    const spec = SPECS[slug];
+    if (spec) {
+      return (
+        <div className="page">
+          <SiteNav />
+          <FeaturePage spec={spec} />
+          <SiteFooter />
         </div>
-        <div className="wrap footer-base">
-          <span>Built with Meta&rsquo;s Astryx design system.</span>
-          <span>No CAPTCHAs were harmed.</span>
-        </div>
-      </footer>
+      );
+    }
+  }
+
+  return (
+    <div className="page">
+      <SiteNav />
+      <HomePage routeHash={hash} />
+      <SiteFooter />
     </div>
   );
 }
