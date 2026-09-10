@@ -117,6 +117,50 @@ const TOOL_GROUPS: ToolGroup[] = [
   },
 ];
 
+const MODULE_GROUPS: ToolGroup[] = [
+  {
+    label: 'Score',
+    tools: [
+      { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority/salary/location 15, recency 5). Under 40 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
+      { name: 'decode-jd', desc: 'Reads a posting like a cynic: transparency score, overwork language, vagueness density, green flags — verdicts of strong, mixed, or caution, every flag quoted.' },
+    ],
+  },
+  {
+    label: 'Tailor',
+    tools: [
+      { name: 'tailor --diff / approve', desc: 'Line-by-line diffs of tailored resume variants. Nothing is final until you approve; variants persist per job.' },
+      { name: 'cover-letter draft|scan|approve', desc: 'Fact-grounded drafts; honesty_scan flags invented numbers, companies, and skills before you see the letter.' },
+      { name: 'linkedin audit|headline|about|keywords', desc: 'Section scores with fixes, headline/about rewrites from profile facts only, target-role keyword gaps.' },
+    ],
+  },
+  {
+    label: 'Train',
+    tools: [
+      { name: 'mock_interview', desc: 'Five-question sessions (behavioral, technical, company-specific) with deterministic STAR feedback. WhatsApp-compatible output.' },
+      { name: 'negotiate', desc: 'Adversarial negotiation sim: firm, hardball, brutal. Labeled coach feedback between rounds.' },
+      { name: 'ai_proficiency', desc: 'Seven tracks (engineer, product, data, design, marketing, sales, generalist), diagnostics, 6–7 hands-on lessons each, ethics in every track.' },
+      { name: 'mentors', desc: 'Opt-in mentor matching (industry 40, role 25, topics 25, availability 10), first-session agendas, sub-300-char intro drafts you send yourself.' },
+    ],
+  },
+  {
+    label: 'Win',
+    tools: [
+      { name: 'referrals / network', desc: 'Referral radar mines your LinkedIn export for target-company insiders; the CRM tracks touches, nudges the stale, and traces warm paths.' },
+      { name: 'followups', desc: 'Stage-aware follow-up drafts for stale entries. Sending needs your exact approval of recipient, subject, and body.' },
+      { name: 'offers', desc: 'Four-year total compensation, adjustable weighted scoring, and what would need to be true for each offer to win.' },
+      { name: 'autopsy', desc: 'Rejection autopsy: funnel leak by stage, ghosting rate, and a diagnosis mapped to the module that fixes it.' },
+      { name: 'streaks', desc: 'Log reps, keep streaks, hit daily goals — and export share cards built only from real logged numbers.' },
+    ],
+  },
+  {
+    label: 'Govern',
+    tools: [
+      { name: 'crew', desc: 'Eleven governed personas (ceo, chief_of_staff, pm, eng, ux, qa, researcher, scout, tailor_agent, coach, red) plus 20 red-team specialists. Spawn > work > review > merge.' },
+      { name: 'contribute', desc: 'Opt-in training data: PII-scrubbed, preview-mandatory, per-bundle confirmed. Maintainer-curated impact loop shows what your data improved.' },
+    ],
+  },
+];
+
 const TROUBLESHOOTING = [
   {
     q: 'Indeed returns 403s',
@@ -163,6 +207,7 @@ export default function DocsPage() {
               <TocLink id="connect">Connect</TocLink>
               <TocLink id="wizard">Wizard</TocLink>
               <TocLink id="tools">Tools</TocLink>
+              <TocLink id="modules">New modules</TocLink>
               <TocLink id="risk">Risk policy</TocLink>
               <TocLink id="troubleshooting">Troubleshooting</TocLink>
             </nav>
@@ -280,10 +325,38 @@ export default function DocsPage() {
 
         <div className="px-hr" aria-hidden="true" />
 
+        {/* NEW MODULES */}
+        <section id="modules" className="section docs-sec">
+          <div className="wrap">
+            <PxTag variant="red">05</PxTag>
+            <Heading level={2} className="section-title">
+              New modules
+            </Heading>
+            <p className="section-sub">
+              The playbooks: seventeen modules around the engine, grouped by
+              phase. Same honesty contract everywhere — nothing invented,
+              nothing sent without you.
+            </p>
+            {MODULE_GROUPS.map((g) => (
+              <div key={g.label} className="tool-group">
+                <h4>{g.label}</h4>
+                {g.tools.map((t) => (
+                  <div key={t.name} className="tool-row">
+                    <span className="tool-name">{t.name}</span>
+                    <p className="tool-desc">{t.desc}</p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="px-hr" aria-hidden="true" />
+
         {/* RISK POLICY */}
         <section id="risk" className="section docs-sec">
           <div className="wrap narrow">
-            <PxTag variant="red">05</PxTag>
+            <PxTag variant="red">06</PxTag>
             <Heading level={2} className="section-title">
               Risk policy
             </Heading>
@@ -340,7 +413,7 @@ export default function DocsPage() {
         {/* TROUBLESHOOTING */}
         <section id="troubleshooting" className="section docs-sec">
           <div className="wrap narrow">
-            <PxTag variant="red">06</PxTag>
+            <PxTag variant="red">07</PxTag>
             <Heading level={2} className="section-title">
               Troubleshooting
             </Heading>

@@ -1,6 +1,7 @@
 import { Card, CodeBlock, Heading } from '@astryxdesign/core';
 import type { PageSpec } from './spec';
 import { PixelIcon, resolveIcon } from '../px';
+import { DEMO_COMPONENTS } from '../demos';
 
 /* Static (non-animated) terminal for drill-down pages. */
 function StaticTerminal({ lines, label }: { lines: PageSpec['demoLines']; label: string }) {
@@ -33,6 +34,8 @@ function PxTag({ variant = '', children }: { variant?: '' | 'red' | 'amber'; chi
 }
 
 export default function FeaturePage({ spec }: { spec: PageSpec }) {
+  const InteractiveDemo =
+    spec.interactive != null ? DEMO_COMPONENTS[spec.interactive] : undefined;
   return (
     <div className="page">
       <main>
@@ -91,6 +94,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
             <Heading level={2} className="section-title">
               {spec.demoTitle}
             </Heading>
+            {InteractiveDemo != null ? <InteractiveDemo /> : null}
             <div className="page-demo">
               <StaticTerminal lines={spec.demoLines} label={`Demo terminal: ${spec.demoTitle}`} />
             </div>
