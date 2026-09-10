@@ -2,7 +2,7 @@
 """Fit scoring for job listings: 0-100 score with human-readable reasons.
 
 This is the engine behind "the job bot that says no": every job gets a
-fit score, and anything under 40 is vetoed with a concrete reason.
+fit score, and anything under 60 is vetoed with a concrete reason.
 
 Scoring weights (documented here so they can be tuned deliberately):
 
@@ -36,7 +36,10 @@ from tailor import extract_job_keywords
 log = logging.getLogger("job-apply-mcp.match")
 
 #: Below this score a job is vetoed ("the job bot that says no").
-VETO_THRESHOLD = 40
+#:
+#: With a 5/day application cap, each slot is precious: the bar is
+#: "clearly worth one of your five slots" (60+), not "not terrible".
+VETO_THRESHOLD = 60
 
 _WEIGHTS = {
     "skills": 50,
@@ -304,7 +307,7 @@ def score_job(
          "veto_reason", "components"} where ``components`` breaks the
         score down by skills/seniority/salary/location/recency.
         ``veto`` is True (with ``veto_reason`` set) when the score is
-        under 40.
+        under 60.
     """
     preferences = preferences or {}
     reasons: list[str] = []
@@ -402,7 +405,7 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
         """Score one job posting 0-100 with human-readable reasons.
 
         Weights: skills 50, seniority 15, salary 15, location 15,
-        recency 5. Anything under 40 is vetoed with a concrete reason.
+        recency 5. Anything under 60 is vetoed with a concrete reason.
 
         Args:
             job: posting with title/snippet/description/requirements/
@@ -463,7 +466,7 @@ def _cli_match(args: Any) -> int:
 def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add the ``match`` subcommand; return {command: handler}."""
     parser = subparsers.add_parser(
-        "match", help="Score and rank job postings by fit (0-100, veto under 40)."
+        "match", help="Score and rank job postings by fit (0-100, veto under 60)."
     )
     parser.add_argument(
         "--job-file", default="", help="JSON file with one posting (score mode)."
