@@ -1,5 +1,6 @@
 /* Shared pixel-brand primitives for all site pages. */
 import { useCallback, useRef, useState } from 'react';
+import { BOT_FH, BOT_FW, BUILDER_STRIP, MINER_STRIP } from './botSprites';
 
 export const GITHUB_URL = 'https://github.com/paulthorson/job-apply-mcp';
 export const SITE_URL = 'https://job-apply-mcp.vercel.app';
@@ -457,58 +458,31 @@ export function resolveIcon(glyph: string): string {
 
 export type BotVariant = 'miner' | 'builder';
 
-export function RoboBot({
+/* Hand-designed pixel-art worker bot. The sprite strip (3 frames of 52x38)
+ * is drawn as one SVG path per color; CSS steps the strip for the work
+ * cycle. Crisp at integer scales only. */
+export function PixelBot({
   variant,
   label,
 }: {
   variant: BotVariant;
   label?: string;
 }) {
+  const strip = variant === 'miner' ? MINER_STRIP : BUILDER_STRIP;
   return (
-    <div
-      className={`rbot rbot-${variant}`}
+    <svg
+      className={`pxbot pxbot-${variant}`}
+      viewBox={`0 0 ${BOT_FW} ${BOT_FH}`}
+      shapeRendering="crispEdges"
       role="img"
       aria-label={label ?? `${variant} bot`}
     >
-      <div className="rbot-antenna" aria-hidden="true">
-        <i />
-      </div>
-      <div className="rbot-head" aria-hidden="true">
-        <span className="rbot-eye eye-l" />
-        <span className="rbot-eye eye-r" />
-        <span className="rbot-grille" />
-      </div>
-      <div className="rbot-torso" aria-hidden="true">
-        <span className="rbot-core" />
-        <div className="rbot-arm arm-l" />
-        <div className="rbot-arm arm-r">
-          <span className={`rbot-tool tool-${variant === 'miner' ? 'pick' : 'hammer'}`} />
-        </div>
-      </div>
-      <div className={`rbot-prop prop-${variant}`} aria-hidden="true">
-        {variant === 'miner' ? (
-          <>
-            <i className="rock r1" />
-            <i className="rock r2" />
-          </>
-        ) : (
-          <>
-            <i className="block b1" />
-            <i className="block b2" />
-          </>
-        )}
-      </div>
-      <div className="rbot-legs" aria-hidden="true">
-        <span className="rbot-leg leg-l" />
-        <span className="rbot-leg leg-r" />
-      </div>
-      <span className="rbot-sparks" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
-      <span className="rbot-shadow" aria-hidden="true" />
-    </div>
+      <g className="pxbot-strip">
+        {strip.map(([color, d]) => (
+          <path key={color} d={d} fill={color} />
+        ))}
+      </g>
+    </svg>
   );
 }
 
@@ -578,8 +552,8 @@ export function BotCrew({ max = 6 }: { max?: number }) {
                 }
               }}
             >
-              <span className="rbot-stage">
-                <RoboBot variant={b.variant} />
+              <span className="pxbot-stage">
+                <PixelBot variant={b.variant} />
               </span>
             </span>
           );

@@ -1012,288 +1012,50 @@ section[id] {
   outline: 2px solid var(--go);
   outline-offset: 6px;
 }
-.rbot-stage {
+.pxbot-stage {
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
-  width: 96px;
-  height: 116px;
+  width: 168px;
+  height: 124px;
   transition: filter 0.18s ease;
 }
-.bot-unit:hover .rbot-stage,
-.bot-unit:focus-visible .rbot-stage {
+.bot-unit:hover .pxbot-stage,
+.bot-unit:focus-visible .pxbot-stage {
   filter: brightness(1.22);
 }
 
-/* --- chassis --- */
-.rbot {
-  --accent: #ffb000;
-  position: relative;
-  width: 58px;
-  height: 100px;
-  animation: rbot-bob 2.6s ease-in-out infinite;
+/* --- hand-drawn pixel sprite bot --- */
+.pxbot {
+  width: 156px; /* 52px grid at 3x — integer scale keeps pixels crisp */
+  height: auto;
+  image-rendering: pixelated;
 }
-.rbot, .rbot * { box-sizing: border-box; }
-.rbot-builder { --accent: #41e6ff; }
-@keyframes rbot-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+.pxbot-strip {
+  animation: pxbot-work 1.05s infinite;
 }
-.rbot-shadow {
-  position: absolute;
-  left: 7px;
-  bottom: -4px;
-  width: 44px;
-  height: 7px;
-  background: rgba(0, 0, 0, 0.5);
-  animation: rbot-shadow 2.6s ease-in-out infinite;
+.pxbot-builder .pxbot-strip {
+  animation-duration: 1.4s;
 }
-@keyframes rbot-shadow {
-  0%, 100% { transform: scaleX(1); opacity: 0.55; }
-  50% { transform: scaleX(0.86); opacity: 0.4; }
+/* hard frame holds: raise -> mid -> strike */
+@keyframes pxbot-work {
+  0%, 33.32% { transform: translateX(0); }
+  33.34%, 66.65% { transform: translateX(-52px); }
+  66.67%, 100% { transform: translateX(-104px); }
 }
-
-/* --- antenna --- */
-.rbot-antenna {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 3px;
-  height: 12px;
-  margin-left: -1.5px;
-  background: #6b6b7d;
+.bot-unit.is-mutating .pxbot-stage { animation: pxbot-mutate 0.72s ease-in-out 1; }
+@keyframes pxbot-mutate {
+  0%, 100% { transform: scale(1); filter: none; }
+  40% { transform: scale(1.18, 0.86); filter: brightness(1.6) saturate(0.4); }
+  70% { transform: scale(0.94, 1.06); }
 }
-.rbot-antenna i {
-  position: absolute;
-  top: -6px;
-  left: -2.5px;
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  animation: rbot-blink 1.8s ease-in-out infinite;
-}
-@keyframes rbot-blink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--accent); }
-  50% { opacity: 0.35; box-shadow: none; }
-}
-
-/* --- head --- */
-.rbot-head {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  width: 36px;
-  height: 26px;
-  margin-left: -18px;
-  background: #4b4b5e;
-  border: 3px solid #23232e;
-}
-.rbot-eye {
-  position: absolute;
-  top: 6px;
-  width: 7px;
-  height: 9px;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-  animation: rbot-eyeblink 4.6s ease-in-out infinite;
-  transform-origin: center;
-}
-.rbot-eye.eye-l { left: 6px; }
-.rbot-eye.eye-r { right: 6px; }
-@keyframes rbot-eyeblink {
-  0%, 93%, 100% { transform: scaleY(1); }
-  95.5% { transform: scaleY(0.12); }
-}
-.rbot-grille {
-  position: absolute;
-  bottom: 3px;
-  left: 9px;
-  width: 18px;
-  height: 3px;
-  background: #23232e;
-}
-
-/* --- torso --- */
-.rbot-torso {
-  position: absolute;
-  top: 41px;
-  left: 50%;
-  width: 42px;
-  height: 32px;
-  margin-left: -21px;
-  background: #3a3a48;
-  border: 3px solid #23232e;
-}
-.rbot-core {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
-  background: var(--accent);
-  animation: rbot-core 2.2s ease-in-out infinite;
-}
-@keyframes rbot-core {
-  0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--accent); }
-  50% { opacity: 0.55; box-shadow: 0 0 3px var(--accent); }
-}
-
-/* --- arms --- */
-.rbot-arm {
-  position: absolute;
-  top: -3px;
-  width: 9px;
-  height: 30px;
-  background: #565664;
-  border: 2px solid #23232e;
-  transform-origin: top center;
-}
-.rbot-arm.arm-l { left: -9px; animation: rbot-sway 2.6s ease-in-out infinite; }
-.rbot-arm.arm-r { right: -9px; }
-@keyframes rbot-sway {
-  0%, 100% { transform: rotate(6deg); }
-  50% { transform: rotate(-6deg); }
-}
-
-/* miner: pickaxe strike — arm snaps outward so the pick lands on the rock */
-.rbot-miner .rbot-arm.arm-r { animation: rbot-strike 1.15s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
-@keyframes rbot-strike {
-  0%, 100% { transform: rotate(-10deg); }
-  42% { transform: rotate(-10deg); }
-  58% { transform: rotate(32deg); }
-  72% { transform: rotate(32deg); }
-}
-.rbot-tool.tool-pick {
-  position: absolute;
-  bottom: -24px;
-  left: -3px;
-  width: 4px;
-  height: 26px;
-  background: #8a6b45;
-  transform: rotate(6deg);
-  transform-origin: top center;
-}
-.rbot-tool.tool-pick::after {
-  content: '';
-  position: absolute;
-  top: 20px;
-  left: -9px;
-  width: 22px;
-  height: 5px;
-  background: #9aa0ae;
-  border: 2px solid #23232e;
-}
-
-/* builder: hammer pound — snaps outward onto the block stack */
-.rbot-builder .rbot-arm.arm-r { animation: rbot-pound 1.5s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
-@keyframes rbot-pound {
-  0%, 100% { transform: rotate(-8deg); }
-  40% { transform: rotate(-8deg); }
-  55% { transform: rotate(30deg); }
-  70% { transform: rotate(30deg); }
-}
-.rbot-tool.tool-hammer {
-  position: absolute;
-  bottom: -26px;
-  left: -4px;
-  width: 5px;
-  height: 26px;
-  background: #8a6b45;
-  transform: rotate(6deg);
-  transform-origin: top center;
-}
-.rbot-tool.tool-hammer::after {
-  content: '';
-  position: absolute;
-  top: 20px;
-  left: -11px;
-  width: 24px;
-  height: 11px;
-  background: #6b6b7d;
-  border: 2px solid #23232e;
-}
-
-/* --- work props --- */
-.rbot-prop { position: absolute; bottom: 14px; }
-.rbot-miner .rbot-prop { right: -26px; width: 26px; height: 18px; }
-.rock {
-  position: absolute;
-  background: #5b5b6b;
-  border: 2px solid #23232e;
-}
-.rock.r1 { left: 0; bottom: 0; width: 18px; height: 13px; }
-.rock.r2 { left: 12px; bottom: 9px; width: 12px; height: 9px; }
-.rbot-builder .rbot-prop { right: -24px; width: 22px; height: 24px; }
-.block {
-  position: absolute;
-  background: #8a6b45;
-  border: 2px solid #23232e;
-}
-.block.b1 { left: 0; bottom: 0; width: 16px; height: 12px; }
-.block.b2 { left: 3px; bottom: 12px; width: 16px; height: 12px; }
-
-/* --- legs --- */
-.rbot-legs { position: absolute; bottom: 8px; left: 50%; width: 34px; margin-left: -17px; height: 16px; }
-.rbot-leg {
-  position: absolute;
-  bottom: 0;
-  width: 11px;
-  height: 16px;
-  background: #2e2e3a;
-  border: 2px solid #23232e;
-}
-.rbot-leg.leg-l { left: 2px; animation: rbot-step 2.6s ease-in-out infinite; }
-.rbot-leg.leg-r { right: 2px; animation: rbot-step 2.6s ease-in-out -1.3s infinite; }
-@keyframes rbot-step {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-
-/* --- impact sparks (miner) — burst where the pick lands on the rock --- */
-.rbot-sparks { position: absolute; right: -20px; bottom: 28px; width: 0; height: 0; }
-.rbot-sparks i {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: #ffd166;
-  opacity: 0;
-}
-.rbot-miner .rbot-sparks i { animation: rbot-spark 1.15s ease-out infinite; }
-.rbot-miner .rbot-sparks i:nth-child(2) { animation-name: rbot-spark2; animation-delay: 0.05s; background: #ff9f1c; }
-.rbot-miner .rbot-sparks i:nth-child(3) { animation-delay: 0.1s; }
-@keyframes rbot-spark {
-  0%, 52% { opacity: 0; transform: translate(0, 0) scale(1); }
-  58% { opacity: 1; }
-  78% { opacity: 0; transform: translate(14px, -16px) scale(0.4); }
-  100% { opacity: 0; transform: translate(18px, -20px) scale(0.2); }
-}
-@keyframes rbot-spark2 {
-  0%, 52% { opacity: 0; transform: translate(0, 0) scale(1); }
-  58% { opacity: 1; }
-  78% { opacity: 0; transform: translate(-10px, -12px) scale(0.4); }
-  100% { opacity: 0; }
-}
-
-/* --- mutation: smooth charge-up before the split --- */
-.bot-unit.is-mutating .rbot-stage { animation: rbot-mutate 0.72s ease-in-out 1; }
-@keyframes rbot-mutate {
-  0% { transform: scale(1); filter: none; }
-  25% { transform: scale(1.12, 0.9); filter: brightness(1.8); }
-  50% { transform: scale(0.94, 1.08); filter: brightness(1.5) hue-rotate(60deg); }
-  75% { transform: scale(1.05, 0.96); filter: brightness(2); }
-  100% { transform: scale(1); filter: none; }
-}
-/* newborn spring pop */
-.bot-unit.is-born .rbot-stage { animation: rbot-born 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 1; }
-@keyframes rbot-born {
+.bot-unit.is-born .pxbot-stage { animation: pxbot-born 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) 1; }
+@keyframes pxbot-born {
   0% { transform: scale(0.2); opacity: 0; }
-  60% { transform: scale(1.12); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
-/* at capacity: tiny shake, no split */
-.bot-unit.is-denied .rbot-stage { animation: rbot-deny 0.32s ease-in-out 1; }
-@keyframes rbot-deny {
+.bot-unit.is-denied .pxbot-stage { animation: pxbot-deny 0.32s ease-in-out 1; }
+@keyframes pxbot-deny {
   0%, 100% { transform: translateX(0); }
   25% { transform: translateX(-4px); }
   75% { transform: translateX(4px); }
@@ -1307,18 +1069,19 @@ section[id] {
   margin: 10px 0 0;
 }
 
+@media (max-width: 640px) {
+  .pxbot { width: 104px; /* 2x on small screens */ }
+  .pxbot-stage { width: 112px; height: 88px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .rbot,
-  .rbot-shadow,
-  .rbot-antenna i,
-  .rbot-eye,
-  .rbot-core,
-  .rbot-arm,
-  .rbot-leg,
-  .rbot-sparks i,
-  .bot-unit.is-mutating .rbot-stage,
-  .bot-unit.is-born .rbot-stage,
-  .bot-unit.is-denied .rbot-stage {
+  .pxbot-strip {
+    animation: none;
+    transform: translateX(-104px); /* rest on the strike frame */
+  }
+  .bot-unit.is-mutating .pxbot-stage,
+  .bot-unit.is-born .pxbot-stage,
+  .bot-unit.is-denied .pxbot-stage {
     animation: none;
   }
 }
