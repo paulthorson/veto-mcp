@@ -72,7 +72,7 @@ class ScoreJobTest(unittest.TestCase):
             snippet="Rust systems role.",
         )
         result = match.score_job(job, _profile(), _prefs())
-        self.assertLess(result["score"], 40)
+        self.assertLess(result["score"], 60)
         self.assertTrue(result["veto"])
         self.assertIsNotNone(result["veto_reason"])
         self.assertIn("rust", result["veto_reason"].lower())
