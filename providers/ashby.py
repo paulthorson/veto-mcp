@@ -1,0 +1,187 @@
+"""Ashby board provider (public API, no auth).
+
+Endpoint: GET https://api.ashbyhq.com/posting-api/job-board/{board}
+  (a POST variant 401s; GET returns {"jobs": [...]} and is used here,
+  with POST kept as a fallback.)
+
+Each job has: id, title, department, team, employmentType, location,
+isRemote, jobUrl, applyUrl, descriptionHtml, descriptionPlain.
+
+Board tokens are read from providers/boards.json ("ashby" key). Each token
+was verified live against the API; dead ones were dropped.
+
+get_details is best-effort: the public job-board endpoint embeds the full
+HTML description, so details re-fetch the board and find the posting by
+id; if the board shape ever differs, it degrades gracefully (returns what
+it has plus a note).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import math
+from pathlib import Path
+from typing import Any
+
+from providers._common import (
+    fetch_json,
+    make_client,
+    make_job_id,
+    polite_delay,
+    prettify_token,
+    strip_html,
+    words_match,
+)
+
+log = logging.getLogger("job-apply-mcp.providers.ashby")
+
+_BOARDS_FILE = Path(__file__).resolve().parent / "boards.json"
+
+
+def _load_tokens() -> list[str]:
+    try:
+        return list(json.loads(_BOARDS_FILE.read_text(encoding="utf-8"))["ashby"])
+    except Exception as exc:  # missing/corrupt file: degrade, don't crash
+        log.warning("Could not load board tokens from %s: %s", _BOARDS_FILE, exc)
+        return []
+
+
+class AshbyProvider:
+    """Search jobs across curated Ashby-hosted company boards."""
+
+    name = "ashby"
+    BOARD_URL = "https://api.ashbyhq.com/posting-api/job-board/{board}"
+
+    def __init__(self, tokens: list[str] | None = None) -> None:
+        self.tokens = tokens if tokens is not None else _load_tokens()
+
+    # -- search ---------------------------------------------------------
+    def search(
+        self, query: str, location: str, limit: int, remote_only: bool
+    ) -> list[dict[str, Any]]:
+        query_words = query.lower().split()
+        location = (location or "").lower()
+        jobs: list[dict[str, Any]] = []
+        tokens = self.tokens
+        per_token = max(1, math.ceil(limit / max(1, len(tokens)))) if limit else 0
+
+        with make_client() as client:
+            for i, board in enumerate(tokens):
+                if limit and len(jobs) >= limit:
+                    break
+                if i:
+                    polite_delay()
+                postings = self._fetch_board(client, board)
+                taken = 0
+                for raw in postings:
+                    if limit and (len(jobs) >= limit or taken >= per_token):
+                        break
+                    job = self._parse_job(raw, board)
+                    if not job:
+                        continue
+                    if query_words and not words_match(job["_search_text"], query_words):
+                        continue
+                    if location and location not in job["location"].lower():
+                        continue
+                    if remote_only and not job["_remote"]:
+                        continue
+                    taken += 1
+                    del job["_search_text"]
+                    del job["_remote"]
+                    jobs.append(job)
+        log.info(
+            "Ashby: %d jobs for %r in %r across %d boards",
+            len(jobs),
+            query,
+            location,
+            len(tokens),
+        )
+        return jobs
+
+    def _fetch_board(
+        self, client: Any, board: str
+    ) -> list[dict[str, Any]]:
+        """Return the board's job list; GET first, POST as fallback."""
+        url = self.BOARD_URL.format(board=board)
+        data = fetch_json(client, "GET", url)
+        if data is None:
+            data = fetch_json(client, "POST", url, json={})
+        if not data:
+            return []
+        if isinstance(data, dict):
+            jobs = data.get("jobs", [])
+        elif isinstance(data, list):
+            jobs = data
+        else:
+            log.warning("Ashby: unexpected board shape for %r: %r", board, type(data))
+            return []
+        return [j for j in jobs if isinstance(j, dict)]
+
+    def _parse_job(
+        self, raw: dict[str, Any], board: str
+    ) -> dict[str, Any] | None:
+        job_id = raw.get("id")
+        title = (raw.get("title") or "").strip()
+        if not job_id or not title:
+            return None
+        location = raw.get("location") or "Unknown"
+        department = raw.get("department") or ""
+        team = raw.get("team") or ""
+        url = raw.get("jobUrl") or raw.get("applyUrl") or ""
+        payload = f"{board}:{job_id}"
+        remote = bool(raw.get("isRemote")) or "remote" in location.lower()
+        snippet_bits = [t for t in (title, department, team, location) if t]
+        return {
+            "id": make_job_id(self.name, payload),
+            "title": title,
+            "company": prettify_token(board),
+            "location": location,
+            "url": url,
+            "board": self.name,
+            "snippet": " — ".join(snippet_bits)[:400],
+            # internal: query matching + remote flag
+            "_search_text": f"{title} {department} {team}",
+            "_remote": remote,
+        }
+
+    # -- details --------------------------------------------------------
+    def get_details(self, payload: str) -> dict[str, Any]:
+        """Best-effort full details: re-fetch the job-board endpoint and
+        find the posting by id. ``payload`` is the decoded id payload
+        (``"board:job_id"``)."""
+        board, sep, job_id = payload.partition(":")
+        if not sep or not board or not job_id:
+            return {"board": self.name, "payload": payload,
+                    "error": f"Malformed Ashby payload: {payload!r}"}
+        with make_client() as client:
+            polite_delay()
+            postings = self._fetch_board(client, board)
+        raw = next((p for p in postings if str(p.get("id")) == job_id), None)
+        if raw is None:
+            return {
+                "url": "",
+                "board": self.name,
+                "error": (
+                    f"Ashby posting {job_id!r} not found on board {board!r}; "
+                    "the posting may have closed."
+                ),
+                "note": "Details re-fetch the live job board and match by id.",
+            }
+        description = raw.get("descriptionPlain") or strip_html(
+            raw.get("descriptionHtml")
+        )
+        return {
+            "url": raw.get("jobUrl") or "",
+            "board": self.name,
+            "title": raw.get("title") or "Unknown",
+            "company": prettify_token(board),
+            "location": raw.get("location") or "Unknown",
+            "description": description,
+            "requirements": "",  # embedded in the description HTML
+            "apply_url": raw.get("applyUrl") or raw.get("jobUrl") or "",
+            "note": (
+                "Details served from the public job-board endpoint; "
+                "description is the posting's HTML stripped to text."
+            ),
+        }

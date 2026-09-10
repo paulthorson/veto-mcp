@@ -47,6 +47,34 @@ log = logging.getLogger("job-apply-mcp.browser")
 
 BASE_DIR = Path(__file__).resolve().parent
 SCREENSHOTS_DIR = BASE_DIR / "screenshots"
+SESSIONS_DIR = BASE_DIR / "sessions"  # gitignored: saved login sessions
+
+# Where a human logs in manually per board. Boards without a generic
+# login page (Greenhouse/Lever/Ashby are per-company) have None.
+BOARD_LOGIN_URLS: dict[str, str | None] = {
+    "linkedin": "https://www.linkedin.com/login",
+    "indeed": "https://secure.indeed.com/account/login",
+    "glassdoor": "https://www.glassdoor.com/profile/login_input.htm",
+    "ziprecruiter": "https://www.ziprecruiter.com/login",
+    "greenhouse": None,
+    "lever": None,
+    "ashby": None,
+    "adzuna": None,
+}
+
+# URL fragments that indicate the browser is still on a login page.
+_LOGIN_PATH_HINTS = ("login", "signin", "sign-in", "auth", "signup")
+
+
+def session_path(board: str) -> Path:
+    """Filesystem path of the saved login session for ``board``."""
+    safe = re.sub(r"[^a-z0-9_-]", "_", board.lower())
+    return SESSIONS_DIR / f"{safe}.json"
+
+
+def has_saved_session(board: str) -> bool:
+    """True when a login session was previously saved for ``board``."""
+    return session_path(board).is_file()
 
 # ---------------------------------------------------------------------------
 # Field detection
@@ -330,6 +358,120 @@ def _take_screenshot(page: Any, suffix: str = "preview") -> Path | None:
 
 
 # ---------------------------------------------------------------------------
+# Persistent login sessions
+# ---------------------------------------------------------------------------
+
+
+def _looks_logged_in(page: Any, board: str) -> bool:
+    """Best-effort check that the user completed a manual login.
+
+    True when the URL has left any login path AND the page shows either
+    no password field or an account-ish indicator (avatar, profile menu,
+    logout link). Never conclusive — the caller treats it as a hint.
+    """
+    try:
+        url = (page.url or "").lower()
+        if any(h in url for h in _LOGIN_PATH_HINTS):
+            return False
+        has_password = page.locator("input[type='password']").count() > 0
+        indicators = [
+            "[aria-label*='profile' i]", "[aria-label*='account' i]",
+            "img[class*='avatar' i]", "[data-testid*='avatar' i]",
+            "a[href*='logout' i]", "button:has-text('Sign out')",
+            ".global-nav__me",  # LinkedIn
+        ]
+        has_indicator = any(
+            page.locator(sel).count() > 0 for sel in indicators
+        )
+        return has_indicator or not has_password
+    except Exception:
+        return False
+
+
+def login_session(board: str, timeout_s: int = 300) -> dict[str, Any]:
+    """Interactively save a login session for ``board``.
+
+    Launches a HEADED browser on the board's login page. The user logs in
+    manually (including any MFA/CAPTCHA); this function only watches for
+    the login to complete, then saves ``storage_state`` to
+    ``sessions/{board}.json``. Passwords are never typed or stored by this
+    tool — only the resulting session cookies/localStorage.
+
+    Args:
+        board: Board key, e.g. "linkedin" or "indeed".
+        timeout_s: How long to wait for the manual login (default 5 min).
+
+    Returns:
+        {"ok", "board", "session_path", "error"}. Never raises for
+        automation failures.
+    """
+    result: dict[str, Any] = {
+        "ok": False,
+        "board": board,
+        "session_path": None,
+        "error": None,
+    }
+    login_url = BOARD_LOGIN_URLS.get(board.lower())
+    if not login_url:
+        result["error"] = (
+            f"No generic login page known for board {board!r}. "
+            "Log in on the employer's own site instead."
+        )
+        return result
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        result["error"] = "Playwright is not installed."
+        return result
+
+    browser = None
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=False,  # the human must see and use this window
+                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+            )
+            context = browser.new_context(
+                viewport={"width": 1366, "height": 900},
+            )
+            page = context.new_page()
+            page.goto(login_url, wait_until="domcontentloaded", timeout=60000)
+            print(
+                f"[login_session] Please log in to {board} in the opened "
+                f"browser window (timeout {timeout_s}s). This window will "
+                "close automatically once login is detected."
+            )
+            deadline = time.time() + timeout_s
+            while time.time() < deadline:
+                time.sleep(3)
+                if _looks_logged_in(page, board):
+                    break
+            else:
+                result["error"] = (
+                    "Timed out waiting for manual login. No session saved."
+                )
+                return result
+            SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+            path = session_path(board)
+            context.storage_state(path=str(path))
+            try:
+                os.chmod(path, 0o600)
+            except Exception:
+                pass
+            result["ok"] = True
+            result["session_path"] = str(path)
+    except Exception as exc:
+        result["error"] = f"Login session failed: {exc}"
+    finally:
+        try:
+            if browser is not None:
+                browser.close()
+        except Exception:
+            pass
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -341,6 +483,8 @@ def apply_via_browser(
     headless: bool = True,
     confirm: bool = False,
     timeout_ms: int = 60000,
+    board: str | None = None,
+    browser_kind: str = "chromium",
 ) -> dict[str, Any]:
     """Fill (and optionally submit) a job application in a real browser.
 
@@ -352,6 +496,13 @@ def apply_via_browser(
         confirm: MUST be True to click the submit button. With False, the
             form is filled and screenshotted, but ``submitted`` stays False.
         timeout_ms: Navigation timeout.
+        board: Optional board key (e.g. "linkedin"). When a saved login
+            session exists for the board (see ``login_session``), it is
+            loaded into the browser context so logged-in flows
+            (e.g. LinkedIn Easy Apply) work.
+        browser_kind: Playwright browser to launch: "chromium" (default)
+            or "firefox". The chosen browser must be installed
+            (``python -m playwright install chromium firefox``).
 
     Returns:
         Dict with keys: ok, submitted, fields_filled, fields_detected,
@@ -379,24 +530,33 @@ def apply_via_browser(
         )
         return result
 
+    # Load a previously saved login session when one exists for the board.
+    storage_state = None
+    if board and has_saved_session(board):
+        storage_state = str(session_path(board))
+        log.info("Using saved login session for board %r", board)
+
     browser = None
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=headless,
-                args=[
-                    "--no-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                ],
+            launcher = getattr(p, browser_kind, None) or p.chromium
+            launch_args = (
+                ["--no-sandbox", "--disable-blink-features=AutomationControlled"]
+                if browser_kind == "chromium"
+                else ["--no-sandbox"]
             )
-            context = browser.new_context(
-                viewport={"width": 1366, "height": 900},
-                user_agent=(
+            browser = launcher.launch(headless=headless, args=launch_args)
+            context_kwargs: dict[str, Any] = {
+                "viewport": {"width": 1366, "height": 900},
+                "user_agent": (
                     "VETO-REDACTED-UA"
                     ""
                     ""
                 ),
-            )
+            }
+            if storage_state:
+                context_kwargs["storage_state"] = storage_state
+            context = browser.new_context(**context_kwargs)
             page = context.new_page()
             try:
                 page.goto(apply_url, wait_until="domcontentloaded", timeout=timeout_ms)

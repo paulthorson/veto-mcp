@@ -39,6 +39,51 @@ import httpx
 from bs4 import BeautifulSoup
 from mcp.server.mcpserver import MCPServer
 
+# API-based providers (Greenhouse / Lever / Ashby / Adzuna) live in
+# providers/. They intentionally do NOT import server.py (no circular
+# imports); server.py imports them here. Job ids stay self-describing
+# (<board>:<base64url(payload)>), so _decode_job_id needs no changes.
+try:
+    from providers import (
+        AdzunaProvider,
+        AshbyProvider,
+        GreenhouseProvider,
+        LeverProvider,
+    )
+
+    _API_PROVIDERS: dict[str, Any] = {
+        "greenhouse": GreenhouseProvider(),
+        "lever": LeverProvider(),
+        "ashby": AshbyProvider(),
+        "adzuna": AdzunaProvider(),
+    }
+except ImportError as exc:  # defensive: the server must still start
+    log.warning("providers/ package failed to import; API boards disabled: %s", exc)
+    _API_PROVIDERS = {}
+
+# Application-quality helpers (dedup.py, prefs.py, filters.py, tailor.py).
+# Imported defensively: the server must start even if one is missing.
+try:
+    from dedup import dedupe_jobs
+except ImportError as exc:
+    log.warning("dedup.py unavailable; result dedup disabled: %s", exc)
+    dedupe_jobs = None  # type: ignore[assignment]
+
+try:
+    from prefs import apply_preferences, load_preferences, save_preferences
+except ImportError as exc:
+    log.warning("prefs.py unavailable; company preferences disabled: %s", exc)
+    apply_preferences = None  # type: ignore[assignment]
+    load_preferences = None  # type: ignore[assignment]
+    save_preferences = None  # type: ignore[assignment]
+
+try:
+    from filters import filter_by_salary, filter_by_seniority
+except ImportError as exc:
+    log.warning("filters.py unavailable; salary/seniority filters disabled: %s", exc)
+    filter_by_salary = None  # type: ignore[assignment]
+    filter_by_seniority = None  # type: ignore[assignment]
+
 
 def _sanitize_proxy_env() -> None:
     """Drop no_proxy entries that httpx cannot parse.
@@ -80,6 +125,13 @@ log = logging.getLogger("job-apply-mcp")
 
 BASE_DIR = Path(__file__).resolve().parent
 APPLICATIONS_FILE = BASE_DIR / "applications.json"
+WATCHES_FILE = BASE_DIR / "watches.json"
+
+# Lifecycle (application stages / stats / follow-ups), job watches, and
+# multi-profile helpers live in their own modules so the tools below stay
+# thin. They use stdlib + local code only (no heavy deps).
+import lifecycle
+import watch as watch_store
 
 USER_AGENTS = [
     
@@ -149,6 +201,19 @@ def _save_applications(applications: list[dict[str, Any]]) -> None:
         json.dumps(applications, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+
+
+PROFILE_FILE = BASE_DIR / "profiles" / "profile.json"
+
+
+def _load_saved_profile() -> dict[str, Any]:
+    """Return the wizard-saved applicant profile, or {} if none exists."""
+    try:
+        data = json.loads(PROFILE_FILE.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        log.debug("No saved profile at %s: %s", PROFILE_FILE, exc)
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 # ---------------------------------------------------------------------------
@@ -443,8 +508,9 @@ PROVIDERS: dict[str, JobProvider] = {
     "linkedin": LinkedInProvider(),
     "glassdoor": GlassdoorProvider(),
     "ziprecruiter": ZipRecruiterProvider(),
+    **_API_PROVIDERS,
 }
-ACTIVE_BOARDS = {"indeed", "linkedin"}
+ACTIVE_BOARDS = {"indeed", "linkedin", "greenhouse", "lever", "ashby"}
 
 
 # ---------------------------------------------------------------------------
@@ -490,6 +556,11 @@ mcp = MCPServer(
 @mcp.tool()
 def list_boards() -> list[dict[str, str]]:
     """List supported job boards and whether each provider is active or a stub."""
+    notes = {
+        "adzuna": "needs ADZUNA_APP_ID + ADZUNA_APP_KEY env vars (developer.adzuna.com)",
+        "glassdoor": "not yet implemented; see provider TODO",
+        "ziprecruiter": "not yet implemented; see provider TODO",
+    }
     return [
         {
             "board": name,
@@ -497,7 +568,7 @@ def list_boards() -> list[dict[str, str]]:
             "notes": (
                 "search + details supported"
                 if name in ACTIVE_BOARDS
-                else "not yet implemented; see provider TODO"
+                else notes.get(name, "not yet implemented")
             ),
         }
         for name in PROVIDERS
@@ -511,19 +582,30 @@ def search_jobs(
     board: str = "all",
     limit: int = 10,
     remote_only: bool = False,
+    salary_min: int = 0,
+    seniority: str = "",
 ) -> list[dict[str, Any]]:
     """Search job postings across major boards.
 
     Args:
         query: Job title / keywords, e.g. "software engineer".
         location: e.g. "New York, NY" or "Remote".
-        board: One of "all", "indeed", "linkedin", "glassdoor",
-            "ziprecruiter". Stub boards raise an error.
+        board: One of "all", "indeed", "linkedin", "greenhouse", "lever",
+            "ashby", "adzuna", "glassdoor", "ziprecruiter". Stub boards and
+            boards missing required credentials raise an error.
         limit: Max jobs to return per board (default 10).
         remote_only: Only include remote-friendly postings.
+        salary_min: Keep jobs whose best salary hint meets this annual USD
+            floor (post-filter on listing text; jobs with no salary hint
+            are kept). 0 disables.
+        seniority: One of entry|mid|senior|staff|principal (post-filter on
+            title keywords; untitled/unknown seniority is kept). ""
+            disables.
 
     Returns:
-        List of jobs with id, title, company, location, url, board, snippet.
+        Deduplicated, preference-filtered list of jobs with id, title,
+        company, location, url, board, snippet. Preferred-company matches
+        carry "preferred": True and sort first.
     """
     board = board.lower().strip()
     if board != "all" and board not in PROVIDERS:
@@ -542,10 +624,28 @@ def search_jobs(
             results.extend(
                 provider.search(query, location, limit=limit, remote_only=remote_only)
             )
-        except NotImplementedError as exc:
+        except (NotImplementedError, RuntimeError) as exc:
+            # NotImplementedError: stub boards (glassdoor/ziprecruiter).
+            # RuntimeError: providers needing user credentials (adzuna
+            # without ADZUNA_APP_ID/ADZUNA_APP_KEY). Surface as ValueError
+            # so the tool contract stays consistent.
             log.warning("%s: %s", name, exc)
-            raise ValueError(f"Board {name!r} is not implemented yet: {exc}")
-    return results[: limit * len(targets)]
+            raise ValueError(f"Board {name!r} is not usable: {exc}")
+    results = results[: limit * len(targets)]
+
+    # Application-quality pipeline (all recall-friendly; each degrades to
+    # a no-op when its module failed to import).
+    if apply_preferences is not None:
+        results = apply_preferences(results)
+    if dedupe_jobs is not None:
+        before = len(results)
+        results = dedupe_jobs(results)
+        log.info("dedup: %d -> %d jobs", before, len(results))
+    if filter_by_salary is not None:
+        results = filter_by_salary(results, salary_min)
+    if filter_by_seniority is not None:
+        results = filter_by_seniority(results, seniority)
+    return results
 
 
 @mcp.tool()
@@ -575,6 +675,100 @@ def get_job_details(job_id: str) -> dict[str, Any]:
     details.setdefault("company", cached.get("company", "Unknown"))
     details["job_id"] = job_id
     return details
+
+
+# ---------------------------------------------------------------------------
+# Governance wiring (additive)
+#
+# Gates confirm=True applications through the user's agentic governance
+# framework (governance/adapter.py): constitutional veto screen,
+# cover-letter honesty check, qualification assessment, and an advisory
+# adversarial review. Every helper below is a no-op when the framework is
+# not installed, so behavior is unchanged without it.
+# ---------------------------------------------------------------------------
+
+
+def _governance_precheck(
+    *,
+    job_id: str,
+    board: str,
+    url: str,
+    preview: dict[str, Any],
+    profile: dict[str, str],
+    cover_letter: str,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Run the governance gate before any submission or logging.
+
+    Returns ``(blocked_response, warnings)``. ``blocked_response`` is None
+    when the application may proceed; otherwise the caller must return it
+    immediately (nothing was submitted or recorded). Never raises:
+    unexpected errors degrade to non-blocking warnings, except veto-check
+    failures which the adapter fails closed on.
+    """
+    try:
+        from governance import adapter as _gov
+    except Exception as exc:
+        log.warning("Governance adapter unavailable: %s", exc)
+        return None, []
+    if not _gov.governance_enabled():
+        return None, []
+    details: dict[str, Any] = {}
+    try:
+        fetched = get_job_details(job_id)
+        if isinstance(fetched, dict) and not fetched.get("error"):
+            details = fetched
+    except Exception as exc:
+        log.warning("Governance: job details fetch failed: %s", exc)
+    effective_profile = dict(profile or {}) or _gov.load_saved_profile()
+    try:
+        gate = _gov.governance_gate(
+            job_id=job_id,
+            job={
+                "job_id": job_id,
+                "title": preview.get("title"),
+                "company": preview.get("company"),
+                "location": preview.get("location"),
+                "board": board,
+                "url": url,
+            },
+            job_details=details,
+            profile=effective_profile,
+            cover_letter=cover_letter,
+        )
+    except Exception as exc:  # fail-open: a crashed gate warns, never blocks
+        log.warning("Governance gate crashed (non-blocking): %s", exc)
+        return None, [f"governance gate error (non-blocking): {exc}"]
+    if gate.get("blocked"):
+        return gate["response"], []
+    return None, gate.get("warnings", [])
+
+
+def _governance_record_outcome(
+    *, job_id: str, preview: dict[str, Any], passed: bool, note: str
+) -> None:
+    """Record an allow-verdict after a confirmed application.
+
+    No-op when the governance framework is not installed. Never raises.
+    """
+    try:
+        from governance import adapter as _gov
+    except Exception:
+        return
+    if not _gov.governance_enabled():
+        return
+    try:
+        _gov.record_application_verdict(
+            {
+                "job_id": job_id,
+                "title": preview.get("title"),
+                "company": preview.get("company"),
+            },
+            passed,
+            f"job-apply: application {note} for "
+            f"{preview.get('title')} at {preview.get('company')}",
+        )
+    except Exception as exc:
+        log.warning("Governance verdict recording failed: %s", exc)
 
 
 @mcp.tool()
@@ -617,7 +811,9 @@ def apply_to_job(
              "phone": "+1 555-0100", "location": "New York, NY",
              "linkedin_url": "...", "website": "...",
              "cover_letter": "..."}. full_name is split into first/last
-            when the form asks for them separately.
+            when the form asks for them separately. Defaults to the saved
+            profiles/profile.json when omitted (see get_profile() and
+            wizard.py); pass an explicit dict to override it.
         headless: Run the Phase 2 browser headless (default True). Set
             False to watch / manually log in during the session.
 
@@ -625,7 +821,12 @@ def apply_to_job(
         Dry-run preview, or the recorded application entry when confirmed.
     """
     answers = answers or {}
-    profile = dict(profile or {})
+    # Default to the wizard-saved profile when the caller passes none.
+    # An explicitly passed dict (even empty) is respected as-is.
+    if profile is None:
+        profile = _load_saved_profile()
+    else:
+        profile = dict(profile)
     try:
         board, url = _decode_job_id(job_id)
     except ValueError as exc:
@@ -690,8 +891,25 @@ def apply_to_job(
         }
 
     # confirm=True ---------------------------------------------------------
+    # Governance gate (additive): veto + cover-letter-honesty +
+    # qualification checks run BEFORE any browser submission or local
+    # logging. No-op when the governance framework is not installed.
+    # A blocked gate returns immediately: nothing is submitted or recorded.
+    _gov_block, _gov_warnings = _governance_precheck(
+        job_id=job_id,
+        board=board,
+        url=url,
+        preview=preview,
+        profile=profile,
+        cover_letter=cover_letter,
+    )
+    if _gov_block is not None:
+        return _gov_block
+    if _gov_warnings:
+        preview.setdefault("governance_warnings", []).extend(_gov_warnings)
+
     if _browser_apply_enabled():
-        return _apply_via_browser_and_record(
+        _gov_browser_result = _apply_via_browser_and_record(
             job_id=job_id,
             board=board,
             url=url,
@@ -702,6 +920,16 @@ def apply_to_job(
             resume=resume,
             headless=headless,
         )
+        _governance_record_outcome(
+            job_id=job_id,
+            preview=preview,
+            passed=True,
+            note=(
+                "phase-2 browser apply finished with status "
+                f"{_gov_browser_result.get('status')}"
+            ),
+        )
+        return _gov_browser_result
 
     entry = {
         "job_id": job_id,
@@ -714,7 +942,12 @@ def apply_to_job(
         "cover_letter_chars": len(cover_letter),
         "answers": answers,
         "status": "confirmed",
-        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "submitted_at": (submitted_at := datetime.now(timezone.utc).isoformat()),
+        # Lifecycle fields (see lifecycle.py): every recorded application
+        # starts at stage "applied" with a seeded history event.
+        "stage": "applied",
+        "stage_history": [{"stage": "applied", "at": submitted_at, "note": ""}],
+        "follow_up_due": None,
         "note": (
             "Phase 1: recorded locally. Complete the actual submission at "
             "apply_url in your browser. To enable Phase 2 browser "
@@ -725,6 +958,9 @@ def apply_to_job(
     applications = _load_applications()
     applications.append(entry)
     _save_applications(applications)
+    _governance_record_outcome(
+        job_id=job_id, preview=preview, passed=True, note="phase-1 recorded"
+    )
     log.info("Application confirmed for %s (%s)", entry["title"], job_id)
     return {
         "status": "confirmed",
@@ -765,6 +1001,7 @@ def _apply_via_browser_and_record(
             resume_path=str(resume),
             headless=headless,
             confirm=True,
+            board=board,  # loads a saved login session when one exists
         )
     except Exception as exc:  # defensive: the tool must never crash
         log.warning("Phase 2 browser apply failed for %s: %s", job_id, exc)
@@ -798,7 +1035,11 @@ def _apply_via_browser_and_record(
         "screenshot_after_submit": browser_result.get("screenshot_after_submit"),
         "final_url": browser_result.get("final_url"),
         "browser_error": browser_result.get("error"),
-        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "submitted_at": (submitted_at := datetime.now(timezone.utc).isoformat()),
+        # Lifecycle fields (see lifecycle.py).
+        "stage": "applied",
+        "stage_history": [{"stage": "applied", "at": submitted_at, "note": ""}],
+        "follow_up_due": None,
         "note": (
             "Phase 2 browser automation. Verify the submission on the "
             "live site / in the confirmation email before treating it "
@@ -833,8 +1074,284 @@ def _apply_via_browser_and_record(
 
 @mcp.tool()
 def track_applications() -> list[dict[str, Any]]:
-    """Return all locally recorded job applications (from applications.json)."""
-    return _load_applications()
+    """Return all locally recorded job applications (from applications.json).
+
+    Legacy entries (recorded before stages existed) are backfilled in
+    memory with ``stage="applied"``; the file is not rewritten.
+    """
+    return lifecycle.load_entries(APPLICATIONS_FILE)
+
+
+@mcp.tool()
+def update_application(
+    job_id_or_index: str, stage: str, note: str = ""
+) -> dict[str, Any]:
+    """Move a recorded application to a new pipeline stage.
+
+    Args:
+        job_id_or_index: The ``job_id`` from track_applications, or its
+            numeric index in the list.
+        stage: One of ``applied``, ``interviewing``, ``offer``,
+            ``rejected``, ``withdrawn``, ``ghosted``.
+        note: Optional note recorded with the stage change.
+
+    Moving to ``interviewing`` sets a follow-up reminder 7 days out;
+    terminal stages (``offer``/``rejected``/``withdrawn``) clear it.
+    """
+    try:
+        return lifecycle.update_stage(APPLICATIONS_FILE, job_id_or_index, stage, note=note)
+    except (ValueError, KeyError) as exc:
+        return {"error": str(exc)}
+
+
+@mcp.tool()
+def application_stats() -> dict[str, Any]:
+    """Aggregate stats over recorded applications.
+
+    Returns ``{total, by_stage, by_board, response_rate}`` where
+    response_rate = (interviewing + offer) / total.
+    """
+    return lifecycle.stats(lifecycle.load_entries(APPLICATIONS_FILE))
+
+
+@mcp.tool()
+def nudge_followups() -> list[dict[str, Any]]:
+    """Applications with a follow-up due today or earlier.
+
+    Covers stages ``applied`` and ``interviewing``. Pair with
+    update_application() to advance or clear them.
+    """
+    return lifecycle.due_followups(lifecycle.load_entries(APPLICATIONS_FILE))
+
+
+@mcp.tool()
+def add_watch(
+    name: str,
+    query: str,
+    location: str = "",
+    board: str = "all",
+    filters: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Save a named job watch (a recurring search).
+
+    The first check of a watch only records a baseline and reports no new
+    jobs, so you are not spammed with everything that already existed.
+    Run ``check_watches()`` (or ``python watch.py`` on a cron) to poll.
+    """
+    watches = watch_store.load_watches(WATCHES_FILE)
+    try:
+        saved = watch_store.add_watch(watches, name, query, location, board, filters)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    watch_store.save_watches(WATCHES_FILE, watches)
+    return {
+        "watch": saved,
+        "message": (
+            f"Watch {name!r} saved. The first check records a baseline "
+            "(no alerts); later checks report only new postings."
+        ),
+    }
+
+
+@mcp.tool()
+def list_watches() -> list[dict[str, Any]]:
+    """List all saved job watches and their last-check state."""
+    return list(watch_store.load_watches(WATCHES_FILE).values())
+
+
+@mcp.tool()
+def remove_watch(name: str) -> dict[str, Any]:
+    """Delete a saved job watch."""
+    watches = watch_store.load_watches(WATCHES_FILE)
+    removed = watch_store.remove_watch(watches, name)
+    if removed:
+        watch_store.save_watches(WATCHES_FILE, watches)
+    return {"removed": removed, "name": name}
+
+
+@mcp.tool()
+def check_watches() -> dict[str, Any]:
+    """Run every saved watch and return only the new postings per watch.
+
+    Cron-friendly: output is plain JSON, one entry per watch with
+    ``new_jobs`` and ``total_seen``. ``python watch.py`` does the same
+    from a shell (prints JSON, exits 0).
+    """
+    watches = watch_store.load_watches(WATCHES_FILE)
+    results = watch_store.check_all(watches, search_jobs)
+    watch_store.save_watches(WATCHES_FILE, watches)
+    return {
+        name: {
+            "new_jobs": r.get("new_jobs", []),
+            "total_seen": r.get("total_seen", 0),
+            **({"error": r["error"]} if r.get("error") else {}),
+        }
+        for name, r in results.items()
+    }
+
+
+@mcp.tool()
+def export_applications_csv(path: str = "applications.csv") -> dict[str, Any]:
+    """Export recorded applications to CSV (portability / spreadsheets).
+
+    Args:
+        path: Destination file; relative paths resolve under the project
+            directory. Defaults to ``applications.csv``.
+    """
+    out = Path(path)
+    if not out.is_absolute():
+        out = BASE_DIR / out
+    rows = lifecycle.export_csv(lifecycle.load_entries(APPLICATIONS_FILE), out)
+    return {"path": str(out), "rows": rows}
+
+
+@mcp.tool()
+def get_profile() -> dict[str, Any]:
+    """Return the applicant profile saved by the onboarding wizard.
+
+    Run `python3 wizard.py` in the project directory to create or update
+    profiles/profile.json. The wizard asks basic questions (name, contact,
+    target titles, locations, remote preference, salary, skills, work
+    authorization) and can ingest a LinkedIn data-export ZIP to pre-fill
+    experience, education, and skills.
+
+    The saved profile is used as the default `profile` for apply_to_job
+    (Phase 2 browser auto-fill) and as the input for resume_builder.py.
+
+    Returns:
+        {"profile": {...}} when the wizard has been run, or
+        {"profile": None, "message": ...} with setup instructions.
+    """
+    profile = _load_saved_profile()
+    if not profile:
+        return {
+            "profile": None,
+            "message": (
+                "No saved profile found. Run the onboarding wizard to "
+                "create one: `python3 wizard.py` in "
+                "~/workspace/job-apply-mcp/ (it asks basic questions and "
+                "can ingest a LinkedIn data-export ZIP to pre-fill "
+                "experience/education/skills)."
+            ),
+        }
+    return {"profile": profile}
+
+
+@mcp.tool()
+def tailor_application(
+    job_id: str, profile: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Build a per-job tailored resume + cover letter.
+
+    Uses tailor.py: extracts the posting's keywords, front-loads matching
+    experience bullets in the resume, and drafts a 3-paragraph cover
+    letter. Honesty rule: only rephrases/reorders facts already in the
+    profile — skills the job wants but the profile lacks are reported in
+    ``missing_skills`` and are NOT added to the resume.
+
+    Args:
+        job_id: The job id returned by search_jobs.
+        profile: Optional profile dict; defaults to the wizard-saved
+            profiles/profile.json.
+
+    Returns:
+        {"resume_md", "cover_letter", "matched_skills", "missing_skills"}
+        or {"error": ...}.
+    """
+    try:
+        from tailor import tailor_resume
+    except ImportError as exc:
+        return {"error": f"tailor.py unavailable: {exc}"}
+    prof = dict(profile) if profile is not None else _load_saved_profile()
+    if not prof:
+        return {
+            "error": (
+                "No profile available. Run `python3 wizard.py` to create "
+                "one, or pass a profile dict."
+            )
+        }
+    details = get_job_details(job_id)
+    if details.get("error"):
+        return {"job_id": job_id, "error": details["error"]}
+    result = tailor_resume(prof, details)
+    result["job_id"] = job_id
+    return result
+
+
+@mcp.tool()
+def update_preferences(
+    blocked_companies: list[str] | None = None,
+    preferred_companies: list[str] | None = None,
+    blocked_keywords: list[str] | None = None,
+) -> dict[str, Any]:
+    """Update company preferences used to filter search_jobs results.
+
+    Each provided list REPLACES that preference list; omitted lists are
+    left unchanged. Blocked companies/keywords are removed from results;
+    preferred companies are flagged "preferred": True and sorted first.
+
+    Args:
+        blocked_companies: e.g. ["Acme Corp"].
+        preferred_companies: e.g. ["Initech"].
+        blocked_keywords: e.g. ["unpaid internship"].
+
+    Returns:
+        The full updated preferences dict.
+    """
+    if save_preferences is None or load_preferences is None:
+        return {"error": "prefs.py unavailable."}
+    prefs = load_preferences()
+    if blocked_companies is not None:
+        prefs["blocked_companies"] = [str(c) for c in blocked_companies]
+    if preferred_companies is not None:
+        prefs["preferred_companies"] = [str(c) for c in preferred_companies]
+    if blocked_keywords is not None:
+        prefs["blocked_keywords"] = [str(k) for k in blocked_keywords]
+    return {"preferences": save_preferences(prefs)}
+
+
+@mcp.tool()
+def governance_status() -> dict[str, Any]:
+    """Report whether the agentic governance framework is active.
+
+    Returns:
+        Dict with enabled, root, domains, and the gating policy
+        (what fails closed vs. what warns and proceeds).
+    """
+    try:
+        from governance import adapter as _gov
+    except Exception as exc:
+        return {
+            "enabled": False,
+            "root": None,
+            "domains": [],
+            "error": f"governance adapter import failed: {exc}",
+        }
+    root = _gov.find_governance_root()
+    enabled = _gov.governance_enabled()
+    domains: list[str] = []
+    if enabled:
+        try:
+            domains = _gov.load_framework().list_domains()
+        except Exception:
+            domains = []
+    return {
+        "enabled": enabled,
+        "root": str(root) if root else None,
+        "domains": domains,
+        "gating": {
+            "veto_check": "fail-closed: blocks when a veto hits, and also "
+            "blocks when the check itself errors",
+            "cover_letter_honesty": "fail-closed: blocks on unsupported "
+            "claims or framework errors",
+            "qualification": "blocks below score 0.4 or on severe "
+            "experience gap; warns (proceeds) on 0.4-0.65; fail-open "
+            "with a warning when no profile is available",
+            "adversarial_review": "advisory: warns on error, never blocks",
+            "veto_clearing": "human only: fix the application/profile and "
+            "re-run (framework overturn_verdict also exists)",
+        },
+    }
 
 
 if __name__ == "__main__":
