@@ -2060,3 +2060,134 @@ section[id] {
   stroke: #08080c;
   stroke-width: 5px;
 }
+
+/* UI POLISH 2026-09-10 — Worker C */
+/* Additive mobile polish fixes. Do not reorder; keep below existing rules. */
+
+/* P4 (major): #/docs quick-link pills - impose 2-column grid discipline on
+   small screens so pills land in even rows instead of ragged orphans.
+   7 pills -> rows of 2/2/2 with the last pill spanning full width. */
+@media (max-width: 620px) {
+  .docs-toc {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .docs-toc a {
+    justify-content: center;
+    text-align: center;
+  }
+  .docs-toc a:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ==================================================================
+   UI POLISH 2026-09-10 — Worker B
+   P0: breadcrumb/pill collision · P1: negotiation chat thread · P1: dashboard void
+   Additive only: do not reorder or edit existing rules. Pixel aesthetic
+   preserved: 8px rhythm, 12px+ text-to-border clearance, 44px touch
+   targets, VT323 >= 18px, 3px borders, hard offset shadows, square corners.
+   ================================================================== */
+
+/* ---- P0: breadcrumb must own its line so the pill never collides ----
+   .back-link is inline-flex (touch-target rule), so the inline-block pill
+   flows onto the same line with zero clearance. Force block-level stacking
+   in page heroes: the pill drops to its own line and margin-bottom applies. */
+.page-hero .back-link {
+  display: flex;
+}
+
+/* ---- P1: negotiation sim must read as an actual chat thread ----
+   Alternating alignment (AI left / you right), a speaker name label on
+   every message, distinct bubble treatments per speaker, and coach notes
+   visually separated as coaching, not chat. */
+.nego-thread { display: grid; gap: 16px; }
+.nego-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 88%;
+}
+.nego-msg.you { align-items: flex-end; margin-left: auto; }
+.nego-speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-term);
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.nego-speaker::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.nego-msg.ai .nego-speaker { color: var(--veto); }
+.nego-msg.you .nego-speaker { color: var(--go); }
+.nego-bubble {
+  margin: 0;
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--line);
+  padding: 14px 16px; /* >=12px text-to-border clearance */
+}
+.nego-msg.ai .nego-bubble {
+  border-color: var(--veto);
+  box-shadow: 6px 6px 0 rgba(255, 77, 94, 0.28);
+}
+.nego-msg.you .nego-bubble {
+  border-color: var(--go);
+  box-shadow: 6px 6px 0 rgba(61, 255, 115, 0.22);
+}
+/* Coach note: full-width dashed amber panel with a header label, so it
+   reads as coaching, never as a third chat participant. */
+.coach-note {
+  margin: 20px 0 0;
+  border: 3px dashed var(--amber);
+  background: rgba(255, 176, 0, 0.06);
+  padding: 16px;
+}
+.coach-note-label {
+  margin: 0 0 8px;
+  font-family: var(--font-px);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.coach-note-text {
+  margin: 0;
+  font-family: var(--font-term);
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--amber);
+}
+
+/* P6 (minor): footer CTA row - the 4px hard offset shadow (required pixel
+   aesthetic) is the only asymmetric footprint: it extends right/down, so the
+   shadow-inclusive right clearance reads ~4px tighter than the left. Nudge the
+   row so the shadow-inclusive clearance is symmetric at 390px. */
+.cta .hero-ctas {
+  transform: translateX(-2px);
+}
+
+/* P7 (minor): #/dashboard KPI card internal rhythm - the ad-hoc line-heights
+   (1.3 / normal / normal) added uneven half-leading around each row, reading
+   as 8px / 16px / 8px. Normalize to one 8px row gap and flat line-height so
+   the icon/value/label/delta stack breathes evenly. */
+.kpi-card {
+  gap: 8px;
+}
+.kpi-card > * {
+  line-height: 1;
+}
