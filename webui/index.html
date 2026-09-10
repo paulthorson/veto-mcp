@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VETO // Local Dashboard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="banner" class="banner hidden" role="alert">
+  <span id="banner-text">API SERVER UNREACHABLE</span>
+  <button id="banner-retry" type="button">RETRY</button>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-glyph">[X]</span>
+    <span class="brand-name">VETO</span>
+    <span class="brand-sub">LOCAL&nbsp;DASHBOARD&nbsp;//&nbsp;127.0.0.1</span>
+  </div>
+  <div id="status-pill" class="status-pill status-unknown">
+    <span class="dot"></span><span id="status-text">CONNECTING</span>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" aria-label="Sections">
+    <a class="nav-link" data-route="dashboard" href="#dashboard">[&gt;] DASHBOARD</a>
+    <a class="nav-link" data-route="find" href="#find">[&gt;] FIND</a>
+    <a class="nav-link" data-route="tailor" href="#tailor">[&gt;] TAILOR</a>
+    <a class="nav-link" data-route="train" href="#train">[&gt;] TRAIN</a>
+    <a class="nav-link" data-route="win" href="#win">[&gt;] WIN</a>
+    <a class="nav-link" data-route="govern" href="#govern">[&gt;] GOVERN</a>
+    <div class="nav-foot">OFFLINE-FIRST // NO TRACKING<br>DATA STAYS ON THIS MACHINE</div>
+  </nav>
+  <main id="view" class="view" aria-live="polite"></main>
+</div>
+
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div id="modal-box"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

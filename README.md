@@ -242,6 +242,38 @@ Note: each CLI invocation is a fresh process, so the dry-run preview
 shows job title/company as "Unknown" — the job id itself is
 self-describing, so `show` and `apply` still resolve the right posting.
 
+## Dashboard
+
+Two local, offline-first surfaces for browsing every tool without
+memorizing commands. Both read the same local JSON state files; nothing
+leaves your machine.
+
+**Terminal dashboard** — KPI header (applications, avg fit score, day
+streak, interviews, follow-ups due) plus a grouped menu (FIND / TAILOR /
+TRAIN / WIN / GOVERN) where each tool runs as a guided step-by-step
+workflow:
+
+```bash
+.venv/bin/python cli.py dashboard
+```
+
+**Web dashboard** — a localhost web UI (vanilla HTML/CSS/JS, no build
+step, no CDNs, no external fonts) with KPI cards, SVG charts (funnel,
+fit-score distribution, 30-day activity heatmap, skill gaps), and a
+wizard modal for every tool:
+
+```bash
+.venv/bin/python cli.py serve            # opens http://127.0.0.1:8765 in your browser
+.venv/bin/python cli.py serve --port 9000 --no-browser
+```
+
+The server binds `127.0.0.1` only and serves a JSON API (`GET
+/api/tools`, `GET /api/kpis`, `POST /api/run`). Actions that send email,
+submit applications, or transmit data are confirm-gated: the first call
+returns the exact text to approve plus a hash, and nothing executes
+until you confirm that exact preview — the same semantics as the CLI's
+`--confirm` flows.
+
 ## Connect
 
 A ready-to-paste stdio config lives at
