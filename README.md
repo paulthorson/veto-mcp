@@ -1,7 +1,71 @@
-# Job Apply MCP Server
+# Gatekeeper — the AI job applier that says no
 
-An MCP (Model Context Protocol) server that lets an AI agent **search jobs
-across major boards** and **help apply without manual form filling**.
+> Every AI job bot promises to blast 1,000 applications while you sleep.
+> This one searches 8 job boards, grills you over WhatsApp about the gaps
+> in your resume, tailors every application — and **refuses to submit the
+> ones you're not qualified for.**
+
+Gatekeeper is an open-source [MCP](https://modelcontextprotocol.io/)
+server that turns your AI assistant into a job-search agent with a
+conscience. It does the tedious parts — searching, tailoring, filling
+forms, tracking, following up — and enforces the judgment calls most
+bots skip.
+
+## The 60-second tour
+
+1. **Search.** One query across Greenhouse, Lever, Ashby, Adzuna,
+   LinkedIn, Indeed, and ZipRecruiter. Official APIs where they exist;
+   polite, budgeted, circuit-broken scraping where they don't.
+2. **Grill.** Before anything is submitted, it interrogates *you* —
+   missing skills, unquantified experience, salary, logistics — over chat,
+   WhatsApp, or Gmail. Answer on your phone; the application waits.
+3. **Tailor.** Resume bullets front-loaded with the posting's keywords,
+   cover letter referencing the actual role. It never invents experience
+   — gaps are reported, not padded.
+4. **Fill, don't submit.** The agent fills the application form and stops
+   at the review screen. *You* click submit. On sites whose ToS forbid
+   automation, it never touches the submit button at all.
+5. **Track.** Stages, follow-up nudges, recruiter-email sync, response
+   analytics by board.
+
+## The three refusals
+
+1. **It won't invent experience.** The cover letter is honesty-scanned;
+   any skill or year count your profile can't back up blocks the
+   application. Qualification scoring warns or blocks on real gaps.
+2. **It won't burn your accounts.** Scraping-tier boards need your
+   explicit ToS acknowledgment, run on tight daily budgets, and back off
+   exponentially on 403/429/CAPTCHA. Max 5 applications a day, paced like
+   a human. No bulk blasts, ever.
+3. **It won't go rogue.** A constitutional veto screen reviews every
+   planned application; every allow/block decision lands in an audit
+   ledger. Nothing is ever submitted without your explicit confirmation.
+
+The full policy: [`docs/compliance.md`](docs/compliance.md).
+
+## Quickstart
+
+```bash
+git clone https://github.com/paulthorson/job-apply-mcp
+cd job-apply-mcp
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 1. Onboarding: profile, LinkedIn import, channel choice, risk acknowledgment
+.venv/bin/python wizard.py
+
+# 2. Search
+.venv/bin/python cli.py search "software engineer" --location "New York, NY"
+
+# 3. Preview, then confirm — the grill runs before anything is recorded
+.venv/bin/python cli.py apply <job_id> --resume ~/resume.pdf
+.venv/bin/python cli.py apply <job_id> --resume ~/resume.pdf --confirm
+```
+
+Or point any MCP client at it — ready-to-paste config in
+[`mcp-config.json`](mcp-config.json). See [Connect](#connect).
+
+---
+
 
 ## Tools
 
