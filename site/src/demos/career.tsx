@@ -140,18 +140,26 @@ const ROUNDS = [
   },
 ];
 
+const SPEAKERS = { ai: 'AI hiring manager', you: 'You' } as const;
+
 export function NegotiationDemo() {
   return (
     <DemoShell title="> negotiation sim demo" label="Adversarial negotiation simulator: a brutal-difficulty exchange with coach feedback">
       {ROUNDS.map((r, i) => (
         <div key={i} className="nego-round">
           <p className="nego-who">{r.who}</p>
-          {r.lines.map((l, j) => (
-            <p key={j} className={`chat-line ${l.s}`}>
-              {l.t}
-            </p>
-          ))}
-          <p className="coach-note">{r.coach}</p>
+          <div className="nego-thread">
+            {r.lines.map((l, j) => (
+              <div key={j} className={`nego-msg ${l.s}`}>
+                <span className="nego-speaker">{SPEAKERS[l.s as 'ai' | 'you']}</span>
+                <p className="nego-bubble">{l.t}</p>
+              </div>
+            ))}
+          </div>
+          <div className="coach-note">
+            <p className="coach-note-label">Coach note</p>
+            <p className="coach-note-text">{r.coach.replace(/^COACH:\s*/, '')}</p>
+          </div>
         </div>
       ))}
       <p className="idemo-foot">
