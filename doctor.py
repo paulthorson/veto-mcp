@@ -30,9 +30,12 @@ Wiring into the main CLI (cli.py) without editing it — in the wiring
 code, after ``sub = parser.add_subparsers(...)``::
 
     import doctor
-    doctor.register_cli(sub)
+    handlers = doctor.register_cli(sub)  # {command: handler} mapping
+    dispatch.update(handlers)
 
-and dispatch ``args.func(args)`` when the parsed args carry it.
+The returned mapping merges into the caller's dispatch table; each
+parser also carries ``func`` so a caller can dispatch
+``args.func(args)`` when the parsed args carry it.
 """
 
 from __future__ import annotations
@@ -277,18 +280,23 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
         print(json.dumps(report, indent=2, ensure_ascii=False))
     else:
         for check in report["checks"]:
-            mark = "OK  " if check["ok"] else "FAIL"
-            sev = "" if check["severity"] == "error" else " [warning]"
-            print(f"[{mark}]{sev} {check['name']}: {check['detail']}")
+            if check["ok"]:
+                mark = "OK  "
+            elif check.get("severity") == "warning":
+                mark = "WARN"
+            else:
+                mark = "FAIL"
+            print(f"[{mark}] {check['name']}: {check['detail']}")
         print(f"\nDoctor: {'PASS' if report['ok'] else 'FAIL'}")
     return 0 if report["ok"] else 1
 
 
-def register_cli(subparsers: Any) -> None:
+def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add the ``doctor`` command to a CLI.
 
-    Wire from the owning CLI (see module docstring); the parser gets
-    ``func`` set so the owner can dispatch ``args.func(args)``.
+    Returns a {command: handler} mapping the caller merges into its
+    own dispatch table (cli.py-style). The parser also gets ``func``
+    set so the owner can dispatch ``args.func(args)``.
     """
     p = subparsers.add_parser(
         "doctor", help="Check the job-apply setup health (profile, "
@@ -298,6 +306,7 @@ def register_cli(subparsers: Any) -> None:
         "--json", action="store_true", help="Machine-readable JSON output."
     )
     p.set_defaults(func=_cmd_doctor)
+    return {"doctor": _cmd_doctor}
 
 
 def register_tools(mcp: Any) -> None:

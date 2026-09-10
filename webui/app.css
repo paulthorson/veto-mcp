@@ -245,6 +245,18 @@ input[type="checkbox"].big { width: 22px; height: 22px; accent-color: var(--gree
 .h3 { background: #1f7a3d; }
 .h4 { background: #2ea043; }
 .h5 { background: var(--green-neon); }
+.heat-months { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-width: 420px; margin-bottom: 4px; }
+.heat-month { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+.heat-legend { display: flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
+.heat-legend .heat-cell { width: 14px; height: 14px; aspect-ratio: auto; flex: 0 0 14px; }
+
+/* markdown-rendered tool results */
+.md h3 { color: var(--green-neon); font-size: 16px; letter-spacing: 0.08em; margin: 12px 0 6px; }
+.md h3:first-child { margin-top: 0; }
+.md p { margin: 4px 0; font-size: 13px; }
+.md ul { margin: 4px 0 10px 18px; padding: 0; font-size: 13px; }
+.md li { margin: 3px 0; }
+.md strong { color: var(--green-neon); }
 
 .empty {
   border: 3px dashed var(--line);

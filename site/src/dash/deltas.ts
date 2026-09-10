@@ -1,5 +1,5 @@
 /* Delta detection: diff two snapshots of the application lifecycle and
-   surface what changed. Pure functions — no I/O, trivially testable. */
+   surface what changed. Pure functions. No I/O, trivially testable. */
 import type {
   Application,
   BoardStat,
@@ -70,7 +70,7 @@ export function detectDeltas(data: DashboardData): Delta[] {
           kind: 'veto',
           at,
           title: `${app.title} @ ${app.company}`,
-          detail: 'grill refused — below bar',
+          detail: 'grill refused: below bar',
           tone: 'veto',
           icon: 'shield',
         });
@@ -130,7 +130,7 @@ export function detectDeltas(data: DashboardData): Delta[] {
         kind: 'new_match',
         at: hit.first_seen,
         title: `${hit.title} @ ${hit.company}`,
-        detail: `new match — watch "${hit.watch}" · ${hit.board}`,
+        detail: `new match: watch "${hit.watch}" · ${hit.board}`,
         tone: '',
         icon: 'search',
       });
@@ -148,7 +148,7 @@ export function detectDeltas(data: DashboardData): Delta[] {
         kind: 'stale',
         at: last,
         title: `${app.title} @ ${app.company}`,
-        detail: `no movement for ${Math.floor((now - new Date(last).getTime()) / DAY_MS)}d — follow up?`,
+        detail: `no movement for ${Math.floor((now - new Date(last).getTime()) / DAY_MS)}d: follow up?`,
         tone: 'amber',
         icon: 'hourglass',
       });

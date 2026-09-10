@@ -260,7 +260,7 @@ class TestRegisterCli(unittest.TestCase):
     def test_apply_direct_command_flags(self):
         parser = argparse.ArgumentParser()
         sub = parser.add_subparsers(dest="command")
-        handler = ats_apply.register_cli(sub)
+        handler = ats_apply.register_cli(sub)["apply-direct"]
         self.assertTrue(callable(handler))
         args = parser.parse_args(
             ["apply-direct", "--job-id", "ashby:abc123", "--confirm"])
@@ -273,7 +273,7 @@ class TestRegisterCli(unittest.TestCase):
         fake_server._decode_job_id = lambda jid: ("ashby", "posting-123")
         parser = argparse.ArgumentParser()
         sub = parser.add_subparsers(dest="command")
-        handler = ats_apply.register_cli(sub)
+        handler = ats_apply.register_cli(sub)["apply-direct"]
         args = parser.parse_args(
             ["apply-direct", "--job-id", _job_id("ashby", "ashby:1")])
         with mock.patch.dict(sys.modules, {"server": fake_server}), \

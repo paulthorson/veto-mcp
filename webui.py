@@ -1262,15 +1262,26 @@ def _catalog_action(tool_id, action_id):
             "params": action["params"]}
 
 
+class _BadParams(ValueError):
+    """Params were not a JSON object — a client error, not a server bug."""
+
+
 def run_action(tool_id, action_id, params):
-    """Dispatch one action. Returns a JSON-safe response dict."""
-    params = dict(params or {})
+    """Dispatch one action. Returns a JSON-safe response dict.
+
+    Client-caused failures carry a ``_status`` hint (stripped by the HTTP
+    layer before serializing) so the server answers 400 instead of 200.
+    """
     action = _ACTION_LOOKUP.get((tool_id, action_id))
     if action is None:
-        return {"ok": False, "error": f"unknown tool/action: {tool_id}/{action_id}"}
+        return {"ok": False, "error": f"unknown tool/action: {tool_id}/{action_id}",
+                "_status": 400}
 
     gate = GATED.get((tool_id, action_id))
     try:
+        if params is not None and not isinstance(params, dict):
+            raise _BadParams("params must be an object")
+        params = dict(params or {})
         if gate is not None:
             canonical, preview_text = gate["preview"](params)
             expected = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -1287,10 +1298,14 @@ def run_action(tool_id, action_id, params):
         return {"ok": True, "data": _clean(data)}
     except _GateError as exc:
         return {"ok": False, "error": str(exc)}
-    except Exception as exc:  # never leak a traceback as a crash; log it
+    except ValueError as exc:
+        # bad/missing params: the caller's mistake — log once, no traceback
+        print(f"[webui] {tool_id}/{action_id} bad params: {exc}", file=sys.stderr)
+        return {"ok": False, "error": str(exc), "_status": 400}
+    except Exception as exc:  # never leak a traceback as a crash; log it once
         print(f"[webui] {tool_id}/{action_id} failed: {exc}", file=sys.stderr)
         traceback.print_exc()
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        return {"ok": False, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -1377,7 +1392,7 @@ class _Handler(BaseHTTPRequestHandler):
         except BrokenPipeError:
             pass
         except Exception as exc:
-            self._send_json({"ok": False, "error": f"{type(exc).__name__}: {exc}"},
+            self._send_json({"ok": False, "error": str(exc) or "internal error"},
                             status=500)
 
     def _serve_static(self, path):
@@ -1416,11 +1431,14 @@ class _Handler(BaseHTTPRequestHandler):
                                        status=400)
             resp = run_action(body.get("tool"), body.get("action"),
                               body.get("params"))
-            return self._send_json(resp)
+            status = 200
+            if isinstance(resp, dict):
+                status = int(resp.pop("_status", 200) or 200)
+            return self._send_json(resp, status=status)
         except BrokenPipeError:
             pass
         except Exception as exc:
-            self._send_json({"ok": False, "error": f"{type(exc).__name__}: {exc}"},
+            self._send_json({"ok": False, "error": str(exc) or "internal error"},
                             status=500)
 
     # No directory listings, no PUT/DELETE.
@@ -1455,7 +1473,11 @@ def cmd_serve(args) -> int:
         return 2
     server = serve(port)
     url = f"http://127.0.0.1:{server.server_address[1]}"
-    print(f"Veto web UI: {url}")
+    print("Veto web UI is running")
+    print(f"  URL:  {url}")
+    print(f"  Port: {server.server_address[1]}")
+    print(f"  PID:  {os.getpid()}")
+    print("  Stop: press Ctrl-C")
     if not getattr(args, "no_browser", False):
         try:
             webbrowser.open(url)
