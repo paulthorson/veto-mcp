@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   Card,
   CodeBlock,
@@ -561,7 +561,7 @@ function useRoute(): string {
 /* Shared chrome                                                        */
 /* ------------------------------------------------------------------ */
 
-function SiteNav() {
+function SiteNav({ routeHash }: { routeHash: string }) {
   return (
     <header className="nav">
       <div className="nav-inner">
@@ -587,8 +587,209 @@ function SiteNav() {
             Start
           </PxBtn>
         </div>
+        <MobileNav routeHash={routeHash} />
       </div>
     </header>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile navigation (<=960px): GitHub icon button + hamburger.         */
+/* Links are plain anchors; the existing hash router does all the work. */
+/* ------------------------------------------------------------------ */
+
+const MOBILE_SECTIONS = [
+  { href: '#features', label: 'Features' },
+  { href: '#playbooks', label: 'Playbooks' },
+  { href: '#how', label: 'How it works' },
+  { href: '#why-no', label: 'Why it says no' },
+  { href: '#faq', label: 'FAQ' },
+];
+
+const MOBILE_PAGES = [
+  { href: '#/demo', label: 'Demo' },
+  { href: '#/docs', label: 'Docs' },
+  { href: '#/dashboard', label: 'Dashboard' },
+];
+
+/* #/install and #install land in the same place; treat them as one. */
+const INSTALL_HASHES = new Set(['#/install', '#install']);
+
+function MobileNav({ routeHash }: { routeHash: string }) {
+  const [open, setOpen] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
+
+  const close = () => setOpen(false);
+
+  /* Close on any navigation, including browser back/forward while open. */
+  useEffect(() => {
+    if (wasOpen.current) close();
+  }, [routeHash]);
+
+  /* Scroll lock, Escape, focus in/out, and close on resize to desktop. */
+  useEffect(() => {
+    if (open) {
+      wasOpen.current = true;
+      document.body.style.overflow = 'hidden';
+      closeBtnRef.current?.focus();
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setOpen(false);
+        /* Focus trap: keep Tab cycling inside the dialog. */
+        if (e.key === 'Tab' && overlayRef.current) {
+          const focusables = overlayRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          );
+          if (focusables.length === 0) return;
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      };
+      const onResize = () => {
+        if (window.innerWidth > 960) setOpen(false);
+      };
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('resize', onResize);
+      return () => {
+        window.removeEventListener('keydown', onKey);
+        window.removeEventListener('resize', onResize);
+        document.body.style.overflow = '';
+      };
+    }
+    if (wasOpen.current) {
+      wasOpen.current = false;
+      document.body.style.overflow = '';
+      hamburgerRef.current?.focus();
+    }
+    return undefined;
+  }, [open ]);
+
+  const isActive = (href: string) =>
+    href === '#/install' ? INSTALL_HASHES.has(routeHash) : routeHash === href;
+
+  /* Script-set hash avoids Chrome's link-activation focus steal, which
+     dropped focus to body after the menu unmounted and killed the
+     hamburger.focus() restore. Same-hash taps still close via onClick
+     even though no hashchange fires. */
+  const link = (href: string, label: string, className: string) => (
+    <a
+      className={className}
+      href={href}
+      onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        close();
+        window.location.hash = href;
+      }}
+      aria-current={isActive(href) ? 'page' : undefined}
+    >
+      {label}
+    </a>
+  );
+
+  return (
+    <>
+      <div className="nav-mobile-actions">
+        <a
+          className="nav-mobile-gh"
+          href={GITHUB_URL}
+          aria-label="GitHub repo"
+        >
+          <PixelIcon name="github" size={20} />
+        </a>
+        <button
+          ref={hamburgerRef}
+          type="button"
+          className="hamburger"
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          aria-label="Menu"
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="hb-bar" aria-hidden="true" />
+          <span className="hb-bar" aria-hidden="true" />
+          <span className="hb-bar" aria-hidden="true" />
+        </button>
+      </div>
+      {open && (
+        <div
+          ref={overlayRef}
+          className="mobile-menu"
+          id="mobile-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
+          onClick={close}
+        >
+          <div className="mobile-menu-head">
+            <a
+              className="brand"
+              href="#/"
+              aria-label="Veto home"
+              onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+                e.preventDefault();
+                close();
+                window.location.hash = '#/';
+              }}
+            >
+              <PixelX />
+              <span className="brand-name">VETO<span className="x">_</span></span>
+            </a>
+            <button
+              ref={closeBtnRef}
+              type="button"
+              className="mobile-menu-close"
+              aria-label="Close menu"
+              onClick={close}
+            >
+              X
+            </button>
+          </div>
+          <nav className="mobile-menu-nav" aria-label="Mobile">
+            <p className="mobile-menu-group-label">Sections</p>
+            <ul className="mobile-menu-list">
+              {MOBILE_SECTIONS.map((l) => (
+                <li key={l.href}>
+                  {link(l.href, l.label, 'mobile-menu-link')}
+                </li>
+              ))}
+            </ul>
+            <p className="mobile-menu-group-label">Pages</p>
+            <ul className="mobile-menu-list">
+              {MOBILE_PAGES.map((l) => (
+                <li key={l.href}>
+                  {link(l.href, l.label, 'mobile-menu-link')}
+                </li>
+              ))}
+            </ul>
+            <a
+              className="mobile-menu-github"
+              href={GITHUB_URL}
+              aria-label="GitHub repo"
+              onClick={close}
+            >
+              <PixelIcon name="github" size={20} />
+              <span>GitHub</span>
+            </a>
+            <div className="mobile-menu-start">
+              {link('#/install', '> Start with one job', 'px-btn secondary mobile-menu-start-btn')}
+              <p className="mobile-menu-start-note">
+                Nobody installs from a phone. Skim now, clone on a real
+                keyboard.
+              </p>
+            </div>
+          </nav>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -968,7 +1169,7 @@ export default function App() {
   if (hash === '#/demo') {
     return (
       <div className="page">
-        <SiteNav />
+        <SiteNav routeHash={hash} />
         <DemoPage />
         <SiteFooter />
       </div>
@@ -978,7 +1179,7 @@ export default function App() {
   if (hash === '#/docs') {
     return (
       <div className="page">
-        <SiteNav />
+        <SiteNav routeHash={hash} />
         <DocsPage />
         <SiteFooter />
       </div>
@@ -988,7 +1189,7 @@ export default function App() {
   if (hash === '#/dashboard') {
     return (
       <div className="page">
-        <SiteNav />
+        <SiteNav routeHash={hash} />
         <DashboardPage />
         <SiteFooter />
       </div>
@@ -1001,7 +1202,7 @@ export default function App() {
     if (spec) {
       return (
         <div className="page">
-          <SiteNav />
+          <SiteNav routeHash={hash} />
           <FeaturePage spec={spec} />
           <SiteFooter />
         </div>
@@ -1009,7 +1210,7 @@ export default function App() {
     }
     return (
       <div className="page">
-        <SiteNav />
+        <SiteNav routeHash={hash} />
         <NotFoundPage slug={slug} />
         <SiteFooter />
       </div>
@@ -1018,7 +1219,7 @@ export default function App() {
 
   return (
     <div className="page">
-      <SiteNav />
+      <SiteNav routeHash={hash} />
       <HomePage routeHash={hash} />
       <SiteFooter />
     </div>

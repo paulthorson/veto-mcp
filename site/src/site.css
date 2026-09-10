@@ -207,6 +207,165 @@ html {
   padding: 11px 14px 9px;
 }
 
+/* ---------------- Mobile nav (hamburger + full-screen menu) -------- */
+/* Hidden on desktop; activated at <=960px in the Responsive section. */
+.nav-mobile-actions {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  gap: 12px;
+}
+.nav-mobile-gh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 3px solid #000;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+.nav-mobile-gh:hover {
+  color: var(--go);
+}
+.hamburger {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: var(--veto);
+  border: 3px solid #000;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.hamburger .hb-bar {
+  display: block;
+  width: 20px;
+  height: 4px;
+  background: #000;
+}
+.mobile-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+  overflow-y: auto;
+  padding: 16px 16px 32px;
+  border-top: 4px solid var(--veto);
+}
+.mobile-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 16px;
+  border-bottom: 3px solid var(--line);
+}
+.mobile-menu-close {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: var(--veto);
+  color: #000;
+  font-family: var(--font-term);
+  font-size: 28px;
+  line-height: 1;
+  border: 3px solid #000;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.mobile-menu-nav {
+  max-width: 560px;
+  margin: 0 auto;
+}
+.mobile-menu-group-label {
+  font-family: var(--font-px);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin: 24px 0 8px;
+  padding: 0 16px;
+}
+.mobile-menu-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.mobile-menu-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  font-family: var(--font-term);
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  border: 3px solid transparent;
+}
+.mobile-menu-link::before {
+  content: '>';
+  color: var(--veto);
+  margin-right: 12px;
+}
+.mobile-menu-link[aria-current="page"] {
+  border-color: var(--veto);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--go);
+}
+.mobile-menu-link[aria-current="page"]::before {
+  color: var(--go);
+}
+.mobile-menu-github {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 16px;
+  margin: 24px 0 8px;
+  font-family: var(--font-term);
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface-2);
+  border: 3px solid #000;
+  box-shadow: var(--shadow-sm);
+}
+.mobile-menu-github:hover {
+  color: var(--go);
+}
+.mobile-menu-start {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 3px solid var(--line);
+}
+.mobile-menu-start-btn {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+.mobile-menu-start-note {
+  font-family: var(--font-term);
+  font-size: 18px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin: 16px 8px 0;
+  line-height: 1.4;
+}
+
 /* ---------------- Hero ---------------- */
 .hero {
   position: relative;
@@ -676,6 +835,14 @@ html {
   }
   .nav-links {
     display: none;
+  }
+  /* Mobile top bar: logo left, GitHub + hamburger right.
+     Desktop text CTAs and Start button move into the menu. */
+  .nav-cta {
+    display: none;
+  }
+  .nav-mobile-actions {
+    display: flex;
   }
   /* CLS fix: hero terminal type-on loop ends at ~588px tall on tablets.
      Reserve it so the providers strip below never shifts. 8px rhythm. */
