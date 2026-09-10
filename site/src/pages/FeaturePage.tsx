@@ -53,8 +53,8 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
                 </Heading>
                 <p className="hero-sub">{spec.lede}</p>
                 <div className="hero-ctas">
-                  <a className="px-btn primary" href="#/install" aria-label="Get started">
-                    {'>'} Get started
+                  <a className="px-btn primary" href="#/install" aria-label="Start with one job">
+                    {'>'} Start with one job
                   </a>
                 </div>
               </div>
@@ -111,7 +111,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
               Where it struggles
             </Heading>
             <p className="section-sub">
-              No hype. Every tool has edges — here are this one&rsquo;s, stated
+              No hype. Every tool has edges. Here are this one&rsquo;s, stated
               up front.
             </p>
             <div className="limits">
@@ -152,13 +152,13 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
         {/* CTA */}
         <section className="section cta">
           <div className="wrap narrow cta-inner">
-            <p className="game-over">— continue? —</p>
+            <p className="game-over">- continue? -</p>
             <Heading level={2} className="section-title">
               Try it on your search.
             </Heading>
             <div className="hero-ctas center">
-              <a className="px-btn primary" href="#/install" aria-label="Get started">
-                {'>'} Get started
+              <a className="px-btn primary" href="#/install" aria-label="Start with one job">
+                {'>'} Start with one job
               </a>
               <a className="px-btn secondary" href="#/" aria-label="Back to all features">
                 All features

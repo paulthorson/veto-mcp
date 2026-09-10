@@ -5,14 +5,14 @@ const spec: PageSpec = {
   tag: 'Win · learn',
   tagVariant: 'amber',
   title: 'REJECTIONS ARE DATA',
-  lede: 'rejection_autopsy.py records every outcome — rejected, ghosted, offer, withdrawn — at every stage, then finds where your funnel leaks: rejection rate by stage, ghosting rate, time-to-rejection. The diagnosis points at the exact module that fixes it.',
+  lede: 'rejection_autopsy.py records every outcome, rejected, ghosted, offer, withdrawn, at every stage, then finds where your funnel leaks: rejection rate by stage, ghosting rate, time-to-rejection. The diagnosis points at the exact module that fixes it.',
   interactive: 'autopsy',
   points: [
     {
       icon: 'chart',
       tone: '',
       title: 'Funnel leak detection',
-      body: 'Rejection rate by stage, ghosting rate, common keywords in your notes, time-to-rejection stats. The leak is usually one stage — now you know which.',
+      body: 'Rejection rate by stage, ghosting rate, common keywords in your notes, time-to-rejection stats. The leak is usually one stage. Now you know which.',
     },
     {
       icon: 'target',
@@ -30,7 +30,7 @@ const spec: PageSpec = {
       icon: 'check',
       tone: '',
       title: 'Frank but kind',
-      body: 'The copy is direct without being cruel. A 55% screening leak is a resume problem, not a you problem — and resume problems are fixable.',
+      body: 'The copy is direct without being cruel. A 55% screening leak is a resume problem, not a you problem, and resume problems are fixable.',
     },
   ],
   demoTitle: 'Autopsying a month',
@@ -42,15 +42,15 @@ const spec: PageSpec = {
     { text: '+ diagnosis: grill your resume, tighten tailoring, then re-run.', kind: 'ok' },
   ],
   limits: [
-    'Needs a real outcome log — ten applications is anecdote, forty is data.',
+    'Needs a real outcome log, ten applications is anecdote, forty is data.',
     'Diagnoses map to Veto modules; problems outside the tool\u2019s reach get named, not solved.',
     'Correlation, not causation: a leak at screening usually means the resume, but not always.',
-    'Ghosting stats need honest logging — mark the silence, do not just delete the row.',
+    'Ghosting stats need honest logging: mark the silence, do not just delete the row.',
   ],
   faq: [
     {
       q: 'What counts as "ghosted"?',
-      a: 'You log it. If a thread went silent past the point a reply was owed, record it as ghosted with the stage — the stats need your honesty.',
+      a: 'You log it. If a thread went silent past the point a reply was owed, record it as ghosted with the stage. The stats need your honesty.',
     },
     {
       q: 'Does it compare me to other users?',

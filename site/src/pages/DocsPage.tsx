@@ -2,14 +2,19 @@ import { Card, CodeBlock, Heading } from '@astryxdesign/core';
 import { GITHUB_URL, PxBtn, PxTag } from '../px';
 
 /* In-page TOC link: scrolls without touching the hash, so the
-   hash router keeps rendering this page. */
+   hash router keeps rendering this page. Offset is computed manually
+   so the section lands below the sticky nav (scrollIntoView lands
+   ~235px off on these padded sections). */
 function TocLink({ id, children }: { id: string; children: React.ReactNode }) {
   return (
     <a
       href="#/docs"
       onClick={(e) => {
         e.preventDefault();
-        document.getElementById(id)?.scrollIntoView();
+        const el = document.getElementById(id);
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 96;
+        window.scrollTo({ top, behavior: 'smooth' });
       }}
     >
       {children}
@@ -122,7 +127,7 @@ const MODULE_GROUPS: ToolGroup[] = [
     label: 'Score',
     tools: [
       { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority/salary/location 15, recency 5). Under 40 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
-      { name: 'decode-jd', desc: 'Reads a posting like a cynic: transparency score, overwork language, vagueness density, green flags — verdicts of strong, mixed, or caution, every flag quoted.' },
+      { name: 'decode-jd', desc: 'Reads a posting like a cynic: transparency score, overwork language, vagueness density, green flags. Verdicts of strong, mixed, or caution, every flag quoted.' },
     ],
   },
   {
@@ -149,7 +154,7 @@ const MODULE_GROUPS: ToolGroup[] = [
       { name: 'followups', desc: 'Stage-aware follow-up drafts for stale entries. Sending needs your exact approval of recipient, subject, and body.' },
       { name: 'offers', desc: 'Four-year total compensation, adjustable weighted scoring, and what would need to be true for each offer to win.' },
       { name: 'autopsy', desc: 'Rejection autopsy: funnel leak by stage, ghosting rate, and a diagnosis mapped to the module that fixes it.' },
-      { name: 'streaks', desc: 'Log reps, keep streaks, hit daily goals — and export share cards built only from real logged numbers.' },
+      { name: 'streaks', desc: 'Log reps, keep streaks, hit daily goals, and export share cards built only from real logged numbers.' },
     ],
   },
   {
@@ -168,15 +173,15 @@ const TROUBLESHOOTING = [
   },
   {
     q: 'LinkedIn rate-limits (429)',
-    a: 'Back off and let the circuit breaker do its job — it cools the board down for an hour, doubling on repeat blocks. Hammering it will only make the timeout longer.',
+    a: 'Back off and let the circuit breaker do its job. It cools the board down for an hour, doubling on repeat blocks. Hammering it will only make the timeout longer.',
   },
   {
     q: 'A board shows as unavailable',
-    a: 'Glassdoor is a stub — it says so to your face instead of failing weirdly. Adzuna needs a free API key from developer.adzuna.com before it activates.',
+    a: 'Glassdoor is a stub. It says so to your face instead of failing weirdly. Adzuna needs a free API key from developer.adzuna.com before it activates.',
   },
   {
     q: 'Easy Apply fill broke',
-    a: 'Scraping-tier boards change their markup without telling anyone. If the modal flow breaks after a LinkedIn redesign, report it on GitHub — selectors get fixed, it just takes a few days.',
+    a: 'Scraping-tier boards change their markup without telling anyone. If the modal flow breaks after a LinkedIn redesign, report it on GitHub. Selectors get fixed, it just takes a few days.',
   },
   {
     q: 'The grill never completes',
@@ -199,7 +204,7 @@ export default function DocsPage() {
               READ THE MANUAL.
             </Heading>
             <p className="hero-sub">
-              Everything you need to run Veto. No sales pitch — you already
+              Everything you need to run Veto. No sales pitch. You already
               read that part.
             </p>
             <nav className="docs-toc" aria-label="Docs sections">
@@ -222,7 +227,7 @@ export default function DocsPage() {
               Quickstart
             </Heading>
             <p className="section-sub">
-              Five minutes, no API keys. (Adzuna is the one exception — more
+              Five minutes, no API keys. (Adzuna is the one exception. More
               below.)
             </p>
             <Code code={QUICKSTART} language="bash" />
@@ -242,7 +247,7 @@ export default function DocsPage() {
             </Heading>
             <p className="section-sub">
               Paste into your MCP client&rsquo;s config (Claude Desktop,
-              Cursor, Muse CLI — anything speaking MCP). Merge it into the
+              Cursor, Muse CLI, anything speaking MCP). Merge it into the
               existing <code>mcpServers</code> object; don&rsquo;t replace the
               file. Restart the client afterwards.
             </p>
@@ -333,8 +338,8 @@ export default function DocsPage() {
               New modules
             </Heading>
             <p className="section-sub">
-              The playbooks: seventeen modules around the engine, grouped by
-              phase. Same honesty contract everywhere — nothing invented,
+              The playbooks: eighteen modules around the engine, grouped by
+              phase. Same contract everywhere: nothing invented,
               nothing sent without you.
             </p>
             {MODULE_GROUPS.map((g) => (
@@ -418,8 +423,8 @@ export default function DocsPage() {
               Troubleshooting
             </Heading>
             <p className="section-sub">
-              The greatest hits. If it&rsquo;s not here, it&rsquo;s a bug —
-              report it.
+              The greatest hits. If it&rsquo;s not here, it&rsquo;s a bug.
+              Report it.
             </p>
             <div className="faq">
               {TROUBLESHOOTING.map((t) => (
@@ -435,13 +440,13 @@ export default function DocsPage() {
         {/* CTA */}
         <section className="section cta">
           <div className="wrap narrow cta-inner">
-            <p className="game-over">— press start —</p>
+            <p className="game-over">- press start -</p>
             <Heading level={2} className="section-title">
               Manual read. Now play.
             </Heading>
             <div className="hero-ctas center">
-              <PxBtn variant="primary" href="#/install" label="Get started">
-                {'>'} Get started
+              <PxBtn variant="primary" href="#/install" label="Start with one job">
+                {'>'} Start with one job
               </PxBtn>
               <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
                 View on GitHub

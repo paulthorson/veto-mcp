@@ -82,8 +82,20 @@ async function apiPost(url, body) {
   });
   var data = null;
   try { data = await res.json(); } catch (e) { /* non-JSON */ }
-  if (!res.ok) throw new Error("HTTP " + res.status + " from " + url);
+  if (!res.ok) {
+    /* fetch does not reject on 400: attach the parsed JSON body so callers
+       can show the server's own error message instead of a generic failure */
+    var err = new Error("HTTP " + res.status + " from " + url);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return data;
+}
+
+/* Error message carried by a server JSON error body (HTTP 4xx), if any. */
+function serverError(err) {
+  return (err && err.data && err.data.error) || null;
 }
 
 /* ================= modal ================= */
@@ -249,7 +261,30 @@ function heatmapHtml(activity) {
     var tip = d ? d + " : " + c + " rep" + (c === 1 ? "" : "s") : "no data";
     return '<div class="heat-cell h' + lvl + '" data-tip="' + esc(tip) + '"></div>';
   }).join("");
-  return '<div class="heatmap">' + cells + "</div>";
+  /* month labels: month of each week column, shown only when it changes */
+  var MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  var mLabels = [], prev = null, col, row, d, m;
+  for (col = 0; col < 7; col++) {
+    m = null;
+    for (row = 0; row * 7 + col < last30.length; row++) {
+      d = last30[row * 7 + col];
+      if (d && /^\d{4}-\d{2}-\d{2}/.test(d)) {
+        m = MONTHS[parseInt(d.slice(5, 7), 10) - 1];
+        break;
+      }
+    }
+    mLabels.push(m !== prev ? (m || "") : "");
+    if (m) prev = m;
+  }
+  var months = '<div class="heat-months">' + mLabels.map(function (lbl) {
+    return '<div class="heat-month">' + lbl + "</div>";
+  }).join("") + "</div>";
+  var legend = '<div class="heat-legend"><span>LESS</span>' +
+    [0, 1, 2, 3, 4, 5].map(function (l) {
+      return '<div class="heat-cell h' + l + '"></div>';
+    }).join("") + "<span>MORE</span></div>";
+  return months + '<div class="heatmap">' + cells + "</div>" + legend;
 }
 
 /* Extract [{label, value}] pairs from arbitrary skill-gap payloads */
@@ -295,8 +330,8 @@ function renderDashboard(view) {
                (Number(KPIS.offers) || 0) === 0;
     if (zero) {
       html += '<div class="empty"><span class="big">NO APPLICATIONS YET</span>' +
-        "Fresh install detected. Run the onboarding wizard to set up your profile.<br><br>" +
-        '<button class="btn" id="dash-onboard">LAUNCH ONBOARDING WIZARD</button></div>';
+        "Fresh install detected. Run the profile wizard to set up your profile.<br><br>" +
+        '<button class="btn" id="dash-onboard">LAUNCH PROFILE WIZARD</button></div>';
     }
     html += '<h2 class="sec-title">APPLICATION FUNNEL</h2><div class="panel">' + funnelHtml(KPIS.funnel) + "</div>";
     html += '<h2 class="sec-title">FIT SCORE DISTRIBUTION</h2><div class="panel">' + fitDistHtml(KPIS) + "</div>";
@@ -345,8 +380,10 @@ function loadSkillGaps(slot) {
           '<div class="bar-num">' + esc(p.value) + "</div></div>";
       }).join("");
     })
-    .catch(function () {
-      slot.innerHTML = '<div class="empty"><span class="big">GAP ANALYSIS UNAVAILABLE</span>Could not reach the server.</div>';
+    .catch(function (err) {
+      var serverMsg = serverError(err);
+      slot.innerHTML = '<div class="empty"><span class="big">GAP ANALYSIS UNAVAILABLE</span>' +
+        esc(serverMsg || "Could not reach the server.") + "</div>";
     });
 }
 
@@ -591,6 +628,14 @@ function runWizardAction(confirmed, previewHash) {
     WIZ.step = 2;
     renderWizard();
   }).catch(function (err) {
+    var serverMsg = serverError(err);
+    if (serverMsg) {
+      /* server answered 4xx with a JSON error — show its own message */
+      WIZ.error = serverMsg;
+      WIZ.step = 2;
+      renderWizard();
+      return;
+    }
     setServerStatus(false);
     WIZ.error = "Network error: could not reach the server.";
     WIZ.step = 2;
@@ -650,9 +695,10 @@ function openConfirm() {
         WIZ.step = 2;
         renderWizard();
       }
-    }).catch(function () {
-      setServerStatus(false);
-      WIZ.error = "Network error during confirmed execution.";
+    }).catch(function (err) {
+      var serverMsg = serverError(err);
+      WIZ.error = serverMsg || "Network error during confirmed execution.";
+      if (!serverMsg) setServerStatus(false);
       WIZ.confirm = null;
       WIZ.step = 2;
       renderWizard();
@@ -668,6 +714,41 @@ function looksLikeSvg(s) {
 function looksLikeDiff(s) {
   return typeof s === "string" &&
     /(^|\n)(diff --git|--- |\+\+\+ |@@ |[+-][^+-])/m.test(s);
+}
+
+function looksLikeMarkdown(s) {
+  /* small markdown subset: ## headings, **bold**, - list items */
+  return typeof s === "string" &&
+    /(^|\n)\s*#{1,3}\s|\*\*[^*\n]+\*\*|(^|\n)\s*[-*]\s/m.test(s);
+}
+
+function mdInline(s) {
+  /* s is already HTML-escaped */
+  return s.replace(/\*\*([^*<>]+)\*\*/g, "<strong>$1</strong>");
+}
+
+function markdownHtml(s) {
+  /* convert the small markdown subset to HTML; escape first, then markup */
+  var lines = esc(s).split("\n");
+  var out = [];
+  var inList = false;
+  lines.forEach(function (ln) {
+    var h = /^\s*#{1,3}\s+(.*)$/.exec(ln);
+    var li = /^\s*[-*]\s+(.*)$/.exec(ln);
+    if (h) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push("<h3>" + mdInline(h[1]) + "</h3>");
+    } else if (li) {
+      if (!inList) { out.push("<ul>"); inList = true; }
+      out.push("<li>" + mdInline(li[1]) + "</li>");
+    } else {
+      if (inList) { out.push("</ul>"); inList = false; }
+      if (/^\s*$/.test(ln)) return;
+      out.push("<p>" + mdInline(ln) + "</p>");
+    }
+  });
+  if (inList) out.push("</ul>");
+  return '<div class="md">' + out.join("") + "</div>";
 }
 
 function diffHtml(s) {
@@ -686,6 +767,13 @@ function renderString(container, s) {
     var w = el("div", "radar-wrap", "");
     w.innerHTML = s; /* server-generated radar chart */
     container.appendChild(w);
+    return;
+  }
+  if (looksLikeMarkdown(s)) {
+    /* markdown reports (e.g. jd_decoder) render as HTML, not raw text */
+    var m = el("div", null, "");
+    m.innerHTML = markdownHtml(s);
+    container.appendChild(m);
     return;
   }
   if (looksLikeDiff(s)) {
@@ -773,7 +861,13 @@ function renderResult(container, data) {
         var v = rest[k];
         dl.appendChild(el("dt", null, esc(k)));
         var val = (v === null || v === undefined) ? "" : (typeof v === "object" ? JSON.stringify(v, null, 2) : String(v));
-        dl.appendChild(el("dd", null, esc(val)));
+        var dd = el("dd", null, "");
+        if (typeof v === "string" && looksLikeMarkdown(v)) {
+          dd.innerHTML = markdownHtml(val);
+        } else {
+          dd.innerHTML = esc(val);
+        }
+        dl.appendChild(dd);
       });
       block.appendChild(dl);
     } else if (!rendered && !embedded) {

@@ -16,6 +16,7 @@ import argparse
 import json
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parent
@@ -160,7 +161,7 @@ def load_profile() -> dict:
     """Load the candidate profile JSON (validated path, defaults offered)."""
     path = Path(ask("Profile JSON", str(REPO_DIR / "profiles" / "profile.json")))
     if not path.is_file():
-        print(f"  No profile at {path} — continuing without one.")
+        print(f"  No profile at {str(path)[:40]}. Continuing without one.")
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -690,8 +691,15 @@ def wf_streaks() -> None:
         cur = info.get("current", info) if isinstance(info, dict) else info
         print(f"  {streaks.KIND_LABELS.get(kind, kind)}: {cur} day(s)")
     kind = ask_choice("Log a rep", list(streaks.REP_KINDS), default="application")
+    if not ask_yes_no(f"Log one '{kind}' rep now?"):
+        print("  Not logged.")
+        return
     entry = streaks.log_rep(kind)
-    print(f"  Logged {kind} rep at {entry.get('ts', entry.get('at', '?'))} — keep it going.")
+    rep = entry.get("rep") or {}
+    when = rep.get("ts")
+    when_s = (datetime.fromtimestamp(when).strftime("%Y-%m-%d %H:%M")
+              if isinstance(when, (int, float)) else "today")
+    print(f"  Logged {kind} rep at {when_s}. Keep it going.")
 
 
 def wf_contribute() -> None:
@@ -797,8 +805,8 @@ def print_menu() -> None:
 
 def run_dashboard() -> int:
     """Main menu loop; Ctrl-C / EOF exits cleanly."""
-    print("\n  ══ JOB-APPLY DASHBOARD ══")
     while True:
+        print("\n  ══ JOB-APPLY DASHBOARD ══")
         print()
         print_kpis()
         print_menu()

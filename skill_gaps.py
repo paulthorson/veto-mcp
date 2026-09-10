@@ -249,7 +249,10 @@ def analyze_gaps(
         for e in ranked
     ]
 
-    # Persist, preserving any statuses the user already recorded.
+    # Persist only when the gap set actually changed, so a no-op analysis
+    # (e.g. triggered by --help or a bare import) never creates or
+    # rewrites the state file. Statuses the user already recorded are
+    # preserved across re-runs.
     store = _load_store()
     old = store.get("gaps", {}) if isinstance(store.get("gaps"), dict) else {}
     now = int(time.time())
@@ -263,10 +266,11 @@ def analyze_gaps(
             "evidence": prev.get("evidence"),
             "updated_at": prev.get("updated_at", now),
         }
-    store["gaps"] = merged
-    store["analyzed_at"] = now
-    store["jobs_analyzed"] = len(jobs)
-    _save_store(store)
+    if merged != old:
+        store["gaps"] = merged
+        store["analyzed_at"] = now
+        store["jobs_analyzed"] = len(jobs)
+        _save_store(store)
 
     lines = ["# Skill gaps", ""]
     if not gaps:

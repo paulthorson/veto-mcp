@@ -83,7 +83,7 @@ export default function DemoPage() {
             </Heading>
             <p className="hero-sub">
               A real Veto grill, shrunk to three questions. Below is a fake
-              posting with real standards. Answer honestly — most people get
+              posting with real standards. Answer honestly. Most people get
               refused. That&rsquo;s the product working.
             </p>
           </div>
@@ -208,7 +208,7 @@ export default function DemoPage() {
                         No veto.
                       </Heading>
                       <p className="feature-body">
-                        Veto found nothing to complain about. Suspicious — but
+                        Veto found nothing to complain about. Suspicious. But
                         clean. In the real tool you&rsquo;d still review and
                         confirm before anything is recorded.
                       </p>
@@ -224,7 +224,7 @@ export default function DemoPage() {
                       <div className="terminal-body">
                         <div className="tline t-info">{'>'} grill: 3/3 answered +</div>
                         <div className="tline t-info">{'>'} honesty check: no invented skills +</div>
-                        <div className="tline t-veto">X VETOED — {verdict.reason}</div>
+                        <div className="tline t-veto">X VETOED: {verdict.reason}</div>
                       </div>
                     </div>
                   )}
@@ -245,13 +245,13 @@ export default function DemoPage() {
 
         <section className="section cta">
           <div className="wrap narrow cta-inner">
-            <p className="game-over">— insert coin —</p>
+            <p className="game-over">- insert coin -</p>
             <Heading level={2} className="section-title">
               Now try it on real jobs.
             </Heading>
             <div className="hero-ctas center">
-              <PxBtn variant="primary" href="#/install" label="Get started">
-                {'>'} Get started
+              <PxBtn variant="primary" href="#/install" label="Start with one job">
+                {'>'} Start with one job
               </PxBtn>
             </div>
           </div>

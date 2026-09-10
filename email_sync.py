@@ -750,8 +750,12 @@ def _cli_email_followup(args) -> int:  # noqa: ANN001 - argparse namespace
     return 0
 
 
-def register_cli(subparsers) -> None:  # noqa: ANN001 - argparse subparsers
-    """Add the ``email-scan`` and ``email-followup`` CLI commands."""
+def register_cli(subparsers) -> dict:  # noqa: ANN001 - argparse subparsers
+    """Add the ``email-scan`` and ``email-followup`` CLI commands.
+
+    Returns a {command: handler} mapping the caller merges into its
+    own dispatch table (cli.py-style).
+    """
     p_scan = subparsers.add_parser(
         "email-scan",
         help="Scan Gmail for recruiter mail; propose application stage updates.",
@@ -779,3 +783,7 @@ def register_cli(subparsers) -> None:  # noqa: ANN001 - argparse subparsers
                           help="Confirm sending the exact draft shown.")
     p_follow.add_argument("--json", action="store_true", help="Print raw JSON.")
     p_follow.set_defaults(func=_cli_email_followup)
+    return {
+        "email-scan": _cli_email_scan,
+        "email-followup": _cli_email_followup,
+    }

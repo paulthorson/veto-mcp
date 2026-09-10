@@ -5,7 +5,7 @@ const spec: PageSpec = {
   tag: 'Governance',
   tagVariant: 'red',
   title: 'THE VETO',
-  lede: 'Every confirmed application passes a constitutional veto screen on a neutral summary of the planned action, plus an advisory adversarial review. A veto hit \u2014 or a failed veto check \u2014 blocks the action, fail-closed. Nothing is submitted and nothing is logged.',
+  lede: 'Every confirmed application passes a constitutional veto screen on a neutral summary of the planned action, plus an advisory adversarial review. A veto hit, or a failed veto check, blocks the action, fail-closed. Nothing is submitted and nothing is logged.',
   points: [
     {
       icon: 'x',
@@ -17,7 +17,7 @@ const spec: PageSpec = {
       icon: 'lock',
       tone: 'red',
       title: 'Fail-closed',
-      body: 'A veto hit or a failed veto check blocks \u2014 always. Nothing is submitted and nothing is written to applications.json. Caution wins over convenience.',
+      body: 'A veto hit or a failed veto check blocks, always. Nothing is submitted and nothing is written to applications.json. Caution wins over convenience.',
     },
     {
       icon: 'check',
@@ -28,16 +28,16 @@ const spec: PageSpec = {
       icon: 'shield',
       tone: 'amber',
       title: 'Compliance-only mode',
-      body: 'If the governance framework is unavailable, the deterministic compliance gates still hold. The decision is marked compliance-only \u2014 the guardrails don\u2019t take a day off.',
+      body: 'If the governance framework is unavailable, the deterministic compliance gates still hold. The decision is marked compliance-only, the guardrails don\u2019t take a day off.',
     },
   ],
-  demoTitle: 'veto — zsh',
+  demoTitle: 'veto: zsh',
   demoLines: [
     { text: 'cli.py apply job:indeed:77 --resume ~/r.pdf --confirm', kind: 'cmd' },
     { text: '\u2192 grill: 4/4 answered \u2713', kind: 'info' },
     { text: '\u2192 honesty check: passed \u2713', kind: 'ok' },
-    { text: '\u2192 veto screen: 1 hit \u2014 "mass-apply pattern"', kind: 'warn' },
-    { text: '\u2715 VETOED \u2014 nothing submitted, nothing logged', kind: 'veto' },
+    { text: '\u2192 veto screen: 1 hit: "mass-apply pattern"', kind: 'warn' },
+    { text: '\u2715 VETOED: nothing submitted, nothing logged', kind: 'veto' },
     { text: '  fix the application or profile, then re-run', kind: 'info' },
     { text: '\u2192 adversarial review: advisory note attached', kind: 'info' },
     { text: '\u2192 ledger: verdict written, reason recorded', kind: 'info' },
@@ -45,13 +45,13 @@ const spec: PageSpec = {
   limits: [
     'Vetoes can false-positive. That\u2019s the price of fail-closed.',
     'Full screening needs the governance framework installed.',
-    'The adversarial review is advisory \u2014 it warns, never blocks.',
+    'The adversarial review is advisory, it warns, never blocks.',
     'A veto stops the action; it doesn\u2019t fix your resume for you.',
   ],
   faq: [
     {
       q: 'Can I override a veto?',
-      a: 'No \u2014 by design. The only path is fixing whatever tripped it (the application, the cover letter, or your profile) and re-running. If vetoes could be clicked through, they wouldn\u2019t be vetoes.',
+      a: 'No, by design. The only path is fixing whatever tripped it (the application, the cover letter, or your profile) and re-running. If vetoes could be clicked through, they wouldn\u2019t be vetoes.',
     },
     {
       q: 'What if governance itself is down?',
