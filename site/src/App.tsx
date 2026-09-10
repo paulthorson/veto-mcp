@@ -10,7 +10,7 @@ import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
 import DashboardPage from './pages/DashboardPage';
 import type { PageSpec } from './pages/spec';
-import { PixelX, PxBtn, PxTag, PixelIcon, BotCrew, GITHUB_URL } from './px';
+import { PixelX, PxBtn, PxTag, PixelIcon, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
 import specGrill from './pages/specs/the-grill';
 import specTailoring from './pages/specs/tailoring';
@@ -452,7 +452,6 @@ function HomePage({ routeHash }: { routeHash: string }) {
             </div>
             <div className="hero-demo">
               <TerminalDemo />
-              <BotCrew />
             </div>
           </div>
         </section>
