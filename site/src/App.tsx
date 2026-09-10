@@ -8,6 +8,7 @@ import {
 import FeaturePage from './pages/FeaturePage';
 import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
+import DashboardPage from './pages/DashboardPage';
 import type { PageSpec } from './pages/spec';
 import { PixelX, PxBtn, PxTag, PixelIcon, BotCrew, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
@@ -386,6 +387,7 @@ function SiteFooter() {
           <Link href={GITHUB_URL} label="GitHub repository" target="_blank">{'>'} GitHub repository</Link>
           <Link href="#/docs" label="Documentation">{'>'} Documentation</Link>
           <Link href="#/install" label="Install">{'>'} Install</Link>
+          <Link href="#/dashboard" label="Mission-control dashboard">{'>'} Dashboard</Link>
         </div>
       </div>
       <div className="wrap footer-base">
@@ -648,6 +650,8 @@ export default function App() {
       document.title = 'Get vetoed — interactive demo — Veto';
     } else if (hash === '#/docs') {
       document.title = 'Docs — Veto';
+    } else if (hash === '#/dashboard') {
+      document.title = 'Mission control — Veto dashboard';
     } else if (hash.startsWith('#/features/')) {
       const slug = hash.slice('#/features/'.length);
       const spec = SPECS[slug];
@@ -674,6 +678,16 @@ export default function App() {
       <div className="page">
         <SiteNav />
         <DocsPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (hash === '#/dashboard') {
+    return (
+      <div className="page">
+        <SiteNav />
+        <DashboardPage />
         <SiteFooter />
       </div>
     );

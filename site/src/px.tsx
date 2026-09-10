@@ -448,163 +448,67 @@ export function resolveIcon(glyph: string): string {
   return GLYPH_TO_ICON[glyph] ?? 'list';
 }
 
-/* ------------------------------------------------------------------ */
-/* Pixel bots — hand-drawn animated worker sprites.                    */
-/* Each bot is a 24x16 scene (bot + prop) with 3 work frames rendered  */
-/* as one SVG strip; CSS steps() cycles the frames like a sprite.     */
-/* Tap/click a bot and it mutates, then splits into two.              */
+/* ------------------------------------------------------------------ *//* Worker bots — built from real DOM/CSS, not sprite bitmaps.              */
+/* Each bot is a blocky little machine: antenna, head, glowing eyes,    */
+/* torso with a pulsing core, articulated arms, legs, and a work prop.  */
+/* The miner swings a pick into a rock (sparks on impact); the builder  */
+/* pounds a hammer onto stacked blocks. Tap/click to mutate + split.    */
 /* ------------------------------------------------------------------ */
 
 export type BotVariant = 'miner' | 'builder';
 
-const BOT_W = 24;
-const BOT_H = 16;
-const BOT_FRAMES = 3;
-
-const BOT_PALETTE: Record<string, string> = {
-  K: '#0d0d12',
-  W: '#f4f4f5',
-  R: '#ff4d5e',
-  G: '#34d399',
-  A: '#fbbf24',
-  S: '#a1a1aa',
-  B: '#c08a4d',
-  D: '#3a3a44',
-  L: '#71717a',
-};
-
-const BOT_BODY: string[] = [
-  '........................',
-  '.....RR.................',
-  '.....DD.................',
-  '...DDDDDD...............',
-  '..DSSSSSSD..............',
-  '..DSGGSSGD..............',
-  '..DSGGSSGD..............',
-  '..DSSSSSSD..............',
-  '...DSSSSSD..............',
-  '..DSSSSSSSDD............',
-  '..DSSASSDSDD............',
-  '..DSSSSSSSDD............',
-  '...DSSSSSDD.............',
-  '...DDS.DDSD.............',
-  '...DDS.DDSD.............',
-  '..DDSSD.DDSSD...........',
-];
-
-type Bpx = [number, number, string]; // x, y, palette key
-
-function botPropRock(): Bpx[] {
-  const px: Bpx[] = [];
-  for (let x = 18; x < 22; x++) px.push([x, 11, 'L']);
-  for (let y = 12; y < 16; y++)
-    for (let x = 17; x < 23; x++) px.push([x, y, 'D']);
-  px.push([19, 13, 'L'], [21, 14, 'L'], [18, 15, 'L'], [17, 12, 'S'], [22, 13, 'S']);
-  return px;
-}
-
-function botPropBlocks(): Bpx[] {
-  const px: Bpx[] = [];
-  for (let x = 17; x < 23; x++) px.push([x, 13, 'D']);
-  for (const y of [14, 15]) {
-    px.push([17, y, 'D']);
-    for (let x = 18; x < 22; x++) px.push([x, y, 'S']);
-    px.push([22, y, 'D']);
-  }
-  for (let x = 18; x < 22; x++) px.push([x, 10, 'D']);
-  for (const y of [11, 12]) {
-    px.push([18, y, 'D']);
-    for (let x = 19; x < 21; x++) px.push([x, y, 'S']);
-    px.push([21, y, 'D']);
-  }
-  px.push([19, 14, 'W'], [20, 11, 'W']);
-  return px;
-}
-
-/* Tool poses per frame: handle pixels + head pixels + strike sparks. */
-const BOT_TOOLS: Record<BotVariant, { prop: () => Bpx[]; tools: Bpx[][] }> = {
-  miner: {
-    prop: botPropRock,
-    tools: [
-      [[10,9,'B'],[11,8,'B'],[12,7,'B'],[13,6,'B'],[14,5,'B'],[15,4,'B'],
-       [13,2,'W'],[14,2,'W'],[15,2,'W'],[16,2,'W'],[16,3,'W'],[13,3,'W']],
-      [[10,9,'B'],[11,9,'B'],[12,8,'B'],[13,8,'B'],[14,7,'B'],
-       [13,6,'W'],[14,6,'W'],[15,6,'W'],[15,7,'W']],
-      [[10,9,'B'],[12,9,'B'],[13,10,'B'],[14,10,'B'],
-       [15,9,'W'],[16,9,'W'],[15,10,'W'],[16,10,'W'],
-       [17,8,'W'],[18,9,'A'],[17,10,'W'],[19,8,'A']],
-    ],
-  },
-  builder: {
-    prop: botPropBlocks,
-    tools: [
-      [[10,9,'B'],[11,8,'B'],[12,7,'B'],[13,6,'B'],[14,5,'B'],[14,4,'B'],
-       [12,3,'W'],[13,3,'W'],[14,3,'W'],[15,3,'W'],[15,4,'W'],[12,4,'W']],
-      [[10,9,'B'],[11,9,'B'],[12,8,'B'],[13,8,'B'],
-       [12,7,'W'],[13,7,'W'],[14,7,'W'],[14,8,'W']],
-      [[10,9,'B'],[12,9,'B'],[14,10,'B'],[16,10,'B'],
-       [16,9,'W'],[17,9,'W'],[16,10,'W'],[17,10,'W'],
-       [18,8,'W'],[19,9,'A'],[18,9,'W']],
-    ],
-  },
-};
-
-function composeBotFrame(variant: BotVariant, frame: number): string[] {
-  const g = BOT_BODY.map((r) => r.split(''));
-  const spec = BOT_TOOLS[variant];
-  for (const [x, y, c] of [...spec.prop(), ...spec.tools[frame]]) {
-    if (y >= 0 && y < BOT_H && x >= 0 && x < BOT_W) g[y][x] = c;
-  }
-  return g.map((r) => r.join(''));
-}
-
-const BOT_FRAME_CACHE: Record<BotVariant, string[][]> = {
-  miner: [0, 1, 2].map((f) => composeBotFrame('miner', f)),
-  builder: [0, 1, 2].map((f) => composeBotFrame('builder', f)),
-};
-
-export function PixelBot({
+export function RoboBot({
   variant,
-  px = 3,
   label,
 }: {
   variant: BotVariant;
-  px?: number;
   label?: string;
 }) {
-  const frames = BOT_FRAME_CACHE[variant];
-  const rects: React.ReactNode[] = [];
-  frames.forEach((rows, f) => {
-    rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
-        const c = row[x];
-        if (c === '.') continue;
-        rects.push(
-          <rect
-            key={`${f}-${x}-${y}`}
-            x={f * BOT_W + x}
-            y={y}
-            width={1.02}
-            height={1.02}
-            fill={BOT_PALETTE[c] ?? '#ffffff'}
-          />,
-        );
-      }
-    });
-  });
   return (
-    <svg
-      className="bot-strip"
-      width={BOT_W * BOT_FRAMES * px}
-      height={BOT_H * px}
-      viewBox={`0 0 ${BOT_W * BOT_FRAMES} ${BOT_H}`}
-      shapeRendering="crispEdges"
+    <div
+      className={`rbot rbot-${variant}`}
       role="img"
       aria-label={label ?? `${variant} bot`}
-      style={{ '--bot-fw': `${BOT_W * px}px` } as React.CSSProperties}
     >
-      {rects}
-    </svg>
+      <div className="rbot-antenna" aria-hidden="true">
+        <i />
+      </div>
+      <div className="rbot-head" aria-hidden="true">
+        <span className="rbot-eye eye-l" />
+        <span className="rbot-eye eye-r" />
+        <span className="rbot-grille" />
+      </div>
+      <div className="rbot-torso" aria-hidden="true">
+        <span className="rbot-core" />
+        <div className="rbot-arm arm-l" />
+        <div className="rbot-arm arm-r">
+          <span className={`rbot-tool tool-${variant === 'miner' ? 'pick' : 'hammer'}`} />
+        </div>
+      </div>
+      <div className={`rbot-prop prop-${variant}`} aria-hidden="true">
+        {variant === 'miner' ? (
+          <>
+            <i className="rock r1" />
+            <i className="rock r2" />
+          </>
+        ) : (
+          <>
+            <i className="block b1" />
+            <i className="block b2" />
+          </>
+        )}
+      </div>
+      <div className="rbot-legs" aria-hidden="true">
+        <span className="rbot-leg leg-l" />
+        <span className="rbot-leg leg-r" />
+      </div>
+      <span className="rbot-sparks" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className="rbot-shadow" aria-hidden="true" />
+    </div>
   );
 }
 
@@ -674,8 +578,8 @@ export function BotCrew({ max = 6 }: { max?: number }) {
                 }
               }}
             >
-              <span className="bot-scene" style={{ width: BOT_W * 3, height: BOT_H * 3 }}>
-                <PixelBot variant={b.variant} px={3} />
+              <span className="rbot-stage">
+                <RoboBot variant={b.variant} />
               </span>
             </span>
           );
