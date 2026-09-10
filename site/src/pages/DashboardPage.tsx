@@ -2,7 +2,7 @@
    visual language. Data comes from localStorage (VETO_DASH_KEY) when
    present, otherwise the seeded demo dataset. */
 import { useMemo, useState } from 'react';
-import { PxTag, PixelIcon, BotCrew } from '../px';
+import { PxTag, PixelIcon } from '../px';
 import {
   boardStats,
   computeKpis,
@@ -246,14 +246,6 @@ export default function DashboardPage() {
             </ul>
             <p className="dash-note">Share of applied that drew a response.</p>
           </div>
-        </div>
-      </section>
-
-      {/* CREW */}
-      <section className="section">
-        <div className="wrap narrow" style={{ textAlign: 'center' }}>
-          <p className="dash-card-title" style={{ justifyContent: 'center' }}>The crew keeps watch</p>
-          <BotCrew />
         </div>
       </section>
 
