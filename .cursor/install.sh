@@ -26,4 +26,10 @@ fi
 # --with-deps escalates via sudo for the apt step when not running as root.
 .venv/bin/python -m playwright install --with-deps chromium firefox
 
-echo "job-apply-mcp environment ready: $(.venv/bin/python --version)"
+# Marketing site (React + Vite + TS). Node ships with the base image; install
+# from the lockfile so `npm run dev` / `npm run build` work out of the box.
+if [ -f site/package-lock.json ]; then
+  (cd site && npm ci)
+fi
+
+echo "job-apply-mcp environment ready: $(.venv/bin/python --version), node $(node --version)"
