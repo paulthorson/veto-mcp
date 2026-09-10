@@ -7,3 +7,8 @@ lxml
 # Install the browser binary after pip install with:
 #   python -m playwright install chromium
 playwright
+# Optional: resume PDF output for resume_builder.py (pure Python, no
+# system dependencies). Without it, resume_builder emits resume.md +
+# resume.html. (WeasyPrint is a prettier alternative but needs system
+# libraries: pango, cairo.)
+reportlab
