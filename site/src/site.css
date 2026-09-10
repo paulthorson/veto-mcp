@@ -1498,15 +1498,27 @@ section[id] {
   pointer-events: none;
 }
 .fit-meter-scale {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 17px;
+  margin-top: 6px;
   font-family: var(--font-term);
   font-size: 15px;
   color: var(--ink-faint);
   letter-spacing: 0.04em;
-  margin-top: 5px;
 }
+.fit-meter-min {
+  position: absolute;
+  left: 0;
+}
+.fit-meter-max {
+  position: absolute;
+  right: 0;
+}
+/* Anchored under the actual veto mark; `left` is set inline to the threshold %. */
 .fit-meter-vetotag {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
   color: var(--amber);
 }
 

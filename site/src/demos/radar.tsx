@@ -147,9 +147,11 @@ export default function RadarDemo() {
               <div className="fit-meter-veto" style={{ width: `${VETO_LINE}%` }} />
             </div>
             <div className="fit-meter-scale">
-              <span>0</span>
-              <span className="fit-meter-vetotag">veto line {VETO_LINE}</span>
-              <span>100</span>
+              <span className="fit-meter-min">0</span>
+              <span className="fit-meter-vetotag" style={{ left: `${VETO_LINE}%` }}>
+                veto {VETO_LINE}
+              </span>
+              <span className="fit-meter-max">100</span>
             </div>
           </div>
 
