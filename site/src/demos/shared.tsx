@@ -63,17 +63,31 @@ export function PxSlider({
   onChange,
   min = 0,
   max = 100,
+  weight,
+  hint,
+  tone = 'go',
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   min?: number;
   max?: number;
+  /** Optional weight badge, e.g. 50 renders "x50". */
+  weight?: number;
+  /** Optional small caption under the track (e.g. live contribution). */
+  hint?: string;
+  /** Fill colour of the track up to the thumb. */
+  tone?: 'go' | 'amber' | 'red';
 }) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
   return (
-    <label className="px-range">
+    <label className={`px-range tone-${tone}`}>
       <span className="px-range-label">
-        {label} <b>{value}</b>
+        <span className="px-range-name">
+          {label}
+          {weight != null && <em className="px-range-wt">x{weight}</em>}
+        </span>
+        <b>{value}</b>
       </span>
       <input
         type="range"
@@ -82,7 +96,9 @@ export function PxSlider({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
+        style={{ ['--pct' as string]: `${pct}%` }}
       />
+      {hint && <span className="px-range-hint">{hint}</span>}
     </label>
   );
 }
