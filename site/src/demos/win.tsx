@@ -76,31 +76,160 @@ export function GapDemo() {
 
 /* ---------------- JD decoder ---------------- */
 
+// Sample posting fed to the real engine. Regen the numbers below with:
+//   python3 - <<'EOF'
+//   import json
+//   from jd_decoder import jd_verdict
+//   text = open('/tmp/jd_sample.txt', encoding='utf-8').read().rstrip('\n')
+//   print(json.dumps(jd_verdict(text), indent=2, ensure_ascii=False))
+//   EOF
+// JD_SAMPLE is byte-identical to the text the engine decoded (no trailing newline).
+const JD_SAMPLE = `Senior Backend Engineer, StealthCo
+
+We are hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years.
+
+What you will do:
+- Own backend services end to end
+- Design Postgres schemas that survive scale
+- Run weekly on-call rotations
+- Ship features with product and design
+
+We need a rockstar who thrives on synergy and channels their inner ninja. We move in a fast-paced environment where everyone wear many hats. Unlimited PTO, obviously.
+
+We offer mentorship from staff engineers.`;
+
+// Exact jd_verdict(JD_SAMPLE) output, captured 2026-09-10. Every flag
+// below carries the quote the engine produced for it.
+const JD_RESULT = {
+  verdict: 'mixed',
+  score: 66,
+  transparency: { score: 100, salaryRaw: '$150k-$185k', equityTerm: 'Equity', equityConcrete: true },
+  overwork: [
+    {
+      phrase: 'fast-paced',
+      quote: '… rockstar who thrives on synergy and channels their inner ninja. We move in a fast-paced environment where everyone wear many hats. Unlimited PTO, obviously. …',
+      read: 'Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set.',
+    },
+    {
+      phrase: 'wear many hats',
+      quote: '… their inner ninja. We move in a fast-paced environment where everyone wear many hats. Unlimited PTO, obviously. We offer mentorship from staff engineers.',
+      read: "The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core.",
+    },
+    {
+      phrase: 'unlimited PTO',
+      quote: '… ninja. We move in a fast-paced environment where everyone wear many hats. Unlimited PTO, obviously. We offer mentorship from staff engineers.',
+      read: 'Teams with unlimited PTO often take less time off than teams with a fixed allotment. Ask how many days the team actually took last year.',
+    },
+  ],
+  buzzwords: ['rockstar', 'synergy', 'ninja'],
+  buzzwordDensity: 3.41,
+  responsibilities: 4,
+  greenFlags: [
+    {
+      flag: 'remote flexibility',
+      quote: '… Engineer, StealthCo We are hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years. …',
+    },
+    {
+      flag: 'salary range disclosed',
+      quote: '… hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years. What you will do: - Own backend …',
+    },
+  ],
+  growth: [
+    {
+      signal: 'mentorship',
+      quote: '… environment where everyone wear many hats. Unlimited PTO, obviously. We offer mentorship from staff engineers.',
+    },
+  ],
+  reasons: [
+    {
+      impact: 25,
+      reason: 'Salary range disclosed',
+      quote: '… hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years. What you will do: - Own backend …',
+    },
+    {
+      impact: 10,
+      reason: 'Equity described concretely',
+      quote: '… backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years. What you will do: - Own backend services …',
+    },
+    {
+      impact: -10,
+      reason: 'High buzzword density, few concrete details',
+      quote: '… on-call rotations - Ship features with product and design We need a rockstar who thrives on synergy and channels their inner ninja. We move in a fast-paced …',
+    },
+  ],
+};
+
 export function JdDemo() {
+  const r = JD_RESULT;
+  void JD_SAMPLE; // byte-identical source of truth; the numbers above came from it
   return (
     <DemoShell title="> jd decoder demo" label="Job-description decoder: red and green flags called out on a sample posting">
       <div className="jd-paper">
         <p className="jd-title">Senior Backend Engineer, StealthCo</p>
         <p className="jd-text">
-          We are hiring a <span className="hl-green">salary range $150–185k</span> senior
-          backend engineer for our <span className="hl-green">remote-first</span> platform
-          team. You will own services end to end. We move in a{' '}
-          <span className="hl-red">fast-paced environment</span> where everyone{' '}
-          <span className="hl-red">wears many hats</span>. We are looking for a{' '}
-          <span className="hl-red">rockstar</span> who thrives under pressure.
-          <span className="hl-green"> Mentorship program + $3k learning budget.</span>{' '}
-          <span className="hl-red">Unlimited PTO</span> (use it, we dare you).
+          We are hiring a senior backend engineer for our{' '}
+          <span className="hl-green">remote-first</span> team. Salary range:{' '}
+          <span className="hl-green">$150k-$185k</span>.{' '}
+          <span className="hl-green">Equity</span>: RSUs that vest over 4 years.
+        </p>
+        <p className="jd-text">
+          What you will do: own backend services end to end; design Postgres
+          schemas that survive scale; run weekly on-call rotations; ship
+          features with product and design.
+        </p>
+        <p className="jd-text">
+          We need a <span className="hl-red">rockstar</span> who thrives on{' '}
+          <span className="hl-red">synergy</span> and channels their inner{' '}
+          <span className="hl-red">ninja</span>. We move in a{' '}
+          <span className="hl-red">fast-paced</span> environment where everyone{' '}
+          <span className="hl-red">wear many hats</span>.{' '}
+          <span className="hl-red">Unlimited PTO</span>, obviously.
+        </p>
+        <p className="jd-text">
+          We offer <span className="hl-green">mentorship</span> from staff engineers.
         </p>
         <div className="jd-flags">
-          <p><Flag tone="go">+ GREEN: salary transparency</Flag></p>
-          <p><Flag tone="go">+ GREEN: remote-first, mentorship, learning budget</Flag></p>
-          <p><Flag tone="red">X CAUTION: "fast-paced", "wear many hats": overwork language</Flag></p>
-          <p><Flag tone="red">X CAUTION: "rockstar", "unlimited PTO": vagueness flags</Flag></p>
+          <p>
+            <Flag tone="go">
+              + TRANSPARENCY: {r.transparency.score}/100 (salary range {r.transparency.salaryRaw}, equity concrete)
+            </Flag>
+          </p>
+          {r.overwork.map((o) => (
+            <p key={o.phrase}>
+              <Flag tone="red">X CAUTION: &quot;{o.phrase}&quot;</Flag>
+              <span className="jd-quote">&quot;{o.quote}&quot;</span>
+              <span className="jd-read"> {o.read}</span>
+            </p>
+          ))}
+          {r.greenFlags.map((g) => (
+            <p key={g.flag}>
+              <Flag tone="go">+ GREEN: {g.flag}</Flag>
+              <span className="jd-quote">&quot;{g.quote}&quot;</span>
+            </p>
+          ))}
+          <p>
+            <Flag tone="go">+ GROWTH: {r.growth[0].signal}</Flag>
+            <span className="jd-quote">&quot;{r.growth[0].quote}&quot;</span>
+          </p>
+          <p>
+            <Flag tone="red">
+              X VAGUENESS: density {r.buzzwordDensity}/100 words ({r.buzzwords.map((b) => `“${b}”`).join(', ')}, {r.responsibilities} responsibilities)
+            </Flag>
+          </p>
         </div>
-        <p className="jd-verdict amber">VERDICT: MIXED, 3 green signals, 4 caution flags</p>
+        <p className="jd-verdict amber">
+          VERDICT: {r.verdict.toUpperCase()} ({r.score}/100)
+        </p>
+        {r.reasons.map((x) => (
+          <p className="jd-verdict amber" key={x.reason}>
+            [{x.impact > 0 ? '+' : ''}{x.impact}] {x.reason}
+            <span className="jd-quote"> &quot;{x.quote}&quot;</span>
+          </p>
+        ))}
       </div>
       <p className="idemo-foot">
-        Every flag ships with the exact quote. Evidence, not vibes.
+        Flags above were produced by the real jd_decoder.py on this exact
+        sample text, not hand-picked. Highlights match the engine&apos;s quotes.
       </p>
     </DemoShell>
   );

@@ -2191,3 +2191,71 @@ section[id] {
 .kpi-card > * {
   line-height: 1;
 }
+
+/* Under-the-hood methodology (FeaturePage method section) */
+.method-intro { margin-bottom: 16px; overflow-wrap: anywhere; }
+.method-source { margin-bottom: 32px; }
+.method-block { margin: 0 0 32px; }
+.method-title {
+  font-family: var(--font-term);
+  font-size: 24px;
+  color: var(--ink);
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+.method-body {
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  margin: 0 0 16px;
+}
+.px-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 3px solid var(--line);
+  background: var(--surface);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.55);
+  margin: 0 0 8px;
+  table-layout: fixed;
+}
+.px-table th,
+.px-table td {
+  font-family: var(--font-term);
+  font-size: 19px;
+  line-height: 1.4;
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 12px;
+  border-bottom: 3px solid var(--line);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.px-table tr:last-child th,
+.px-table tr:last-child td { border-bottom: none; }
+.px-table th {
+  color: var(--go, #3dff73);
+  font-weight: 400;
+  width: 38%;
+  border-right: 3px solid var(--line);
+}
+.px-table td { color: var(--ink-dim); }
+
+/* JD demo engine quotes */
+.jd-quote {
+  display: block;
+  font-family: var(--font-term);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  margin: 2px 0 2px 24px;
+}
+.jd-read {
+  display: block;
+  font-family: var(--font-term);
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  margin: 2px 0 10px 24px;
+}
