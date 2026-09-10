@@ -53,20 +53,6 @@ export default function RadarDemo() {
       <div className="radar-grid">
         <div className="radar-chart">
           <svg viewBox="0 0 340 260" className="radar-svg" aria-hidden="true">
-            <defs>
-              <filter id="radar-glow" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-              <radialGradient id="radar-fill" cx="50%" cy="50%" r="65%">
-                <stop offset="0%" stopColor={vetoed ? '#ff4d5e' : '#3dff73'} stopOpacity="0.45" />
-                <stop offset="100%" stopColor={vetoed ? '#ff4d5e' : '#3dff73'} stopOpacity="0.12" />
-              </radialGradient>
-            </defs>
-
             {/* concentric guide rings */}
             {rings.map((ring, ri) => (
               <polygon
@@ -84,15 +70,14 @@ export default function RadarDemo() {
               return <line key={i} x1={cx} y1={cy} x2={x2} y2={y2} stroke="#2c2c3d" strokeWidth="1" />;
             })}
 
-            {/* live polygon with neon glow */}
+            {/* live polygon (flat translucent fill, crisp stroke) */}
             <polygon
               className="radar-poly"
               points={AXES.map((a, i) => fmt(pt(i, vals[a], cx, cy, r))).join(' ')}
-              fill="url(#radar-fill)"
+              fill={vetoed ? 'rgba(255,77,94,0.20)' : 'rgba(61,255,115,0.18)'}
               stroke={vetoed ? '#ff4d5e' : '#3dff73'}
               strokeWidth="3"
               strokeLinejoin="round"
-              filter="url(#radar-glow)"
             />
 
             {/* vertex markers; the weakest axis gets a warning ring */}
