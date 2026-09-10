@@ -12,8 +12,12 @@ and are NOT added to the resume.
 
 from __future__ import annotations
 
+import difflib
 import logging
+import os
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 log = logging.getLogger("job-apply-mcp.tailor")
@@ -120,18 +124,15 @@ def _bullet_score(bullet: str, keywords: list[str]) -> int:
     return sum(1 for kw in keywords if kw.lower() in low)
 
 
-def tailor_resume(
-    profile: dict[str, Any], job_details: dict[str, Any]
-) -> dict[str, Any]:
-    """Build a keyword-tuned resume + cover letter from the profile.
+def _render_resume_md(profile: dict[str, Any], matched: list[str]) -> str:
+    """Render the full resume markdown.
 
-    Reorders (never rewrites the facts of) experience bullets so bullets
-    mentioning the job's matched keywords come first. Returns
-    {"resume_md", "cover_letter", "matched_skills", "missing_skills"}.
+    Shared by ``tailor_resume`` and ``base_resume_md`` so the untailored
+    base resume is byte-identical in format to the tailored one (it is
+    simply the rendering with no matched keywords). Facts are never
+    rewritten — only bullet ordering and the keyword-driven summary
+    fallback / Skills section depend on ``matched``.
     """
-    keywords = extract_job_keywords(job_details, profile)
-    matched = keywords["matched"]
-
     name = str(profile.get("full_name") or profile.get("name") or "").strip()
     contact_bits = [
         str(profile.get(k, "") or "").strip()
@@ -195,7 +196,23 @@ def tailor_resume(
     if matched:
         lines += ["## Skills", ", ".join(matched), ""]
 
-    resume_md = "\n".join(lines).strip() + "\n"
+    return "\n".join(lines).strip() + "\n"
+
+
+def tailor_resume(
+    profile: dict[str, Any], job_details: dict[str, Any]
+) -> dict[str, Any]:
+    """Build a keyword-tuned resume + cover letter from the profile.
+
+    Reorders (never rewrites the facts of) experience bullets so bullets
+    mentioning the job's matched keywords come first. Returns
+    {"resume_md", "cover_letter", "matched_skills", "missing_skills"}.
+    """
+    keywords = extract_job_keywords(job_details, profile)
+    matched = keywords["matched"]
+
+    name = str(profile.get("full_name") or profile.get("name") or "").strip()
+    resume_md = _render_resume_md(profile, matched)
 
     # --- cover letter: 3 paragraphs, profile facts only ---
     company = str(job_details.get("company") or "").strip()
@@ -242,3 +259,145 @@ def tailor_resume(
         "matched_skills": matched,
         "missing_skills": keywords["missing"],
     }
+
+
+# ----------------------------------------------------------------------
+# Diff + approval workflow
+# ----------------------------------------------------------------------
+
+def base_resume_md(profile: dict[str, Any]) -> str:
+    """Render the untailored resume from the profile.
+
+    Uses the exact same renderer as :func:`tailor_resume` with no
+    matched keywords, so the output format is byte-identical to what
+    ``tailor_resume`` produces when a posting matches nothing.
+    """
+    return _render_resume_md(profile, [])
+
+
+def resume_diff(base_md: str, tailored_md: str) -> str:
+    """Unified diff of ``tailored_md`` against ``base_md``.
+
+    The diff is prefixed with a short human-readable header giving the
+    added/removed line counts. Returns the header alone when the two
+    resumes are identical. Pure stdlib :mod:`difflib`.
+    """
+    base_lines = base_md.splitlines()
+    tailored_lines = tailored_md.splitlines()
+    diff_lines = list(
+        difflib.unified_diff(
+            base_lines,
+            tailored_lines,
+            fromfile="base_resume.md",
+            tofile="tailored_resume.md",
+            lineterm="",
+        )
+    )
+    added = sum(1 for l in diff_lines if l.startswith("+") and not l.startswith("+++"))
+    removed = sum(1 for l in diff_lines if l.startswith("-") and not l.startswith("---"))
+    header = f"Resume tailoring diff: +{added} -{removed} lines"
+    if added or removed:
+        header += f" (net {'+' if added - removed >= 0 else ''}{added - removed})"
+    else:
+        header += " — no changes"
+    return "\n".join([header, ""] + diff_lines) + "\n"
+
+
+def tailor_with_diff(
+    profile: dict[str, Any], job_details: dict[str, Any]
+) -> dict[str, Any]:
+    """Tailor a resume and include a diff against the untailored base.
+
+    Returns the same keys as :func:`tailor_resume` plus ``diff`` (the
+    full unified diff with a summary header) and ``diff_summary`` (the
+    header line alone). The honesty contract applies unchanged: the
+    diff can only ever show reordering and the keyword-driven
+    Summary/Skills sections — never invented facts.
+    """
+    result = tailor_resume(profile, job_details)
+    base = base_resume_md(profile)
+    diff = resume_diff(base, result["resume_md"])
+    result["diff"] = diff
+    result["diff_summary"] = diff.splitlines()[0]
+    return result
+
+
+# --- approval store ----------------------------------------------------
+
+TAILORED_DIR = Path(__file__).resolve().parent / "tailored"
+
+
+def _safe_job_id(job_id: str) -> str:
+    """Sanitize a job id for use as a filename stem.
+
+    Keeps letters, digits, ``-`` and ``_``; everything else becomes
+    ``_``. Truncated to 120 chars so paths stay well under OS limits.
+    """
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", str(job_id))
+    return safe[:120] or "job"
+
+
+def _variant_path(job_id: str) -> Path:
+    return TAILORED_DIR / f"{_safe_job_id(job_id)}.json"
+
+
+def save_approved_variant(
+    job_id: str, resume_md: str, cover_letter: str
+) -> Path:
+    """Persist a user-approved tailored variant for ``job_id``.
+
+    Writes JSON ``{"job_id", "resume_md", "cover_letter",
+    "approved_at"}`` to ``tailored/<safe_job_id>.json`` (atomic via a
+    temp file + rename). Returns the path written.
+    """
+    import json
+
+    TAILORED_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "job_id": str(job_id),
+        "resume_md": resume_md,
+        "cover_letter": cover_letter,
+        "approved_at": datetime.now(timezone.utc).isoformat(),
+    }
+    path = _variant_path(job_id)
+    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+    os.replace(tmp, path)
+    log.info("approved tailored variant saved for job %s -> %s", job_id, path)
+    return path
+
+
+def load_approved_variant(job_id: str) -> dict[str, Any] | None:
+    """Load the approved variant for ``job_id``, or ``None`` if absent.
+
+    A corrupt JSON file is treated as absent (logged, not raised) so a
+    bad file can never break the apply flow.
+    """
+    import json
+
+    path = _variant_path(job_id)
+    if not path.is_file():
+        return None
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        log.warning("ignoring unreadable approved variant %s: %s", path, exc)
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def list_approved_variants() -> list[str]:
+    """Return the sorted job ids that have an approved tailored variant."""
+    if not TAILORED_DIR.is_dir():
+        return []
+    ids: list[str] = []
+    for path in TAILORED_DIR.glob("*.json"):
+        variant = load_approved_variant(path.stem)
+        if variant is not None:
+            ids.append(str(variant.get("job_id", path.stem)))
+    return sorted(ids)
