@@ -30,6 +30,8 @@ export interface PageSpec {
   /** Terminal demo */
   demoTitle: string;
   demoLines: { text: string; kind: TermKind }[];
+  /** Key into the interactive demo registry (src/demos). Optional. */
+  interactive?: string;
   /** Honest limitations — the "boss fights" */
   limits: string[];
   faq?: SpecFaq[];

@@ -23,6 +23,25 @@ import specVeto from './pages/specs/veto-gates';
 import specHonesty from './pages/specs/honesty-check';
 import specQual from './pages/specs/qualification-scoring';
 import specLedger from './pages/specs/verdict-ledger';
+import specFitScore from './pages/specs/fit-score';
+import specJdDecoder from './pages/specs/jd-decoder';
+import specReferrals from './pages/specs/referrals';
+import specResumeDiffs from './pages/specs/resume-diffs';
+import specCoverLetters from './pages/specs/cover-letters';
+import specLinkedin from './pages/specs/linkedin';
+import specMockInterviews from './pages/specs/mock-interviews';
+import specSoftSkills from './pages/specs/soft-skills';
+import specAiProficiency from './pages/specs/ai-proficiency';
+import specMentors from './pages/specs/mentors';
+import specOffers from './pages/specs/offers';
+import specFollowups from './pages/specs/followups';
+import specNetworkCrm from './pages/specs/network-crm';
+import specAutopsy from './pages/specs/autopsy';
+import specSkillGaps from './pages/specs/skill-gaps';
+import specStreaks from './pages/specs/streaks';
+import specCrew from './pages/specs/crew';
+import specContribute from './pages/specs/contribute';
+import { RadarDemo } from './demos';
 
 const SPECS: Record<string, PageSpec> = {
   [specSearch.slug]: specSearch,
@@ -37,6 +56,24 @@ const SPECS: Record<string, PageSpec> = {
   [specHonesty.slug]: specHonesty,
   [specQual.slug]: specQual,
   [specLedger.slug]: specLedger,
+  [specFitScore.slug]: specFitScore,
+  [specJdDecoder.slug]: specJdDecoder,
+  [specReferrals.slug]: specReferrals,
+  [specResumeDiffs.slug]: specResumeDiffs,
+  [specCoverLetters.slug]: specCoverLetters,
+  [specLinkedin.slug]: specLinkedin,
+  [specMockInterviews.slug]: specMockInterviews,
+  [specSoftSkills.slug]: specSoftSkills,
+  [specAiProficiency.slug]: specAiProficiency,
+  [specMentors.slug]: specMentors,
+  [specOffers.slug]: specOffers,
+  [specFollowups.slug]: specFollowups,
+  [specNetworkCrm.slug]: specNetworkCrm,
+  [specAutopsy.slug]: specAutopsy,
+  [specSkillGaps.slug]: specSkillGaps,
+  [specStreaks.slug]: specStreaks,
+  [specCrew.slug]: specCrew,
+  [specContribute.slug]: specContribute,
 };
 
 /* Pixel primitives live in ./px and are shared across pages. */
@@ -267,7 +304,192 @@ const NO_CARDS = [
   },
 ];
 
+/* The playbooks: 17 modules grouped by job-hunt phase. Each card links
+   to its drill-down feature page. */
+const GROUPS = [
+  {
+    id: 'find',
+    tag: 'FIND',
+    tagVariant: 'red' as const,
+    title: 'Find the right roles',
+    sub: 'Score every posting, decode the language, and work your network — before you spend a minute applying.',
+    demo: true,
+    features: [
+      {
+        slug: 'fit-score',
+        icon: 'target',
+        tone: '',
+        title: 'Fit score',
+        body: 'Every posting scored 0–100 against your profile. Under 40 is vetoed with a reason.',
+      },
+      {
+        slug: 'jd-decoder',
+        icon: 'scan',
+        tone: 'amber',
+        title: 'JD decoder',
+        body: 'Overwork language, vagueness, and green flags — called out with the exact quotes.',
+      },
+      {
+        slug: 'referrals',
+        icon: 'net',
+        tone: '',
+        title: 'Referral radar',
+        body: 'Insiders at your target companies from your own connections, plus warm-path tracing.',
+      },
+    ],
+  },
+  {
+    id: 'tailor',
+    tag: 'TAILOR',
+    tagVariant: '' as const,
+    title: 'Tailor without lying',
+    sub: 'Resumes, cover letters, and your LinkedIn profile — rewritten around the role, never around fiction.',
+    demo: false,
+    features: [
+      {
+        slug: 'resume-diffs',
+        icon: 'diff',
+        tone: '',
+        title: 'Resume diffs',
+        body: 'Line-by-line diffs of every tailored variant, with an approval gate. Nothing ships unapproved.',
+      },
+      {
+        slug: 'cover-letters',
+        icon: 'doc',
+        tone: '',
+        title: 'Cover letters',
+        body: 'Fact-grounded drafts, honesty-scanned three ways before you ever see them.',
+      },
+      {
+        slug: 'linkedin',
+        icon: 'badge',
+        tone: 'amber',
+        title: 'LinkedIn optimizer',
+        body: 'Section-by-section audit with scores, plus headline and about rewrites from your facts only.',
+      },
+    ],
+  },
+  {
+    id: 'train',
+    tag: 'TRAIN',
+    tagVariant: '' as const,
+    title: 'Train like it matters',
+    sub: 'Mock interviews, adversarial negotiation, AI fluency, and human mentors — the reps that compound.',
+    demo: false,
+    features: [
+      {
+        slug: 'mock-interviews',
+        icon: 'mic',
+        tone: '',
+        title: 'Mock interviews',
+        body: 'Five-question sessions with deterministic STAR feedback. WhatsApp-compatible.',
+      },
+      {
+        slug: 'soft-skills',
+        icon: 'swords',
+        tone: 'red',
+        title: 'Soft skills + negotiation',
+        body: 'Spar against a hardball hiring manager — firm, hardball, brutal — with coach feedback between rounds.',
+      },
+      {
+        slug: 'ai-proficiency',
+        icon: 'bolt',
+        tone: '',
+        title: 'AI proficiency',
+        body: 'Seven tracks, hands-on lessons, an ethics module in every one. Employers screen for this now.',
+      },
+      {
+        slug: 'mentors',
+        icon: 'chat',
+        tone: '',
+        title: 'Mentor matchmaking',
+        body: 'Opt-in mentors matched deterministically, with first-session agendas and intro drafts you send yourself.',
+      },
+    ],
+  },
+  {
+    id: 'win',
+    tag: 'WIN',
+    tagVariant: 'amber' as const,
+    title: 'Win the endgame',
+    sub: 'Compare offers, follow up relentlessly, learn from rejections, and keep the streak alive.',
+    demo: false,
+    features: [
+      {
+        slug: 'offers',
+        icon: 'trophy',
+        tone: '',
+        title: 'Offer comparison',
+        body: 'Four-year totals, your weights, and what would need to be true for each offer to win.',
+      },
+      {
+        slug: 'followups',
+        icon: 'envelope',
+        tone: '',
+        title: 'Smart follow-ups',
+        body: 'Stage-aware drafts for stale threads. Sending needs your exact approval — every byte.',
+      },
+      {
+        slug: 'network-crm',
+        icon: 'ledger',
+        tone: '',
+        title: 'Network CRM',
+        body: 'Contacts, interaction history, warm paths, and a nudge list ranked by staleness.',
+      },
+      {
+        slug: 'autopsy',
+        icon: 'chart',
+        tone: 'amber',
+        title: 'Rejection autopsy',
+        body: 'Where your funnel leaks, diagnosed — and mapped to the module that fixes it.',
+      },
+      {
+        slug: 'skill-gaps',
+        icon: 'chart',
+        tone: '',
+        title: 'Skill-gap planner',
+        body: 'The misses that keep costing you, ranked by frequency — each mapped to the lesson that closes it.',
+      },
+      {
+        slug: 'streaks',
+        icon: 'flame',
+        tone: 'red',
+        title: 'Streaks',
+        body: 'Gamified reps with shareable progress cards built only from real numbers. The viral loop.',
+      },
+    ],
+  },
+  {
+    id: 'govern',
+    tag: 'GOVERN',
+    tagVariant: 'red' as const,
+    title: 'Governed, all the way down',
+    sub: 'An agentic crew working under a governance framework — and an opt-in data pipeline that never takes without asking.',
+    demo: false,
+    features: [
+      {
+        slug: 'crew',
+        icon: 'team',
+        tone: 'red',
+        title: 'Governed AI crew',
+        body: 'Eleven personas — CEO, PM, eng, UX, QA, researcher, coach, Red — spawn > work > review > merge.',
+      },
+      {
+        slug: 'contribute',
+        icon: 'box',
+        tone: '',
+        title: 'Contribute + impact',
+        body: 'Opt-in training data: scrubbed, preview-mandatory, per-bundle confirmed. See your impact when it lands.',
+      },
+    ],
+  },
+];
+
 const FAQS = [
+  {
+    q: 'What are the playbooks?',
+    a: 'Seventeen modules grouped by job-hunt phase: FIND (fit scoring, JD decoder, referral radar), TAILOR (resume diffs, cover letters, LinkedIn optimizer), TRAIN (mock interviews, negotiation sims, AI proficiency, mentors), WIN (offer comparison, follow-ups, network CRM, rejection autopsy, streaks), and GOVERN (the AI crew, opt-in contributions). The engine searches and applies; the playbooks cover everything around it.',
+  },
   {
     q: 'Does it submit applications by itself?',
     a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application — and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. LinkedIn Easy Apply is fill-only: the agent completes the modal and stops at the review screen. The final click is always yours.',
@@ -349,6 +571,7 @@ function SiteNav() {
         </a>
         <nav className="nav-links" aria-label="Sections">
           <a href="#features">Features</a>
+          <a href="#playbooks">Playbooks</a>
           <a href="#how">How it works</a>
           <a href="#why-no">Why it says no</a>
           <a href="#/demo">Demo</a>
@@ -429,11 +652,12 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 The job bot that <span className="no">says&nbsp;no.</span>
               </Heading>
               <p className="hero-sub">
-                <strong>Veto</strong> plugs your AI assistant into 8 job boards.
-                It searches, grills you on your resume gaps over WhatsApp,
-                tailors every application — and <strong>vetoes the ones
-                you&rsquo;re not qualified for</strong>. It fills the forms.
-                You click submit. Nothing ships without your say-so.
+                <strong>Veto</strong> plugs your AI assistant into 8 job boards —
+                and now ships a 25-module career arsenal: fit scoring, radar
+                charts, tailored resumes, cover letters, mock interviews,
+                brutal negotiation sims, offer comparison, streaks, and a
+                governed AI crew. It fills the forms. You click submit. Nothing
+                ships without your say-so.
               </p>
               <div className="hero-ctas">
                 <PxBtn variant="primary" href="#/install" label="Get started">
@@ -475,7 +699,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
         {/* FEATURES */}
         <section id="features" className="section">
           <div className="wrap">
-            <PxTag variant="red">Features</PxTag>
+            <PxTag variant="red">The engine</PxTag>
             <Heading level={2} className="section-title">
               Everything between &ldquo;find me jobs&rdquo; and &ldquo;you&rsquo;re hired&rdquo;
             </Heading>
@@ -502,6 +726,52 @@ function HomePage({ routeHash }: { routeHash: string }) {
               ))}
             </div>
           </div>
+        </section>
+
+        <div className="px-hr" aria-hidden="true" />
+
+        {/* PLAYBOOKS */}
+        <section id="playbooks" className="section">
+          <div className="wrap">
+            <PxTag variant="amber">The playbooks</PxTag>
+            <Heading level={2} className="section-title">
+              17 more modules. One job hunt.
+            </Heading>
+            <p className="section-sub">
+              The engine finds jobs and files applications. The playbooks cover
+              everything around it — grouped by phase, each with its own
+              drill-down page and most with a live demo.
+            </p>
+          </div>
+          {GROUPS.map((g) => (
+            <div key={g.id} className="wrap group-sec">
+              <div className="group-head">
+                <PxTag variant={g.tagVariant}>{g.tag}</PxTag>
+                <Heading level={3} className="section-title">
+                  {g.title}
+                </Heading>
+                <p className="section-sub">{g.sub}</p>
+              </div>
+              {g.demo ? <RadarDemo /> : null}
+              <div className="grid">
+                {g.features.map((f) => (
+                  <a
+                    key={f.slug}
+                    href={`#/features/${f.slug}`}
+                    className="card-anchor"
+                    aria-label={`${f.title} — learn more`}
+                  >
+                    <Card className="feature-card">
+                      <div className={`feature-icon ${f.tone}`} aria-hidden="true"><PixelIcon name={f.icon} /></div>
+                      <Heading level={3} className="feature-title">{f.title}</Heading>
+                      <p className="feature-body">{f.body}</p>
+                      <span className="card-more">Read more {'>'}</span>
+                    </Card>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
 
         <div className="px-hr" aria-hidden="true" />
