@@ -1,12 +1,13 @@
-/* Fit-score radar: five sliders recompute the match score live.
-   Mirrors match.py: skills 50 / seniority 15 / salary 15 / location 15 / recency 5. */
-import { useState } from 'react';
-import { DemoShell, PxSlider } from './shared';
+/* Fit-score radar: an ambient, self-animating radar chart with no controls.
+   It eases between a "non-match" profile (score below the veto line -> red) and a
+   strong "match" profile (green) — reaching each state on a ~3-second beat.
+   Weights mirror match.py: skills 50 / seniority 15 / salary 15 / location 15 / recency 5. */
+import { useEffect, useState } from 'react';
+import { DemoShell } from './shared';
 
 const AXES = ['skills', 'seniority', 'salary', 'location', 'recency'] as const;
 type Axis = (typeof AXES)[number];
 
-/* Weight in points-out-of-100 (matches match.py, shown as the x50 badges). */
 const WEIGHT_PTS: Record<Axis, number> = {
   skills: 50,
   seniority: 15,
@@ -17,6 +18,29 @@ const WEIGHT_PTS: Record<Axis, number> = {
 
 const VETO_LINE = 40;
 
+/* The two poses the radar travels between. */
+const MATCH: Record<Axis, number> = {
+  skills: 92,
+  seniority: 85,
+  salary: 80,
+  location: 90,
+  recency: 96,
+};
+const NONMATCH: Record<Axis, number> = {
+  skills: 18,
+  seniority: 28,
+  salary: 32,
+  location: 36,
+  recency: 44,
+};
+
+/* Seconds spent easing from one pose to the other; a full round trip is 2x. */
+const LEG = 3;
+
+const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
+/* smootherstep — dwells briefly at each pose so both states read clearly. */
+const smoother = (x: number) => x * x * x * (x * (x * 6 - 15) + 10);
+
 function pt(i: number, v: number, cx: number, cy: number, r: number): [number, number] {
   const a = (-90 + i * 72) * (Math.PI / 180);
   const d = (v / 100) * r;
@@ -25,20 +49,40 @@ function pt(i: number, v: number, cx: number, cy: number, r: number): [number, n
 const fmt = ([x, y]: [number, number]) => `${x.toFixed(1)},${y.toFixed(1)}`;
 
 export default function RadarDemo() {
-  const [vals, setVals] = useState<Record<Axis, number>>({
-    skills: 85,
-    seniority: 80,
-    salary: 75,
-    location: 90,
-    recency: 100,
-  });
+  const [t, setT] = useState(0);
+  const [reducedMotion] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  );
 
-  const contrib = (a: Axis) => (vals[a] * WEIGHT_PTS[a]) / 100;
-  const score = Math.round(AXES.reduce((s, a) => s + contrib(a), 0));
+  useEffect(() => {
+    if (reducedMotion) return;
+
+    let raf = 0;
+    let start: number | null = null;
+    const loop = (ts: number) => {
+      if (start === null) start = ts;
+      setT((ts - start) / 1000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [reducedMotion]);
+
+  // Triangle wave 0 -> 1 -> 0 over 2*LEG seconds, eased. Static match if reduced.
+  const phase = (t % (LEG * 2)) / LEG; // 0..2
+  const tri = phase <= 1 ? phase : 2 - phase; // 0..1..0
+  const p = reducedMotion ? 1 : smoother(tri);
+
+  const vals: Record<Axis, number> = Object.fromEntries(
+    AXES.map((a) => [a, lerp(NONMATCH[a], MATCH[a], p)]),
+  ) as Record<Axis, number>;
+
+  const score = Math.round(AXES.reduce((s, a) => s + (vals[a] * WEIGHT_PTS[a]) / 100, 0));
   const vetoed = score < VETO_LINE;
-  const worst = AXES.reduce((w, a) => (vals[a] < vals[w] ? a : w), AXES[0]);
-  const tone: 'go' | 'amber' | 'red' = vetoed ? 'red' : vals[worst] < 50 ? 'amber' : 'go';
-  const accent = vetoed ? 'var(--veto)' : 'var(--go)';
+  const stroke = vetoed ? '#ff4d5e' : '#3dff73';
+  const fill = vetoed ? 'rgba(255,77,94,0.20)' : 'rgba(61,255,115,0.18)';
 
   const cx = 170;
   const cy = 130;
@@ -47,10 +91,10 @@ export default function RadarDemo() {
 
   return (
     <DemoShell
-      title="> live fit-score demo"
-      label="Interactive radar chart: five sliders recompute the job fit score live"
+      title="> live fit-score radar"
+      label="Animated radar chart cycling between a rejected candidate and a strong match"
     >
-      <div className="radar-grid">
+      <div className="radar-grid radar-grid--solo">
         <div className="radar-chart">
           <svg viewBox="0 0 340 260" className="radar-svg" aria-hidden="true">
             {/* concentric guide rings */}
@@ -70,41 +114,21 @@ export default function RadarDemo() {
               return <line key={i} x1={cx} y1={cy} x2={x2} y2={y2} stroke="#2c2c3d" strokeWidth="1" />;
             })}
 
-            {/* live polygon (flat translucent fill, crisp stroke) */}
+            {/* morphing polygon (flat translucent fill, crisp stroke) */}
             <polygon
               className="radar-poly"
               points={AXES.map((a, i) => fmt(pt(i, vals[a], cx, cy, r))).join(' ')}
-              fill={vetoed ? 'rgba(255,77,94,0.20)' : 'rgba(61,255,115,0.18)'}
-              stroke={vetoed ? '#ff4d5e' : '#3dff73'}
+              fill={fill}
+              stroke={stroke}
               strokeWidth="3"
               strokeLinejoin="round"
             />
 
-            {/* vertex markers; the weakest axis gets a warning ring */}
+            {/* vertex markers */}
             {AXES.map((a, i) => {
               const [vx, vy] = pt(i, vals[a], cx, cy, r);
-              const isWorst = a === worst;
               return (
-                <g key={a}>
-                  {isWorst && (
-                    <circle
-                      cx={vx}
-                      cy={vy}
-                      r="8"
-                      fill="none"
-                      stroke={vetoed ? '#ff4d5e' : '#ffb000'}
-                      strokeWidth="2"
-                    />
-                  )}
-                  <circle
-                    cx={vx}
-                    cy={vy}
-                    r="4"
-                    fill={vetoed ? '#ff4d5e' : '#3dff73'}
-                    stroke="#08080c"
-                    strokeWidth="2"
-                  />
-                </g>
+                <circle key={a} cx={vx} cy={vy} r="4" fill={stroke} stroke="#08080c" strokeWidth="2" />
               );
             })}
 
@@ -118,7 +142,7 @@ export default function RadarDemo() {
                   y={ly}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fill={a === worst ? (vetoed ? '#ff4d5e' : '#ffb000') : '#a9a7ba'}
+                  fill="#a9a7ba"
                   fontSize="18"
                   fontFamily="VT323, monospace"
                 >
@@ -132,58 +156,16 @@ export default function RadarDemo() {
         <div className="radar-side">
           <p className={`radar-score ${vetoed ? 'bad' : ''}`}>{score}</p>
           <p className="radar-score-label">fit score / 100</p>
-
-          {/* threshold meter: shows how far the score sits above/below the veto line */}
-          <div
-            className="fit-meter"
-            role="img"
-            aria-label={`Fit score ${score} of 100, veto line at ${VETO_LINE}`}
-          >
-            <div className="fit-meter-track">
-              <div
-                className={`fit-meter-fill ${vetoed ? 'bad' : ''}`}
-                style={{ width: `${score}%` }}
-              />
-              <div className="fit-meter-veto" style={{ width: `${VETO_LINE}%` }} />
-            </div>
-            <div className="fit-meter-scale">
-              <span className="fit-meter-min">0</span>
-              <span className="fit-meter-vetotag" style={{ left: `${VETO_LINE}%` }}>
-                veto {VETO_LINE}
-              </span>
-              <span className="fit-meter-max">100</span>
-            </div>
-          </div>
-
           {vetoed ? (
-            <p className="radar-verdict bad">X VETOED: {worst} {vals[worst]} {'<'} {VETO_LINE}</p>
+            <p className="radar-verdict bad">X VETOED: under the line</p>
           ) : (
-            <p className="radar-verdict good">
-              + PROCEED: {score - VETO_LINE} pts clear of the veto line
-            </p>
+            <p className="radar-verdict good">+ PROCEED: strong match</p>
           )}
+          <p className="radar-note">
+            skills 50 · seniority 15 · salary 15 · location 15 · recency 5
+          </p>
         </div>
       </div>
-
-      <div className="radar-sliders">
-        {AXES.map((a) => (
-          <PxSlider
-            key={a}
-            label={a}
-            value={vals[a]}
-            weight={WEIGHT_PTS[a]}
-            tone={a === worst ? tone : 'go'}
-            hint={`+${contrib(a).toFixed(1)} of ${WEIGHT_PTS[a]} pts`}
-            onChange={(v) => setVals((s) => ({ ...s, [a]: v }))}
-          />
-        ))}
-      </div>
-
-      <p className="idemo-foot" style={{ borderTop: `2px solid var(--line)`, paddingTop: 16 }}>
-        Drag the sliders and watch the score move. The weakest axis is ringed in{' '}
-        <b style={{ color: accent }}>{vetoed ? 'red' : 'amber'}</b>; drop the score under{' '}
-        {VETO_LINE} and the veto trips.
-      </p>
     </DemoShell>
   );
 }

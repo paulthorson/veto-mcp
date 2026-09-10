@@ -1542,6 +1542,14 @@ section[id] {
   grid-template-columns: 1fr 1fr;
   gap: 14px 20px;
 }
+/* Sliderless variant: the animated radar is the whole demo. */
+.radar-grid--solo {
+  margin-bottom: 0;
+  padding: 8px 0;
+}
+.radar-grid--solo .radar-svg {
+  max-width: 380px;
+}
 
 /* Diff */
 .diff-cols {
