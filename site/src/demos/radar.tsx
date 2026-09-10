@@ -1,5 +1,6 @@
 /* Fit-score radar: five sliders recompute the match score live.
-   Mirrors match.py: skills 50 / seniority 15 / salary 15 / location 15 / recency 5. */
+   Mirrors match.py: skills 50 / seniority 15 / salary 15 / location 15 / recency 5.
+   Anything under the 60 veto bar is rejected. */
 import { useState } from 'react';
 import { DemoShell, PxSlider } from './shared';
 
@@ -12,8 +13,17 @@ const WEIGHTS: Record<(typeof AXES)[number], number> = {
   recency: 0.05,
 };
 
+const VETO_BAR = 60;
+
 function pt(i: number, v: number, cx: number, cy: number, r: number): string {
   const a = (-90 + i * 72) * (Math.PI / 180);
+  const d = (v / 100) * r;
+  return `${(cx + d * Math.cos(a)).toFixed(1)},${(cy + d * Math.sin(a)).toFixed(1)}`;
+}
+
+/* Point at an arbitrary angle (degrees) and value, for the threshold label. */
+function ptAt(angleDeg: number, v: number, cx: number, cy: number, r: number): string {
+  const a = (angleDeg * Math.PI) / 180;
   const d = (v / 100) * r;
   return `${(cx + d * Math.cos(a)).toFixed(1)},${(cy + d * Math.sin(a)).toFixed(1)}`;
 }
@@ -29,13 +39,16 @@ export default function RadarDemo() {
   const score = Math.round(
     AXES.reduce((s, a) => s + vals[a] * WEIGHTS[a], 0),
   );
-  const vetoed = score < 40;
-  const worst = AXES.reduce((w, a) => (vals[a] < vals[w] ? a : w), AXES[0]);
+  const vetoed = score < VETO_BAR;
+  const margin = vetoed ? VETO_BAR - score : score - VETO_BAR;
 
   const cx = 170;
   const cy = 130;
   const r = 88;
   const rings = [25, 50, 75, 100];
+  /* Label sits in the bottom gap (between the salary and location spokes,
+     just outside the dashed ring), where no axis label sits. */
+  const [barLabelX, barLabelY] = ptAt(90, 68, cx, cy, r).split(',').map(Number);
 
   return (
     <DemoShell title="> live fit-score demo" label="Interactive radar chart: five sliders recompute the job fit score live">
@@ -50,6 +63,25 @@ export default function RadarDemo() {
               strokeWidth="1"
             />
           ))}
+          {/* Veto bar: dashed amber ring at value 60. */}
+          <polygon
+            points={AXES.map((_, i) => pt(i, VETO_BAR, cx, cy, r)).join(' ')}
+            fill="none"
+            stroke="#ffd166"
+            strokeWidth="2"
+            strokeDasharray="6 4"
+          />
+          <text
+            x={barLabelX}
+            y={barLabelY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#ffd166"
+            fontSize="18"
+            fontFamily="VT323, monospace"
+          >
+            bar {VETO_BAR}
+          </text>
           {AXES.map((_, i) => (
             <line
               key={i}
@@ -89,12 +121,17 @@ export default function RadarDemo() {
           <p className={`radar-score ${vetoed ? 'bad' : ''}`}>{score}</p>
           <p className="radar-score-label">fit score / 100</p>
           {vetoed ? (
-            <p className="radar-verdict bad">X VETOED: {worst} {vals[worst]} {'<'} 40</p>
+            <p className="radar-verdict bad">X VETOED: {score}, {margin} under the {VETO_BAR} bar</p>
           ) : (
-            <p className="radar-verdict good">+ PROCEED: no veto trips</p>
+            <p className="radar-verdict good">+ PROCEED: {score}, {margin} over the {VETO_BAR} bar</p>
           )}
           <p className="radar-note">
-            skills 50 · seniority 15 · salary 15 · location 15 · recency 5
+            {AXES.map((a) => (
+              <span key={a} className="radar-contrib">
+                {a} {vals[a]} x{WEIGHTS[a].toFixed(2)} = {(vals[a] * WEIGHTS[a]).toFixed(1)}
+                <br />
+              </span>
+            ))}
           </p>
         </div>
       </div>
@@ -109,7 +146,7 @@ export default function RadarDemo() {
         ))}
       </div>
       <p className="idemo-foot">
-        Drag the sliders and watch the score move. Drop under 40 and the veto trips.
+        Drag the sliders and watch the score move. Veto spends your five daily applications only on postings scoring 60+.
       </p>
     </DemoShell>
   );

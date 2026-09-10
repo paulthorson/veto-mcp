@@ -320,7 +320,7 @@ const GROUPS = [
         icon: 'target',
         tone: '',
         title: 'Fit score',
-        body: 'Every posting scored 0–100 against your profile. Under 40 is vetoed with a reason.',
+        body: 'Every posting scored 0–100 against your profile. Under 60 is vetoed with a reason.',
       },
       {
         slug: 'jd-decoder',
