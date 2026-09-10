@@ -11,10 +11,10 @@ const BASE = [
 ];
 
 const TAILORED = [
-  '+ Led migration of 12 services to Kubernetes — deploy time down 40%',
+  '+ Led migration of 12 services to Kubernetes, deploy time down 40%',
   '+ Built Python data tooling used by 200+ analysts daily',
   '+ Backend on-call: owned p99 latency, cut incidents 30%',
-  '  Python · SQL · Kubernetes — front-loaded around posting keywords',
+  '  Python · SQL · Kubernetes, front-loaded around posting keywords',
 ];
 
 export default function DiffDemo() {
@@ -31,7 +31,7 @@ export default function DiffDemo() {
           ))}
         </div>
         <div className="diff-pane">
-          <p className="diff-head go">TAILORED — platform eng @ fintech</p>
+          <p className="diff-head go">TAILORED: platform eng @ fintech</p>
           {TAILORED.map((l, i) => (
             <p key={i} className={`diff-line ${l.startsWith('+') ? 'add' : ''}`}>
               {l}
@@ -40,11 +40,11 @@ export default function DiffDemo() {
         </div>
       </div>
       <p className="diff-missing">
-        <span className="flag amber">MISSING</span> Go, Terraform — reported as
+        <span className="flag amber">MISSING</span> Go, Terraform, reported as
         gaps, never padded into the resume.
       </p>
       {approved ? (
-        <p className="diff-approved">+ APPROVED — variant saved to tailored/acme-platform.json</p>
+        <p className="diff-approved">+ APPROVED: variant saved to tailored/acme-platform.json</p>
       ) : (
         <button
           type="button"

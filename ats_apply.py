@@ -446,14 +446,17 @@ def _cli_apply_direct(args: Any) -> int:
     return 0 if result.get("ok") else 1
 
 
-def register_cli(subparsers: Any) -> Any:
+def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add the ``apply-direct`` command to an argparse subparsers object.
 
-    Adds ``--job-id`` (required) and ``--confirm`` flags. Returns the
-    handler function so the caller can register it in its command
-    dispatch table, e.g.::
+    Adds ``--job-id`` (required) and ``--confirm`` flags. Returns a
+    {command: handler} mapping the caller merges into its own dispatch
+    table, e.g.::
 
-        handlers["apply-direct"] = ats_apply.register_cli(sub)
+        handlers.update(ats_apply.register_cli(sub))
+
+    The parser also gets ``func`` set so a caller can dispatch
+    ``args.func(args)``.
     """
     parser = subparsers.add_parser(
         "apply-direct",
@@ -470,4 +473,5 @@ def register_cli(subparsers: Any) -> Any:
         help="Actually submit via the ATS API. Without this, only a "
              "dry-run preview is printed (zero network calls).",
     )
-    return _cli_apply_direct
+    parser.set_defaults(func=_cli_apply_direct)
+    return {"apply-direct": _cli_apply_direct}

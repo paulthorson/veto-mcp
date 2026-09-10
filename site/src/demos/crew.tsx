@@ -12,7 +12,7 @@ const PERSONAS = [
   { id: 'scout', role: 'Skeptical job search and vetting', never: 'Never trusts a posting at face value' },
   { id: 'tailor_agent', role: 'Honesty-first resume tailoring', never: 'Never invents experience' },
   { id: 'coach', role: 'Adversarial practice, supportive review', never: 'Never goes easy in the sim' },
-  { id: 'red', role: 'Adversarial reviewer of everything', never: 'Never edits — reports only' },
+  { id: 'red', role: 'Adversarial reviewer of everything', never: 'Never edits, reports only' },
 ];
 
 const RED_TEAM = [
@@ -28,7 +28,7 @@ export default function CrewDemo() {
   return (
     <DemoShell title="> governed crew demo" label="The governed AI crew: eleven personas plus twenty red-team specialists">
       <p className="crew-lede">
-        An entire job-search company working for you — every agent spawned,
+        An entire job-search company working for you. Every agent spawned,
         reviewed, and merged under the agentic-governance framework. Veto
         screens before work, Red reviews after, and a human gates what matters.
       </p>
@@ -50,7 +50,7 @@ export default function CrewDemo() {
         ))}
       </div>
       <p className="idemo-foot">
-        Personas come from the framework's own harnesses — adapted to the
+        Personas come from the framework's own harnesses, adapted to the
         job-search domain, prohibitions intact.
       </p>
     </DemoShell>

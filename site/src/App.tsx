@@ -86,7 +86,7 @@ type DemoLine = { text: string; kind: 'cmd' | 'ok' | 'info' | 'warn' | 'veto' };
 
 const DEMO_LINES: DemoLine[] = [
   { text: 'cli.py search "software engineer" --location "New York, NY"', kind: 'cmd' },
-  { text: '+ 24 jobs — LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
+  { text: '+ 24 jobs: LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
   { text: '  senior backend eng · fintech · NYC · linkedin', kind: 'info' },
   { text: '  platform eng · devtools · remote · greenhouse', kind: 'info' },
   { text: '  staff sre · infra · NYC · lever', kind: 'info' },
@@ -94,9 +94,9 @@ const DEMO_LINES: DemoLine[] = [
   { text: '> grill: 3 questions > WhatsApp ... 3/3 answered +', kind: 'info' },
   { text: '> honesty check: no invented skills +', kind: 'ok' },
   { text: '> qualification 0.87 · veto check passed +', kind: 'ok' },
-  { text: '+ RECORDED — finish submitting at the apply link', kind: 'ok' },
+  { text: '+ RECORDED: finish submitting at the apply link', kind: 'ok' },
   { text: 'cli.py apply job:lever:staff --resume ~/resume.pdf --confirm', kind: 'cmd' },
-  { text: 'X VETOED — needs 8+ yrs, profile shows 3. Not applying.', kind: 'veto' },
+  { text: 'X VETOED: needs 8+ yrs, profile shows 3. Not applying.', kind: 'veto' },
 ];
 
 function TerminalDemo() {
@@ -209,21 +209,21 @@ const FEATURES = [
     icon: 'question',
     tone: 'red',
     title: 'The grill',
-    body: 'Before anything moves, Veto interrogates you — missing skills, unquantified wins, salary, logistics — over chat, WhatsApp, or Gmail. The application waits for your answers.',
+    body: 'Before anything moves, Veto interrogates you: missing skills, unquantified wins, salary, logistics. Over chat, WhatsApp, or Gmail. The application waits for your answers.',
   },
   {
     slug: 'tailoring',
     icon: 'pencil',
     tone: '',
     title: 'Tailoring, minus the lies',
-    body: 'Resume bullets reordered around the posting\u2019s keywords, cover letter referencing the actual role. Gaps are reported as gaps — never padded.',
+    body: 'Resume bullets reordered around the posting\u2019s keywords, cover letter referencing the actual role. Gaps are reported as gaps. Never padded.',
   },
   {
     slug: 'fill-only-apply',
     icon: 'clipboard',
     tone: 'amber',
     title: 'Fill-only applying',
-    body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit — policy, not preference.',
+    body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit. Policy, not preference.',
   },
   {
     slug: 'drip-queue',
@@ -244,7 +244,7 @@ const FEATURES = [
     icon: 'chat',
     tone: '',
     title: 'Interview prep',
-    body: 'Company briefs with unverified facts marked as such. STAR stories built only from your real wins — metrics preserved verbatim.',
+    body: 'Company briefs with unverified facts marked as such. STAR stories built only from your real wins, metrics preserved verbatim.',
   },
   {
     slug: 'lifecycle-analytics',
@@ -279,7 +279,7 @@ const NO_CARDS = [
     icon: 'x',
     tone: 'red',
     title: 'Veto gates',
-    body: 'Every confirmed application passes a constitutional veto screen first. A trip blocks it outright — and only a human can clear a veto.',
+    body: 'Every confirmed application passes a constitutional veto screen first. A trip blocks it outright, and only a human can clear a veto.',
   },
   {
     slug: 'honesty-check',
@@ -312,7 +312,7 @@ const GROUPS = [
     tag: 'FIND',
     tagVariant: 'red' as const,
     title: 'Find the right roles',
-    sub: 'Score every posting, decode the language, and work your network — before you spend a minute applying.',
+    sub: 'Score every posting, decode the language, and work your network, before you spend a minute applying.',
     demo: true,
     features: [
       {
@@ -327,7 +327,7 @@ const GROUPS = [
         icon: 'scan',
         tone: 'amber',
         title: 'JD decoder',
-        body: 'Overwork language, vagueness, and green flags — called out with the exact quotes.',
+        body: 'Overwork language, vagueness, and green flags, called out with the exact quotes.',
       },
       {
         slug: 'referrals',
@@ -343,7 +343,7 @@ const GROUPS = [
     tag: 'TAILOR',
     tagVariant: '' as const,
     title: 'Tailor without lying',
-    sub: 'Resumes, cover letters, and your LinkedIn profile — rewritten around the role, never around fiction.',
+    sub: 'Resumes, cover letters, and your LinkedIn profile, rewritten around the role. Never around fiction.',
     demo: false,
     features: [
       {
@@ -374,7 +374,7 @@ const GROUPS = [
     tag: 'TRAIN',
     tagVariant: '' as const,
     title: 'Train like it matters',
-    sub: 'Mock interviews, adversarial negotiation, AI fluency, and human mentors — the reps that compound.',
+    sub: 'Mock interviews, adversarial negotiation, AI fluency, and human mentors. The reps that compound.',
     demo: false,
     features: [
       {
@@ -389,7 +389,7 @@ const GROUPS = [
         icon: 'swords',
         tone: 'red',
         title: 'Soft skills + negotiation',
-        body: 'Spar against a hardball hiring manager — firm, hardball, brutal — with coach feedback between rounds.',
+        body: 'Spar against a hardball hiring manager (firm, hardball, brutal), with coach feedback between rounds.',
       },
       {
         slug: 'ai-proficiency',
@@ -427,7 +427,7 @@ const GROUPS = [
         icon: 'envelope',
         tone: '',
         title: 'Smart follow-ups',
-        body: 'Stage-aware drafts for stale threads. Sending needs your exact approval — every byte.',
+        body: 'Stage-aware drafts for stale threads. Sending needs your exact approval. Every byte.',
       },
       {
         slug: 'network-crm',
@@ -441,14 +441,14 @@ const GROUPS = [
         icon: 'chart',
         tone: 'amber',
         title: 'Rejection autopsy',
-        body: 'Where your funnel leaks, diagnosed — and mapped to the module that fixes it.',
+        body: 'Where your funnel leaks, diagnosed and mapped to the module that fixes it.',
       },
       {
         slug: 'skill-gaps',
         icon: 'chart',
         tone: '',
         title: 'Skill-gap planner',
-        body: 'The misses that keep costing you, ranked by frequency — each mapped to the lesson that closes it.',
+        body: 'The misses that keep costing you, ranked by frequency, each mapped to the lesson that closes it.',
       },
       {
         slug: 'streaks',
@@ -464,7 +464,7 @@ const GROUPS = [
     tag: 'GOVERN',
     tagVariant: 'red' as const,
     title: 'Governed, all the way down',
-    sub: 'An agentic crew working under a governance framework — and an opt-in data pipeline that never takes without asking.',
+    sub: 'A crew of AI personas under a real governance framework, plus an opt-in data pipeline that never takes without asking.',
     demo: false,
     features: [
       {
@@ -472,7 +472,7 @@ const GROUPS = [
         icon: 'team',
         tone: 'red',
         title: 'Governed AI crew',
-        body: 'Eleven personas — CEO, PM, eng, UX, QA, researcher, coach, Red — spawn > work > review > merge.',
+        body: 'Eleven personas (CEO, PM, eng, UX, QA, researcher, coach, Red) run spawn > work > review > merge.',
       },
       {
         slug: 'contribute',
@@ -488,27 +488,27 @@ const GROUPS = [
 const FAQS = [
   {
     q: 'What are the playbooks?',
-    a: 'Seventeen modules grouped by job-hunt phase: FIND (fit scoring, JD decoder, referral radar), TAILOR (resume diffs, cover letters, LinkedIn optimizer), TRAIN (mock interviews, negotiation sims, AI proficiency, mentors), WIN (offer comparison, follow-ups, network CRM, rejection autopsy, streaks), and GOVERN (the AI crew, opt-in contributions). The engine searches and applies; the playbooks cover everything around it.',
+    a: 'Eighteen modules grouped by job-hunt phase. FIND scores postings, decodes JDs, and traces referral paths. TAILOR does resume diffs, cover letters, and LinkedIn. TRAIN runs mock interviews, negotiation sims, AI proficiency, and mentors. WIN compares offers, drafts follow-ups, runs the network CRM, autopsies rejections, plans skill gaps, and tracks streaks. GOVERN is the AI crew and opt-in contributions. The engine searches and applies; the playbooks cover everything around it.',
   },
   {
     q: 'Does it submit applications by itself?',
-    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application — and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. LinkedIn Easy Apply is fill-only: the agent completes the modal and stops at the review screen. The final click is always yours.',
+    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application, and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. LinkedIn Easy Apply is fill-only: the agent completes the modal and stops at the review screen. The final click is always yours.',
   },
   {
     q: 'What is the grill?',
-    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile — missing skills, unquantified experience, salary, logistics, motivation. They arrive over chat, WhatsApp, or Gmail (your choice in the wizard). Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
+    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. They arrive over chat, WhatsApp, or Gmail (your choice in the wizard). Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
   },
   {
     q: 'Will I get banned from LinkedIn or Indeed?',
-    a: 'Honest answer: scraping can violate their Terms of Service, and automated applying carries real risk — CAPTCHAs, throttles, account limits. Veto stores no credentials, asks you to acknowledge the ToS risk before touching scraping-tier boards, budgets those searches tightly, backs off exponentially on 403/429/CAPTCHA, and caps applications at 5 a day. Use it as an assistant, not a bulk blaster.',
+    a: 'Scraping can violate their Terms of Service, and automated applying carries real risk: CAPTCHAs, throttles, account limits. Veto stores no credentials, asks you to acknowledge the ToS risk before touching scraping-tier boards, budgets those searches tightly, backs off exponentially on 403/429/CAPTCHA, and caps applications at 5 a day. Use it as an assistant, not a bulk blaster.',
   },
   {
     q: 'Which boards work best?',
-    a: 'Greenhouse, Lever and Ashby — they expose public JSON APIs with no login, so they are fast and reliable. LinkedIn\u2019s guest API and ZipRecruiter work but rate-limit occasionally. Indeed is heavily bot-protected from datacenter IPs; the browser hook with a logged-in session is the fallback there. Glassdoor is still a stub.',
+    a: 'Greenhouse, Lever and Ashby: they expose public JSON APIs with no login, so they are fast and reliable. LinkedIn\u2019s guest API and ZipRecruiter work but rate-limit occasionally. Indeed is heavily bot-protected from datacenter IPs; the browser hook with a logged-in session is the fallback there. Glassdoor is still a stub.',
   },
   {
     q: 'Do I need any API keys?',
-    a: 'No — everything works keyless except Adzuna, which needs a free developer key from developer.adzuna.com to activate. Without it, that provider simply reports itself as unavailable.',
+    a: 'No. Everything works keyless except Adzuna, which needs a free developer key from developer.adzuna.com to activate. Without it, that provider simply reports itself as unavailable.',
   },
   {
     q: 'Which AI assistants can use it?',
@@ -602,8 +602,8 @@ function SiteFooter() {
             <span className="brand-name">VETO<span className="x">_</span></span>
           </span>
           <p className="footer-note">
-            Open source. Veto applies at human pace — and always verify a
-            posting on the live site before treating an application as complete.
+            Open source. Veto applies at human pace. Verify every posting on
+            the live site before treating an application as complete.
           </p>
         </div>
         <div className="footer-links">
@@ -652,26 +652,29 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 The job bot that <span className="no">says&nbsp;no.</span>
               </Heading>
               <p className="hero-sub">
-                <strong>Veto</strong> plugs your AI assistant into 8 job boards —
-                and now ships a 25-module career arsenal: fit scoring, radar
-                charts, tailored resumes, cover letters, mock interviews,
-                brutal negotiation sims, offer comparison, streaks, and a
-                governed AI crew. It fills the forms. You click submit. Nothing
-                ships without your say-so.
+                <strong>Veto</strong> plugs your AI assistant into 8 job
+                boards. 26 modules handle the rest: fit scoring, radar charts,
+                tailored resumes, cover letters, mock interviews, brutal
+                negotiation sims, offer comparison, streaks, and a governed AI
+                crew. It fills the forms. You click submit. Nothing ships
+                without your say-so.
               </p>
               <div className="hero-ctas">
-                <PxBtn variant="primary" href="#/install" label="Get started">
-                  {'>'} Get started
+                <PxBtn variant="primary" href="#/install" label="Try it">
+                  {'>'} Try it
                 </PxBtn>
                 <PxBtn variant="secondary" href={GITHUB_URL} label="Star on GitHub">
                   {'*'} Star on GitHub
                 </PxBtn>
               </div>
               <p className="hero-note">
-                {'>'} works with Claude Desktop, Cursor, Muse CLI — any MCP client_
+                {'>'} works with Claude Desktop, Cursor, Muse CLI, any MCP client_
               </p>
               <p className="hero-note">
                 <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds {'>'}</a>
+              </p>
+              <p className="hero-note">
+                {'>'} it won&rsquo;t apply while you sleep, and it won&rsquo;t get you hired. It does the homework.
               </p>
             </div>
             <div className="hero-demo">
@@ -704,9 +707,8 @@ function HomePage({ routeHash }: { routeHash: string }) {
               Everything between &ldquo;find me jobs&rdquo; and &ldquo;you&rsquo;re hired&rdquo;
             </Heading>
             <p className="section-sub">
-              One engine, two interfaces — an MCP server for your agent and a
-              CLI for you — covering the whole application run. Click any card
-              for the full breakdown.
+              One engine, two ways in: an MCP server for your agent, a CLI
+              for you. Click any card for the full breakdown.
             </p>
             <div className="grid">
               {FEATURES.map((f) => (
@@ -735,12 +737,12 @@ function HomePage({ routeHash }: { routeHash: string }) {
           <div className="wrap">
             <PxTag variant="amber">The playbooks</PxTag>
             <Heading level={2} className="section-title">
-              17 more modules. One job hunt.
+              18 more modules. One job hunt.
             </Heading>
             <p className="section-sub">
-              The engine finds jobs and files applications. The playbooks cover
-              everything around it — grouped by phase, each with its own
-              drill-down page and most with a live demo.
+              The engine finds jobs and files applications. The playbooks are
+              everything around that, grouped by phase. Each has its own page.
+              Most have a live demo.
             </p>
           </div>
           {GROUPS.map((g) => (
@@ -804,8 +806,8 @@ function HomePage({ routeHash }: { routeHash: string }) {
             </Heading>
             <p className="section-sub">
               Every other apply-bot is optimized for volume. Veto is optimized
-              for not embarrassing you. The refusals are mechanical, not vibes —
-              enforced by an agentic governance framework with an audit trail.
+              for not embarrassing you. The refusals are mechanical, not vibes.
+              They are enforced by a governance framework with an audit trail.
             </p>
             <div className="grid gov-grid">
               {NO_CARDS.map((c) => (
@@ -868,7 +870,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
           <div className="wrap narrow">
             <PxTag variant="amber">FAQ</PxTag>
             <Heading level={2} className="section-title">
-              Honest answers
+              Asked a lot
             </Heading>
             <div className="faq">
               {FAQS.map((f) => (
@@ -884,17 +886,17 @@ function HomePage({ routeHash }: { routeHash: string }) {
         {/* FINAL CTA */}
         <section className="section cta">
           <div className="wrap narrow cta-inner">
-            <p className="game-over">— insert coin —</p>
+            <p className="game-over">- insert coin -</p>
             <Heading level={2} className="section-title">
               Stop filling out forms.
             </Heading>
             <p className="section-sub">
               Point your agent at the job market. Answer the grill. Confirm the
-              ones worth your time — Veto handles the rest, and refuses the rest.
+              ones worth your time. Veto handles the rest, and refuses the rest.
             </p>
             <div className="hero-ctas center">
-              <PxBtn variant="primary" href="#/install" label="Get started">
-                {'>'} Get started
+              <PxBtn variant="primary" href="#/install" label="Start with one job">
+                {'>'} Start with one job
               </PxBtn>
               <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
                 View on GitHub
@@ -904,6 +906,37 @@ function HomePage({ routeHash }: { routeHash: string }) {
         </section>
       </main>
     </div>
+  );
+}
+
+function NotFoundPage({ slug }: { slug: string }) {
+  return (
+    <main id="top">
+      <section className="page-hero">
+        <div className="wrap">
+          <a className="back-link" href="#/">
+            {'<'} Home
+          </a>
+          <div className="page-hero-inner">
+            <PxTag variant="red">404</PxTag>
+            <h1 className="page-title">No such module.</h1>
+            <p className="page-lede">
+              There is no feature page for &ldquo;{slug}&rdquo;. It may have
+              been renamed, or the link is wrong. The full list lives on the
+              features index.
+            </p>
+            <div className="hero-ctas">
+              <PxBtn variant="primary" href="#features" label="Browse features">
+                {'>'} Browse features
+              </PxBtn>
+              <PxBtn variant="secondary" href="#/" label="Back home">
+                Back home
+              </PxBtn>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -926,7 +959,7 @@ export default function App() {
       const spec = SPECS[slug];
       document.title = spec
         ? `${spec.title} — Veto`
-        : 'Veto — the AI job applier that says no';
+        : 'Not found — Veto';
     } else {
       document.title = 'Veto — the AI job applier that says no';
     }
@@ -974,6 +1007,13 @@ export default function App() {
         </div>
       );
     }
+    return (
+      <div className="page">
+        <SiteNav />
+        <NotFoundPage slug={slug} />
+        <SiteFooter />
+      </div>
+    );
   }
 
   return (

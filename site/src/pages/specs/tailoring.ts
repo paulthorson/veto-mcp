@@ -17,13 +17,13 @@ const spec: PageSpec = {
       icon: 'doc',
       tone: '',
       title: 'The 3-paragraph letter',
-      body: 'Paragraph one: the role and why you. Paragraph two: your two or three most relevant wins, with metrics. Paragraph three: logistics and the ask. It references the actual company and role — no mad-libs.',
+      body: 'Paragraph one: the role and why you. Paragraph two: your two or three most relevant wins, with metrics. Paragraph three: logistics and the ask. It references the actual company and role, no mad-libs.',
     },
     {
       icon: 'shield',
       tone: 'red',
       title: 'The honesty rule',
-      body: 'Skills, titles, or years your profile can\u2019t back up are never added. They\u2019re reported as missing_skills instead — a to-do list, not a fabrication. The cover letter gets honesty-scanned before anything proceeds.',
+      body: 'Skills, titles, or years your profile can\u2019t back up are never added. They\u2019re reported as missing_skills instead, a to-do list, not a fabrication. The cover letter gets honesty-scanned before anything proceeds.',
     },
     {
       icon: 'question',
@@ -36,7 +36,7 @@ const spec: PageSpec = {
   demoLines: [
     { text: '> tailor_application("job:greenhouse:stripe:42")', kind: 'info' },
     { text: '\u2713 matched: python, postgres, k8s, on-call', kind: 'ok' },
-    { text: '! missing: go, terraform \u2014 reported, not padded', kind: 'warn' },
+    { text: '! missing: go, terraform: reported, not padded', kind: 'warn' },
     { text: '  resume: 6 bullets reordered around posting keywords', kind: 'info' },
     { text: '  cover letter: 3 paragraphs, names the role + company', kind: 'info' },
     { text: '\u2713 honesty scan: no invented skills, titles, or years', kind: 'ok' },
@@ -44,19 +44,19 @@ const spec: PageSpec = {
     { text: '\u2713 tailored pack ready for review', kind: 'ok' },
   ],
   limits: [
-    'Tailoring reorders and rephrases — it won\u2019t invent a job you never had.',
+    'Tailoring reorders and rephrases, it won\u2019t invent a job you never had.',
     'Keyword matching is textual, not semantic; exotic titles may match poorly.',
-    'The letter is a strong draft, not a final — read it before it goes anywhere.',
+    'The letter is a strong draft, not a final, read it before it goes anywhere.',
     'Only as good as your profile: a thin profile produces a thin letter. Run the wizard properly.',
   ],
   faq: [
     {
       q: 'Will it add skills I don\u2019t have to match the posting?',
-      a: 'No — that\u2019s the entire point of the honesty rule. Missing skills are reported as missing_skills so you know the gap; the application never claims them.',
+      a: 'No, that\u2019s the entire point of the honesty rule. Missing skills are reported as missing_skills so you know the gap; the application never claims them.',
     },
     {
       q: 'Does it rewrite my whole resume?',
-      a: 'It reorders and rephrases your real bullets around the posting\u2019s keywords. Your history stays your history — the emphasis changes, the facts don\u2019t.',
+      a: 'It reorders and rephrases your real bullets around the posting\u2019s keywords. Your history stays your history, the emphasis changes, the facts don\u2019t.',
     },
   ],
 };

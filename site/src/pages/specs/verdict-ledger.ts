@@ -4,12 +4,12 @@ const spec: PageSpec = {
   slug: 'verdict-ledger',
   tag: 'Audit',
   title: 'RECEIPTS',
-  lede: 'Every allow/block decision is written to a verdict ledger \u2014 the framework\u2019s runs/verdicts.jsonl, or a local fallback when its checkout isn\u2019t writable. risk_status is the live audit surface: per-board tier and search-allowed state, daily cap usage, registered plugins.',
+  lede: 'Every allow/block decision is written to a verdict ledger: the framework\u2019s runs/verdicts.jsonl, or a local fallback when its checkout isn\u2019t writable. risk_status is the live audit surface: per-board tier and search-allowed state, daily cap usage, registered plugins.',
   points: [
     {
       icon: 'ledger',
       title: 'Every decision logged',
-      body: 'Allow or block, with the reason, timestamped. Ask why anything happened \u2014 a search skipped, an application vetoed \u2014 and get an answer.',
+      body: 'Allow or block, with the reason, timestamped. Ask why anything happened: a search skipped, an application vetoed, and get an answer.',
     },
     {
       icon: 'doc',
@@ -19,15 +19,15 @@ const spec: PageSpec = {
     {
       icon: 'doc',
       title: 'compliance.json',
-      body: 'Budgets, cooldowns, and your ToS-risk acknowledgment live here \u2014 local, gitignored, yours. The machine-readable version of the rules.',
+      body: 'Budgets, cooldowns, and your ToS-risk acknowledgment live here: local, gitignored, yours. The machine-readable version of the rules.',
     },
     {
       icon: 'lock',
       title: 'Ledger outage \u2260 action outage',
-      body: 'If the ledger can\u2019t be written, that failure is logged \u2014 it never blocks or crashes the action itself.',
+      body: 'If the ledger can\u2019t be written, that failure is logged, it never blocks or crashes the action itself.',
     },
   ],
-  demoTitle: 'veto — zsh',
+  demoTitle: 'veto: zsh',
   demoLines: [
     { text: 'cli.py doctor', kind: 'cmd' },
     { text: '\u2713 profile: loaded (12 skills, 4 roles)', kind: 'ok' },
@@ -39,9 +39,9 @@ const spec: PageSpec = {
     { text: '{"action":"apply","job":"lever:staff",\u2026"veto"}', kind: 'info' },
   ],
   limits: [
-    'The ledger records decisions, not intent \u2014 it won\u2019t psychoanalyze you.',
+    'The ledger records decisions, not intent, it won\u2019t psychoanalyze you.',
     'Local fallback ledger lives on your machine. Back it up if you care.',
-    'risk_status is an MCP tool \u2014 no CLI twin yet.',
+    'risk_status is an MCP tool, no CLI twin yet.',
     'Audit trails don\u2019t prevent mistakes; they make them reviewable.',
   ],
   faq: [
@@ -51,7 +51,7 @@ const spec: PageSpec = {
     },
     {
       q: 'Who can read the ledger?',
-      a: 'You. It\u2019s local and gitignored \u2014 budgets, cooldowns, and your acknowledgment never leave your machine.',
+      a: 'You. It\u2019s local and gitignored, budgets, cooldowns, and your acknowledgment never leave your machine.',
     },
   ],
 };

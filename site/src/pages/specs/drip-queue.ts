@@ -5,19 +5,19 @@ const spec: PageSpec = {
   tag: 'Paced queue',
   tagVariant: '',
   title: 'THE DRIP QUEUE',
-  lede: 'Queue up a week of applications and Veto works through them at human pace — max 5 a day, random 2\u20137 minute pauses between each. The whole run is risk-adjudicated before it starts, and anything still waiting on your grill answers stays queued.',
+  lede: 'Queue up a week of applications and Veto works through them at human pace, max 5 a day, random 2\u20137 minute pauses between each. The whole run is risk-adjudicated before it starts, and anything still waiting on your grill answers stays queued.',
   points: [
     {
       icon: 'list',
       tone: '',
       title: 'A real queue, not a vibe',
-      body: 'queue-add drops a job into the queue file; queue-list shows what\u2019s pending, due, or done. It persists across restarts and prints a JSON run report — cron-friendly by design.',
+      body: 'queue-add drops a job into the queue file; queue-list shows what\u2019s pending, due, or done. It persists across restarts and prints a JSON run report. Cron-friendly by design.',
     },
     {
       icon: 'hourglass',
       tone: '',
       title: 'Human pace, enforced',
-      body: 'Max 5 applications per day across all boards, with a randomized 2\u20137 minute pause between each. Not a suggestion — the compliance gate stops the run at the cap with cap_reached.',
+      body: 'Max 5 applications per day across all boards, with a randomized 2\u20137 minute pause between each. Not a suggestion. The compliance gate stops the run at the cap with cap_reached.',
     },
     {
       icon: 'x',
@@ -29,7 +29,7 @@ const spec: PageSpec = {
       icon: 'question',
       tone: 'amber',
       title: 'Grill-aware',
-      body: 'Items still waiting on an incomplete grill report grill_pending and stay in the queue — never counted as applied, never skipped silently. Answer the grill and the next run picks them up.',
+      body: 'Items still waiting on an incomplete grill report grill_pending and stay in the queue, never counted as applied, never skipped silently. Answer the grill and the next run picks them up.',
     },
   ],
   demoTitle: 'A queued morning run',
@@ -40,13 +40,13 @@ const spec: PageSpec = {
     { text: '\u2192 risk adjudication: run allowed (2 due, cap 5/day)', kind: 'info' },
     { text: '\u2713 recorded: senior backend eng \u00b7 greenhouse', kind: 'ok' },
     { text: '\u2192 pacing: sleeping 214s (randomized 2\u20137 min)', kind: 'info' },
-    { text: '\u2192 job:lever:b2: grill_pending (2/4) \u2014 stays queued', kind: 'warn' },
+    { text: '\u2192 job:lever:b2: grill_pending (2/4) : stays queued', kind: 'warn' },
     { text: '\u2713 run done: 1 recorded \u00b7 1 queued \u00b7 0 failed', kind: 'ok' },
   ],
   limits: [
-    '5 a day is a ceiling, not a target — quality beats quota.',
+    '5 a day is a ceiling, not a target. Quality beats quota.',
     'A per-item failure is recorded and the run continues; only the daily cap or a risk veto stops the whole run.',
-    'Long runs need the process alive — pair queue-run with cron for daily runs.',
+    'Long runs need the process alive: pair queue-run with cron for daily runs.',
     'Grill-pending items wait on you. The queue holds them; it doesn\u2019t nag you.',
   ],
   faq: [
@@ -60,7 +60,7 @@ const spec: PageSpec = {
     },
     {
       q: 'Does the queue lower the bar per application?',
-      a: 'No. Each item goes through the same pipeline as a manual apply — grill, honesty check, veto screen, fill-only rules. The queue paces the work; it doesn\u2019t lower the bar.',
+      a: 'No. Each item goes through the same pipeline as a manual apply: grill, honesty check, veto screen, fill-only rules. The queue paces the work; it doesn\u2019t lower the bar.',
     },
   ],
 };

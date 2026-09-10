@@ -23,7 +23,7 @@ const spec: PageSpec = {
       icon: 'shield',
       tone: 'red',
       title: 'Exact-approval sending',
-      body: 'Sending needs confirmed=True plus the exact recipient, subject, and body. No "looks about right" — the bytes you approve are the bytes that send.',
+      body: 'Sending needs confirmed=True plus the exact recipient, subject, and body. No "looks about right". The bytes you approve are the bytes that send.',
     },
     {
       icon: 'chat',
@@ -35,16 +35,16 @@ const spec: PageSpec = {
   demoTitle: 'Drafting a follow-up',
   demoLines: [
     { text: '$ veto followups due', kind: 'cmd' },
-    { text: '! AcmeCo — applied 12 days ago, no movement', kind: 'warn' },
+    { text: '! AcmeCo: applied 12 days ago, no movement', kind: 'warn' },
     { text: '+ draft: check-in, references your k8s migration bullet', kind: 'ok' },
-    { text: '  to: hiring-manager@acmeco.example / re: Platform Engineer — follow-up', kind: 'info' },
-    { text: 'X not sent — needs your explicit confirm of recipient, subject, body.', kind: 'veto' },
+    { text: '  to: hiring-manager@acmeco.example / re: Platform Engineer: follow-up', kind: 'info' },
+    { text: 'X not sent: needs your explicit confirm of recipient, subject, body.', kind: 'veto' },
   ],
   limits: [
     'Drafts are starting points; a copy-paste nudge sent to 40 companies is still spam.',
     'Stale detection depends on your lifecycle tracking being up to date.',
     'Sending is Gmail-path only for now; other channels get rendered drafts.',
-    'It will not follow up more often than the schedule allows — no pestering.',
+    'It will not follow up more often than the schedule allows, no pestering.',
   ],
   faq: [
     {
@@ -53,7 +53,7 @@ const spec: PageSpec = {
     },
     {
       q: 'How stale is stale?',
-      a: 'Stage-dependent — applications get nudged sooner than post-final thank-yous. The nudge list shows the reasoning.',
+      a: 'Stage-dependent, applications get nudged sooner than post-final thank-yous. The nudge list shows the reasoning.',
     },
   ],
 };

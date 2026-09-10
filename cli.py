@@ -334,8 +334,10 @@ def _plugin_cli_handlers(sub) -> dict:
     """Register enhancement-plugin CLI commands on the subparsers.
 
     Returns {command: handler}; existing core commands are never
-    overwritten. Missing plugins are skipped silently (server.py logs
-    them at startup).
+    overwritten. Plugins that fail to import are skipped silently
+    (server.py logs them at startup). A plugin whose ``register_cli``
+    raises, or returns something other than a {command: handler} dict,
+    is skipped with a clear warning naming the plugin — never silently.
     """
     handlers: dict = {}
     for _mod_name in _PLUGIN_CLI_MODULES:
@@ -347,10 +349,24 @@ def _plugin_cli_handlers(sub) -> dict:
         if _register is None:
             continue
         try:
-            for _cmd, _fn in dict(_register(sub)).items():
-                handlers.setdefault(_cmd, _fn)
-        except Exception:
+            _registered = _register(sub)
+        except Exception as exc:
+            print(
+                f"Warning: plugin '{_mod_name}' register_cli failed "
+                f"({exc}); skipping its commands.",
+                file=sys.stderr,
+            )
             continue
+        if not isinstance(_registered, dict):
+            print(
+                f"Warning: plugin '{_mod_name}' register_cli must return a "
+                f"{{command: handler}} dict, got "
+                f"{type(_registered).__name__}; skipping its commands.",
+                file=sys.stderr,
+            )
+            continue
+        for _cmd, _fn in _registered.items():
+            handlers.setdefault(_cmd, _fn)
     return handlers
 
 
@@ -420,7 +436,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("profile", help="Show the saved profile summary.")
 
-    sub.add_parser("wizard", help="Run the onboarding wizard (builds your profile).")
+    sub.add_parser(
+        "wizard",
+        help="Run the onboarding wizard (builds your profile).",
+        description=(
+            "Interactive onboarding wizard: walks you through entering "
+            "your details (name, email, location, skills, experience), "
+            "optionally ingests your LinkedIn profile, and saves "
+            "profiles/profile.json so search/match/tailor/apply can use it."
+        ),
+    )
 
     sub.add_parser(
         "dashboard",
