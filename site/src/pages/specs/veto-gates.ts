@@ -8,24 +8,24 @@ const spec: PageSpec = {
   lede: 'Every confirmed application passes a constitutional veto screen on a neutral summary of the planned action, plus an advisory adversarial review. A veto hit \u2014 or a failed veto check \u2014 blocks the action, fail-closed. Nothing is submitted and nothing is logged.',
   points: [
     {
-      icon: '\u26E8',
+      icon: 'x',
       tone: 'red',
       title: 'Veto screen',
       body: 'The framework screens a plain-language summary of the planned application (universal domain) before anything moves. A hit stops the action cold.',
     },
     {
-      icon: '\u2298',
+      icon: 'lock',
       tone: 'red',
       title: 'Fail-closed',
       body: 'A veto hit or a failed veto check blocks \u2014 always. Nothing is submitted and nothing is written to applications.json. Caution wins over convenience.',
     },
     {
-      icon: '\u2714',
+      icon: 'check',
       title: 'Humans clear it',
       body: 'Only a human clears a veto: fix the application or the profile and re-run. There is no bypass switch, no "do it anyway" flag.',
     },
     {
-      icon: '\u25D0',
+      icon: 'shield',
       tone: 'amber',
       title: 'Compliance-only mode',
       body: 'If the governance framework is unavailable, the deterministic compliance gates still hold. The decision is marked compliance-only \u2014 the guardrails don\u2019t take a day off.',

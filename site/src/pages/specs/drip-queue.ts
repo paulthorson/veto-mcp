@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'Queue up a week of applications and Veto works through them at human pace — max 5 a day, random 2\u20137 minute pauses between each. The whole run is risk-adjudicated before it starts, and anything still waiting on your grill answers stays queued.',
   points: [
     {
-      icon: '\u2630',
+      icon: 'list',
       tone: '',
       title: 'A real queue, not a vibe',
       body: 'queue-add drops a job into the queue file; queue-list shows what\u2019s pending, due, or done. It persists across restarts and prints a JSON run report — cron-friendly by design.',
     },
     {
-      icon: '\u25d4',
+      icon: 'hourglass',
       tone: '',
       title: 'Human pace, enforced',
       body: 'Max 5 applications per day across all boards, with a randomized 2\u20137 minute pause between each. Not a suggestion — the compliance gate stops the run at the cap with cap_reached.',
     },
     {
-      icon: '\u26e8',
+      icon: 'x',
       tone: 'red',
       title: 'Adjudicated before it starts',
       body: 'The entire run goes through the risk policy first. If policy says no, the run stops immediately with risk_blocked and nothing is attempted. Fail closed, always.',
     },
     {
-      icon: '?',
+      icon: 'question',
       tone: 'amber',
       title: 'Grill-aware',
       body: 'Items still waiting on an incomplete grill report grill_pending and stay in the queue — never counted as applied, never skipped silently. Answer the grill and the next run picks them up.',

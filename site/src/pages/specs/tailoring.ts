@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'tailor_application builds a per-job resume and a 3-paragraph cover letter from your saved profile. Keyword-matched bullets get front-loaded; the letter names the actual role and company. And it never, ever invents experience.',
   points: [
     {
-      icon: '\u270e',
+      icon: 'pencil',
       tone: '',
       title: 'Keyword front-loading',
       body: 'Your real experience bullets are reordered and rephrased around the posting\u2019s keywords, so the match is visible in the first six seconds of a skim. What\u2019s on the page is always something you\u2019ve actually done.',
     },
     {
-      icon: '\u2261',
+      icon: 'doc',
       tone: '',
       title: 'The 3-paragraph letter',
       body: 'Paragraph one: the role and why you. Paragraph two: your two or three most relevant wins, with metrics. Paragraph three: logistics and the ask. It references the actual company and role — no mad-libs.',
     },
     {
-      icon: '\u2298',
+      icon: 'shield',
       tone: 'red',
       title: 'The honesty rule',
       body: 'Skills, titles, or years your profile can\u2019t back up are never added. They\u2019re reported as missing_skills instead — a to-do list, not a fabrication. The cover letter gets honesty-scanned before anything proceeds.',
     },
     {
-      icon: '?',
+      icon: 'question',
       tone: '',
       title: 'Grill answers plug in',
       body: 'Finish the grill and your answers strengthen the tailoring: quantified wins land in the bullets, motivation lands in the letter. The interrogation pays rent.',

@@ -9,7 +9,7 @@ import FeaturePage from './pages/FeaturePage';
 import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
 import type { PageSpec } from './pages/spec';
-import { PixelX, PxBtn, PxTag, GITHUB_URL } from './px';
+import { PixelX, PxBtn, PxTag, PixelIcon, BotCrew, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
 import specGrill from './pages/specs/the-grill';
 import specTailoring from './pages/specs/tailoring';
@@ -48,17 +48,17 @@ type DemoLine = { text: string; kind: 'cmd' | 'ok' | 'info' | 'warn' | 'veto' };
 
 const DEMO_LINES: DemoLine[] = [
   { text: 'cli.py search "software engineer" --location "New York, NY"', kind: 'cmd' },
-  { text: '✓ 24 jobs — LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
+  { text: '+ 24 jobs — LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
   { text: '  senior backend eng · fintech · NYC · linkedin', kind: 'info' },
   { text: '  platform eng · devtools · remote · greenhouse', kind: 'info' },
   { text: '  staff sre · infra · NYC · lever', kind: 'info' },
   { text: 'cli.py apply job:linkedin:9f2c --resume ~/resume.pdf --confirm', kind: 'cmd' },
-  { text: '→ grill: 3 questions → WhatsApp … 3/3 answered ✓', kind: 'info' },
-  { text: '→ honesty check: no invented skills ✓', kind: 'ok' },
-  { text: '→ qualification 0.87 · veto check passed ✓', kind: 'ok' },
-  { text: '✓ RECORDED — finish submitting at the apply link', kind: 'ok' },
+  { text: '> grill: 3 questions > WhatsApp ... 3/3 answered +', kind: 'info' },
+  { text: '> honesty check: no invented skills +', kind: 'ok' },
+  { text: '> qualification 0.87 · veto check passed +', kind: 'ok' },
+  { text: '+ RECORDED — finish submitting at the apply link', kind: 'ok' },
   { text: 'cli.py apply job:lever:staff --resume ~/resume.pdf --confirm', kind: 'cmd' },
-  { text: '✕ VETOED — needs 8+ yrs, profile shows 3. Not applying.', kind: 'veto' },
+  { text: 'X VETOED — needs 8+ yrs, profile shows 3. Not applying.', kind: 'veto' },
 ];
 
 function TerminalDemo() {
@@ -161,59 +161,59 @@ const PROVIDERS = [
 const FEATURES = [
   {
     slug: 'multi-board-search',
-    icon: '▦',
+    icon: 'search',
     tone: '',
     title: 'Multi-board search',
     body: 'One query across 8 boards. Official APIs where they exist; polite, budgeted, circuit-broken scraping where they don\u2019t. Deduped and ranked.',
   },
   {
     slug: 'the-grill',
-    icon: '?',
+    icon: 'question',
     tone: 'red',
     title: 'The grill',
     body: 'Before anything moves, Veto interrogates you — missing skills, unquantified wins, salary, logistics — over chat, WhatsApp, or Gmail. The application waits for your answers.',
   },
   {
     slug: 'tailoring',
-    icon: '✎',
+    icon: 'pencil',
     tone: '',
     title: 'Tailoring, minus the lies',
     body: 'Resume bullets reordered around the posting\u2019s keywords, cover letter referencing the actual role. Gaps are reported as gaps — never padded.',
   },
   {
     slug: 'fill-only-apply',
-    icon: '▣',
+    icon: 'clipboard',
     tone: 'amber',
     title: 'Fill-only applying',
     body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit — policy, not preference.',
   },
   {
     slug: 'drip-queue',
-    icon: '☰',
+    icon: 'hourglass',
     tone: '',
     title: 'Drip queue',
     body: 'Applications queued at human pace: max 5 a day, random pauses between them. No bulk blasts, ever.',
   },
   {
     slug: 'email-sync',
-    icon: '✉',
+    icon: 'envelope',
     tone: '',
     title: 'Recruiter email sync',
     body: 'Recruiter emails classified, application stages auto-updated, follow-up drafts written. Sending always needs your confirm.',
   },
   {
     slug: 'interview-prep',
-    icon: '◈',
+    icon: 'chat',
     tone: '',
     title: 'Interview prep',
     body: 'Company briefs with unverified facts marked as such. STAR stories built only from your real wins — metrics preserved verbatim.',
   },
   {
     slug: 'lifecycle-analytics',
-    icon: '◉',
+    icon: 'chart',
     tone: '',
     title: 'Lifecycle + analytics',
-    body: 'applied → interviewing → offer tracking, follow-up nudges, and response rate broken down by board.',
+    body: 'applied > interviewing > offer tracking, follow-up nudges, and response rate broken down by board.',
   },
 ];
 
@@ -238,28 +238,28 @@ const STEPS = [
 const NO_CARDS = [
   {
     slug: 'veto-gates',
-    icon: '⛨',
+    icon: 'x',
     tone: 'red',
     title: 'Veto gates',
     body: 'Every confirmed application passes a constitutional veto screen first. A trip blocks it outright — and only a human can clear a veto.',
   },
   {
     slug: 'honesty-check',
-    icon: '⊘',
+    icon: 'shield',
     tone: 'red',
     title: 'Honesty check',
     body: 'Cover letters are scanned for skills and years your profile can\u2019t back up. Invented experience blocks the application on the spot.',
   },
   {
     slug: 'qualification-scoring',
-    icon: '◐',
+    icon: 'gauge',
     tone: 'amber',
     title: 'Qualification scoring',
     body: 'Requirements are extracted from the posting and scored against your profile. Clear misses are refused with an explanation; borderline ones proceed with a warning.',
   },
   {
     slug: 'verdict-ledger',
-    icon: '≣',
+    icon: 'ledger',
     tone: '',
     title: 'Verdict ledger',
     body: 'Every pass and every block lands in an auditable ledger. Ask why anything happened and get an answer.',
@@ -383,9 +383,9 @@ function SiteFooter() {
           </p>
         </div>
         <div className="footer-links">
-          <Link href={GITHUB_URL} label="GitHub repository" target="_blank">→ GitHub repository</Link>
-          <Link href="#/docs" label="Documentation">→ Documentation</Link>
-          <Link href="#/install" label="Install">→ Install</Link>
+          <Link href={GITHUB_URL} label="GitHub repository" target="_blank">{'>'} GitHub repository</Link>
+          <Link href="#/docs" label="Documentation">{'>'} Documentation</Link>
+          <Link href="#/install" label="Install">{'>'} Install</Link>
         </div>
       </div>
       <div className="wrap footer-base">
@@ -435,21 +435,22 @@ function HomePage({ routeHash }: { routeHash: string }) {
               </p>
               <div className="hero-ctas">
                 <PxBtn variant="primary" href="#/install" label="Get started">
-                  ▶ Get started
+                  {'>'} Get started
                 </PxBtn>
                 <PxBtn variant="secondary" href={GITHUB_URL} label="Star on GitHub">
-                  ★ Star on GitHub
+                  {'*'} Star on GitHub
                 </PxBtn>
               </div>
               <p className="hero-note">
                 {'>'} works with Claude Desktop, Cursor, Muse CLI — any MCP client_
               </p>
               <p className="hero-note">
-                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds →</a>
+                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds {'>'}</a>
               </p>
             </div>
             <div className="hero-demo">
               <TerminalDemo />
+              <BotCrew />
             </div>
           </div>
         </section>
@@ -491,10 +492,10 @@ function HomePage({ routeHash }: { routeHash: string }) {
                   aria-label={`${f.title} — learn more`}
                 >
                   <Card className="feature-card">
-                    <div className={`feature-icon ${f.tone}`} aria-hidden="true">{f.icon}</div>
+                    <div className={`feature-icon ${f.tone}`} aria-hidden="true"><PixelIcon name={f.icon} /></div>
                     <Heading level={3} className="feature-title">{f.title}</Heading>
                     <p className="feature-body">{f.body}</p>
-                    <span className="card-more">Read more →</span>
+                    <span className="card-more">Read more {'>'}</span>
                   </Card>
                 </a>
               ))}
@@ -544,10 +545,10 @@ function HomePage({ routeHash }: { routeHash: string }) {
                   aria-label={`${c.title} — learn more`}
                 >
                   <Card className="feature-card">
-                    <div className={`feature-icon ${c.tone}`} aria-hidden="true">{c.icon}</div>
+                    <div className={`feature-icon ${c.tone}`} aria-hidden="true"><PixelIcon name={c.icon} /></div>
                     <Heading level={3} className="feature-title">{c.title}</Heading>
                     <p className="feature-body">{c.body}</p>
-                    <span className="card-more">Read more →</span>
+                    <span className="card-more">Read more {'>'}</span>
                   </Card>
                 </a>
               ))}
@@ -622,7 +623,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
             </p>
             <div className="hero-ctas center">
               <PxBtn variant="primary" href="#/install" label="Get started">
-                ▶ Get started
+                {'>'} Get started
               </PxBtn>
               <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
                 View on GitHub

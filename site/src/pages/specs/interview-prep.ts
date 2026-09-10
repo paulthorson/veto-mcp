@@ -7,22 +7,22 @@ const spec: PageSpec = {
   lede: 'Walk in already briefed. Veto researches the company and builds STAR stories from your real achievements — and marks anything it couldn\u2019t verify instead of inventing it.',
   points: [
     {
-      icon: '\u25C8',
+      icon: 'chat',
       title: 'Briefs, not bios',
       body: 'company_brief researches the company — site, careers page, news. Every field the fetch couldn\u2019t fill is marked "unverified". Funding numbers and headcount are never guessed.',
     },
     {
-      icon: '\u25C9',
+      icon: 'star',
       title: 'STAR from real wins',
       body: 'prep_interview builds stories only from achievements already in your profile. Metrics are preserved verbatim — "cut p99 by 38%" stays exactly that.',
     },
     {
-      icon: '\u271A',
+      icon: 'check',
       title: 'Requirements mapped',
       body: 'The posting\u2019s requirements are pulled into the prep doc, so you know what they\u2019ll probe before they probe it.',
     },
     {
-      icon: '\u2298',
+      icon: 'shield',
       title: 'No hallucinations',
       body: 'If web research returns nothing, the brief says so loudly — an honest gap, not a fabricated company.',
     },

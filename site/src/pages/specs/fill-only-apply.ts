@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'Veto does the tedious part — driving the form, every field, the resume upload — and stops at the review screen. The final click is always yours. On boards where automation bends the rules, the restraint is policy, not preference.',
   points: [
     {
-      icon: '\u25a3',
+      icon: 'clipboard',
       tone: 'amber',
       title: 'Easy Apply, minus the apply',
       body: 'easy_apply_fill walks the LinkedIn Easy Apply modal (max 6 steps), clicking only Next, Continue, and Review. At the review screen it stops and hands you the window. Any automation attempt at the submit button raises a fill-only violation — the code refuses.',
     },
     {
-      icon: '\u2261',
+      icon: 'list',
       tone: '',
       title: 'Official ATS only',
       body: 'apply_via_ats uses real, employer-issued ATS endpoints. We investigated anonymous submission and found no verified endpoint — so unsupported attempts return an honest error instead of guessing at someone\u2019s hiring API.',
     },
     {
-      icon: '\u2301',
+      icon: 'globe',
       tone: '',
       title: 'Browser mode is opt-in',
       body: 'Full browser automation needs JOB_MCP_BROWSER_APPLY=1 plus your explicit confirm. Checkboxes and radio buttons (attestations, EEO) are deliberately left for the human, and every step is screenshotted for review.',
     },
     {
-      icon: '\u26e8',
+      icon: 'x',
       tone: 'red',
       title: 'Vetoed before filled',
       body: 'None of this starts until the governance precheck, the grill, and the risk adjudication pass. A vetoed application never opens a browser tab.',

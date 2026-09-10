@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'scan_recruiter_emails reads your Gmail, classifies recruiter mail, and proposes application stage updates — but only on high-confidence, unambiguous matches. draft_followup_email writes your check-ins and thank-yous. Nothing sends without your explicit confirm.',
   points: [
     {
-      icon: '\u2709',
+      icon: 'envelope',
       tone: '',
       title: 'Classification, not guessing',
       body: 'Each thread is classified — new opportunity, interview invite, rejection, follow-up — with a confidence score. Stage updates are proposed only when the match is unambiguous and confidence is high (\u22650.8). Otherwise it shows you the thread and asks.',
     },
     {
-      icon: '\u2261',
+      icon: 'list',
       tone: '',
       title: 'Stage sync',
       body: 'Confirmed matches move your applications through the pipeline: applied \u2192 interviewing \u2192 offer, or rejected. Every move is logged with the email that triggered it, so the audit trail survives your inbox.',
     },
     {
-      icon: '\u270e',
+      icon: 'pencil',
       tone: '',
       title: 'Drafts, not sends',
       body: 'draft_followup_email writes check-in, thank-you, and nudge emails in your voice from the thread context. Sending needs confirm=True with the exact recipient, subject, and body — no blanket approvals, no \u2018always send\u2019 mode.',
     },
     {
-      icon: '\u2298',
+      icon: 'lock',
       tone: 'amber',
       title: 'Gmail only, scoped',
       body: 'Reads and sends through Gmail only, and only the threads it needs. No credential storage beyond your own Gmail connection — the same rule as everything else Veto touches.',

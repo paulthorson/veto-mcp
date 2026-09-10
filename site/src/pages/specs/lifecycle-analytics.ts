@@ -7,22 +7,22 @@ const spec: PageSpec = {
   lede: 'Every application carries a pipeline stage \u2014 applied \u2192 interviewing \u2192 offer, plus rejected, withdrawn, and ghosted \u2014 with a full stage_history log. application_analytics turns it into a funnel you can actually learn from.',
   points: [
     {
-      icon: '\u25C9',
+      icon: 'chart',
       title: 'Pipeline stages',
       body: 'Every entry keeps a stage_history of {stage, at, note} events. Moving to interviewing sets a follow-up reminder 7 days out; terminal stages clear it.',
     },
     {
-      icon: '\u2709',
+      icon: 'envelope',
       title: 'Follow-up nudges',
       body: 'Applications due for a check-in surface automatically. Stale ones \u2014 stuck in applied with no movement \u2014 get flagged so nobody falls through the cracks.',
     },
     {
-      icon: '\u2263',
+      icon: 'chart',
       title: 'Real analytics',
       body: 'Funnel counts, response rate by board, median days to first response, and the stale list. Know which boards actually convert.',
     },
     {
-      icon: '\u25A4',
+      icon: 'doc',
       title: 'CSV export',
       body: 'Dump everything to a spreadsheet in one command. Your data stays portable \u2014 no lock-in, no dashboard hostage situations.',
     },

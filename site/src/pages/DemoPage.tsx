@@ -47,7 +47,7 @@ function ShareLinks({ vetoed, reason }: { vetoed: boolean; reason: string }) {
   return (
     <div className="demo-share">
       <PxBtn variant="secondary" href={xUrl} label="Share your verdict on X" target="_blank">
-        𝕏 Share verdict
+        Share on X
       </PxBtn>
     </div>
   );
@@ -75,7 +75,7 @@ export default function DemoPage() {
         <section className="hero page-hero">
           <div className="wrap">
             <a className="back-link" href="#/">
-              ← Home
+              {'<'} Home
             </a>
             <PxTag variant="red">Interactive demo</PxTag>
             <Heading level={1} className="hero-title page-title">
@@ -102,7 +102,7 @@ export default function DemoPage() {
               </p>
               <ul className="demo-needs">
                 {JOB.needs.map((n) => (
-                  <li key={n}>▸ {n}</li>
+                  <li key={n}>{'>'} {n}</li>
                 ))}
               </ul>
             </Card>
@@ -202,7 +202,7 @@ export default function DemoPage() {
                   {verdict.pass ? (
                     <Card className="demo-pass">
                       <div className="demo-verdict-mark go" aria-hidden="true">
-                        ✓
+                        +
                       </div>
                       <Heading level={3} className="feature-title">
                         No veto.
@@ -222,19 +222,19 @@ export default function DemoPage() {
                         <span className="terminal-title">veto — zsh</span>
                       </div>
                       <div className="terminal-body">
-                        <div className="tline t-info">→ grill: 3/3 answered ✓</div>
-                        <div className="tline t-info">→ honesty check: no invented skills ✓</div>
-                        <div className="tline t-veto">✕ VETOED — {verdict.reason}</div>
+                        <div className="tline t-info">{'>'} grill: 3/3 answered +</div>
+                        <div className="tline t-info">{'>'} honesty check: no invented skills +</div>
+                        <div className="tline t-veto">X VETOED — {verdict.reason}</div>
                       </div>
                     </div>
                   )}
                   <ShareLinks vetoed={!verdict.pass} reason={!verdict.pass ? verdict.reason : ''} />
                   <div className="demo-again">
                     <button className="demo-opt" onClick={reset}>
-                      ↻ Run it back
+                      {'>'} Play again
                     </button>
                     <a className="demo-docs" href="#/features/the-grill">
-                      How the real grill works →
+                      How the real grill works {'>'}
                     </a>
                   </div>
                 </div>
@@ -251,7 +251,7 @@ export default function DemoPage() {
             </Heading>
             <div className="hero-ctas center">
               <PxBtn variant="primary" href="#/install" label="Get started">
-                ▶ Get started
+                {'>'} Get started
               </PxBtn>
             </div>
           </div>

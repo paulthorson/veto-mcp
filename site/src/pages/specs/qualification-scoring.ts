@@ -8,24 +8,24 @@ const spec: PageSpec = {
   lede: 'Required skills and years are extracted from the job description and scored against your profile. \u22650.65 proceeds silently; 0.40\u20130.65 proceeds with a visible qualification_warning; below 0.40 \u2014 or a severe experience gap \u2014 blocks with an explanation.',
   points: [
     {
-      icon: '\u25D0',
+      icon: 'search',
       tone: 'amber',
       title: 'Extraction',
       body: 'Requirements are pulled from the posting text itself \u2014 not the title, not wishful thinking. Skills and years, as stated by the employer.',
     },
     {
-      icon: '\u2713',
+      icon: 'check',
       title: '\u22650.65 \u2014 silent pass',
       body: 'You\u2019re a fit. The application proceeds with no ceremony and no nagging.',
     },
     {
-      icon: '\u25C9',
+      icon: 'warn',
       tone: 'amber',
       title: '0.40\u20130.65 \u2014 warned',
       body: 'Proceeds with a visible qualification_warning. Eyes open: you know exactly which requirements you don\u2019t meet.',
     },
     {
-      icon: '\u2715',
+      icon: 'x',
       tone: 'red',
       title: '<0.40 \u2014 refused',
       body: 'Blocked with an explanation. Veto refuses to spend your daily application budget on a role you clearly don\u2019t fit.',

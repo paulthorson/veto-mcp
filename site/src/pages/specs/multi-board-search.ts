@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'One search fans out to eight job boards — official APIs where they exist, polite budgeted scraping where they don\u2019t. Every result arrives tagged with its risk tier, deduped, and ranked. No tabs, no copy-paste, no 47 open windows.',
   points: [
     {
-      icon: '▦',
+      icon: 'search',
       tone: '',
       title: 'Two tiers, one query',
       body: 'Greenhouse, Lever, and Ashby run on public JSON APIs — fast, free, no auth. LinkedIn, Indeed, and ZipRecruiter run on guest endpoints and HTML, which means ToS risk: you acknowledge it in the wizard before they\u2019re ever touched. Adzuna needs a free API key. Glassdoor is still a stub.',
     },
     {
-      icon: '◈',
+      icon: 'bolt',
       tone: 'amber',
       title: 'Budgets + circuit breaker',
       body: 'Scraping-tier boards get 40 searches a day each; official boards get 1,000. A 403, 429, or CAPTCHA trips a cooldown — 1 hour, doubling, capped at 24. The agent backs off. It never retries aggressively and never touches a CAPTCHA.',
     },
     {
-      icon: '≡',
+      icon: 'list',
       tone: '',
       title: 'Dedup that respects recall',
       body: 'The same posting on three boards collapses into one: exact URL match, exact company+title match, or fuzzy title match at \u22650.85 for the same company. Ambiguous matches are left alone — better a duplicate than a lost job.',
     },
     {
-      icon: '☰',
+      icon: 'list',
       tone: '',
       title: 'Filters + watches',
       body: 'salary_min and seniority post-filter on listing text (\u2018$150k\u2019, \u2018$75/hr\u2019 annualized); jobs with no detectable salary are kept, never dropped. Save any search as a watch — the first check only sets a baseline, then watch.py diffs new postings on a cron.',

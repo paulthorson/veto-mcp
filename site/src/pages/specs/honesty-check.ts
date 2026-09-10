@@ -8,24 +8,24 @@ const spec: PageSpec = {
   lede: 'The cover letter is veto-scanned before anything moves. Any skill or years-of-experience it claims that your profile can\u2019t back up blocks the application. Don\u2019t claim what you can\u2019t back up. Heuristic-layer misses warn rather than block.',
   points: [
     {
-      icon: '\u2298',
+      icon: 'shield',
       tone: 'red',
       title: 'Claim scanning',
       body: 'Every concrete skill and years-of-experience claim in the cover letter is checked against your profile. Unsupported claims stop the application on the spot.',
     },
     {
-      icon: '\u271A',
+      icon: 'check',
       title: 'Tailoring respects it',
       body: 'tailor_application reports gaps as missing_skills \u2014 it never adds them to your resume. The honesty check is the backstop for anything the tailoring wrote.',
     },
     {
-      icon: '\u25D0',
+      icon: 'warn',
       tone: 'amber',
       title: 'Heuristics warn',
       body: 'Fuzzy, paraphrased, or borderline matches warn rather than block. The gray area is for humans, not regex.',
     },
     {
-      icon: '\u2714',
+      icon: 'check',
       title: 'Specific feedback',
       body: 'A block names the claim that tripped it \u2014 "5 yrs Rust, profile shows 2" \u2014 so you know exactly what to fix.',
     },

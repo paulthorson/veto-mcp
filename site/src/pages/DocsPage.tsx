@@ -148,7 +148,7 @@ export default function DocsPage() {
         <section className="hero page-hero">
           <div className="wrap">
             <a className="back-link" href="#/">
-              ← Home
+              {'<'} Home
             </a>
             <PxTag>Docs</PxTag>
             <Heading level={1} className="hero-title page-title">
@@ -293,7 +293,7 @@ export default function DocsPage() {
             </p>
             <div className="limits">
               <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">▸</span>
+                <span className="limit-n" aria-hidden="true">{'>'}</span>
                 <p>
                   <strong>Two tiers.</strong> Official (Greenhouse, Lever,
                   Ashby, Adzuna) vs scraping (LinkedIn, Indeed, ZipRecruiter).
@@ -301,14 +301,14 @@ export default function DocsPage() {
                 </p>
               </div>
               <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">▸</span>
+                <span className="limit-n" aria-hidden="true">{'>'}</span>
                 <p>
                   <strong>Search budgets:</strong> 1000/day per official
                   board, 40/day per scraping board. Small by design.
                 </p>
               </div>
               <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">▸</span>
+                <span className="limit-n" aria-hidden="true">{'>'}</span>
                 <p>
                   <strong>Application cap:</strong> 5 per day across all
                   boards, with random 2–7 minute pauses between them. No bulk
@@ -316,7 +316,7 @@ export default function DocsPage() {
                 </p>
               </div>
               <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">▸</span>
+                <span className="limit-n" aria-hidden="true">{'>'}</span>
                 <p>
                   <strong>Circuit breaker:</strong> a 403, 429, or CAPTCHA
                   trips a 1-hour cooldown, doubling on repeat blocks, capped at
@@ -324,7 +324,7 @@ export default function DocsPage() {
                 </p>
               </div>
               <div className="limit-item">
-                <span className="limit-n" aria-hidden="true">▸</span>
+                <span className="limit-n" aria-hidden="true">{'>'}</span>
                 <p>
                   <strong>Fill-only:</strong> on scraping-tier boards the
                   agent may fill a form but never perform the final submit
@@ -368,7 +368,7 @@ export default function DocsPage() {
             </Heading>
             <div className="hero-ctas center">
               <PxBtn variant="primary" href="#/install" label="Get started">
-                ▶ Get started
+                {'>'} Get started
               </PxBtn>
               <PxBtn variant="secondary" href={GITHUB_URL} label="View on GitHub">
                 View on GitHub

@@ -8,25 +8,25 @@ const spec: PageSpec = {
   lede: 'Before Veto lets an application move, it interrogates you. Deterministic questions, generated from the gaps between the posting and your profile — missing skills, unquantified wins, salary, logistics, motivation. Answer on your phone; the application waits.',
   points: [
     {
-      icon: '?',
+      icon: 'question',
       tone: 'red',
       title: 'Gap-driven questions',
       body: 'No small talk. Each question maps to a real gap: a required skill your profile lacks, an achievement with no numbers, a missing salary expectation, an unanswered \u2018why this company\u2019. If there\u2019s no gap, there\u2019s no question.',
     },
     {
-      icon: '\u2709',
+      icon: 'chat',
       tone: '',
       title: 'Three channels',
       body: 'Chat (default), WhatsApp, or Gmail — picked in the onboarding wizard. Gmail replies are matched by a [grill:<id>] subject tag and ingested automatically. WhatsApp arrives as a plain message you can answer in one line.',
     },
     {
-      icon: '\u2261',
+      icon: 'list',
       tone: '',
       title: 'Parses lazy replies',
       body: 'Reply \u20181. yes 2. p99 -40% 3. 180k\u2019 in a single message and the parser splits it into answers — with a guard against decimals like \u20182.5 years\u2019. Terse is fine; the grill wants facts, not essays.',
     },
     {
-      icon: '\u25a3',
+      icon: 'lock',
       tone: '',
       title: 'Nothing moves until it\u2019s done',
       body: 'apply_to_job returns grill_pending while questions are unanswered. No tailoring, no recording, no submitting. Your answers feed straight into the resume tailoring, so the grill makes the application stronger — not just slower.',

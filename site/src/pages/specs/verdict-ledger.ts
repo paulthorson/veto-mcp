@@ -7,22 +7,22 @@ const spec: PageSpec = {
   lede: 'Every allow/block decision is written to a verdict ledger \u2014 the framework\u2019s runs/verdicts.jsonl, or a local fallback when its checkout isn\u2019t writable. risk_status is the live audit surface: per-board tier and search-allowed state, daily cap usage, registered plugins.',
   points: [
     {
-      icon: '\u2263',
+      icon: 'ledger',
       title: 'Every decision logged',
       body: 'Allow or block, with the reason, timestamped. Ask why anything happened \u2014 a search skipped, an application vetoed \u2014 and get an answer.',
     },
     {
-      icon: '\u25C9',
+      icon: 'doc',
       title: 'risk_status',
       body: 'The live audit surface: per-board tier, whether search is currently allowed, daily cap usage, and which plugins are registered.',
     },
     {
-      icon: '\u25A4',
+      icon: 'doc',
       title: 'compliance.json',
       body: 'Budgets, cooldowns, and your ToS-risk acknowledgment live here \u2014 local, gitignored, yours. The machine-readable version of the rules.',
     },
     {
-      icon: '\u2298',
+      icon: 'lock',
       title: 'Ledger outage \u2260 action outage',
       body: 'If the ledger can\u2019t be written, that failure is logged \u2014 it never blocks or crashes the action itself.',
     },

@@ -1,5 +1,6 @@
 import { Card, CodeBlock, Heading } from '@astryxdesign/core';
 import type { PageSpec } from './spec';
+import { PixelIcon, resolveIcon } from '../px';
 
 /* Static (non-animated) terminal for drill-down pages. */
 function StaticTerminal({ lines, label }: { lines: PageSpec['demoLines']; label: string }) {
@@ -39,7 +40,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
         <section className="hero page-hero">
           <div className="wrap">
             <a className="back-link" href="#/">
-              ← All features
+              {'<'} All features
             </a>
             <div className="page-hero-inner">
               <div>
@@ -50,7 +51,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
                 <p className="hero-sub">{spec.lede}</p>
                 <div className="hero-ctas">
                   <a className="px-btn primary" href="#/install" aria-label="Get started">
-                    ▶ Get started
+                    {'>'} Get started
                   </a>
                 </div>
               </div>
@@ -69,7 +70,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
               {spec.points.map((p) => (
                 <Card key={p.title} className="feature-card">
                   <div className={`feature-icon ${p.tone ?? ''}`} aria-hidden="true">
-                    {p.icon}
+                    <PixelIcon name={resolveIcon(p.icon)} />
                   </div>
                   <Heading level={3} className="feature-title">
                     {p.title}
@@ -113,7 +114,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
               {spec.limits.map((l, i) => (
                 <div key={i} className="limit-item">
                   <span className="limit-n" aria-hidden="true">
-                    ✕
+                    X
                   </span>
                   <p>{l}</p>
                 </div>
@@ -153,7 +154,7 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
             </Heading>
             <div className="hero-ctas center">
               <a className="px-btn primary" href="#/install" aria-label="Get started">
-                ▶ Get started
+                {'>'} Get started
               </a>
               <a className="px-btn secondary" href="#/" aria-label="Back to all features">
                 All features
