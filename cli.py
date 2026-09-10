@@ -422,11 +422,39 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("wizard", help="Run the onboarding wizard (builds your profile).")
 
+    sub.add_parser(
+        "dashboard",
+        help="Interactive terminal dashboard: KPI header + guided workflows for every tool.",
+    )
+
+    p_serve = sub.add_parser(
+        "serve",
+        help="Start the local web dashboard (binds 127.0.0.1 only, fully offline).",
+    )
+    p_serve.add_argument("--port", type=int, default=8765, help="Port to bind (default: 8765).")
+    p_serve.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Don't auto-open the browser; just print the URL.",
+    )
+
     parser.set_defaults(
         _plugin_handlers=_plugin_cli_handlers(sub),
     )
 
     return parser
+
+
+def _cmd_dashboard(args: argparse.Namespace) -> int:
+    import dashboard
+
+    return dashboard.cmd_dashboard(args)
+
+
+def _cmd_serve(args: argparse.Namespace) -> int:
+    import webui
+
+    return webui.cmd_serve(args)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -440,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
         "applications": cmd_applications,
         "profile": cmd_profile,
         "wizard": cmd_wizard,
+        "dashboard": _cmd_dashboard,
+        "serve": _cmd_serve,
     }
     handlers.update(getattr(args, "_plugin_handlers", {}))
     return handlers[args.command](args)
