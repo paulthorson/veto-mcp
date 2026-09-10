@@ -549,7 +549,7 @@ function useRoute(): string {
     const onChange = () => {
       const h = window.location.hash;
       setHash(h);
-      if (h.startsWith('#/')) window.scrollTo(0, 0);
+      if (h.startsWith('#/')) window.scrollTo({ top: 0, behavior: 'instant' });
     };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
@@ -636,7 +636,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
     ) {
       document.getElementById(routeHash.slice(1))?.scrollIntoView();
     } else if (!routeHash.startsWith('#/')) {
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [routeHash]);
 
