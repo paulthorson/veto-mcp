@@ -3,7 +3,11 @@
 <head><meta charset="utf-8"><title>Apply: Software Engineer</title></head>
 <body>
 <h1>Apply: Software Engineer at Acme Corp</h1>
-<form action="?applied=1" method="get" id="apply-form">
+<form action="?" method="get" id="apply-form">
+  <!-- applied flag as a hidden input: GET form submission replaces the
+       action URL's query string with the serialized fields in real
+       browsers, so ?applied=1 in the action is dropped. -->
+  <input type="hidden" name="applied" value="1">
   <label>First name <input type="text" name="first_name" id="first_name"></label><br>
   <label>Last name <input type="text" name="last_name" id="last_name"></label><br>
   <label>Full name <input type="text" name="full_name" id="full_name"></label><br>
