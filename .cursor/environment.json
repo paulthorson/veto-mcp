@@ -1,0 +1,17 @@
+{
+  "name": "job-apply-mcp (Veto)",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "web-dashboard",
+      "command": ".venv/bin/python cli.py serve --port 8765 --no-browser"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web-dashboard",
+      "port": 8765
+    }
+  ]
+}
