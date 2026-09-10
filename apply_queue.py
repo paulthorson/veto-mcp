@@ -33,9 +33,12 @@ Wiring into the main CLI (cli.py) without editing it — in the wiring
 code, after ``sub = parser.add_subparsers(...)``::
 
     import apply_queue
-    apply_queue.register_cli(sub)
+    handlers = apply_queue.register_cli(sub)  # {command: handler} mapping
+    dispatch.update(handlers)
 
-and dispatch ``args.func(args)`` when the parsed args carry it.
+The returned mapping merges into the caller's dispatch table; each
+parser also carries ``func`` so a caller can dispatch
+``args.func(args)`` when the parsed args carry it.
 """
 
 from __future__ import annotations
@@ -386,11 +389,12 @@ def _cmd_queue_run(args: argparse.Namespace) -> int:
     return 0
 
 
-def register_cli(subparsers: Any) -> None:
+def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add ``queue-add`` / ``queue-list`` / ``queue-run`` to a CLI.
 
-    Wire from the owning CLI (see module docstring); each parser gets
-    ``func`` set so the owner can dispatch ``args.func(args)``.
+    Returns a {command: handler} mapping the caller merges into its
+    own dispatch table (cli.py-style). Each parser also gets ``func``
+    set so the owner can dispatch ``args.func(args)``.
     """
     p_add = subparsers.add_parser(
         "queue-add", help="Add a job to the drip-apply queue."
@@ -429,6 +433,11 @@ def register_cli(subparsers: Any) -> None:
         help="Send a summary notification via notify.send when done.",
     )
     p_run.set_defaults(func=_cmd_queue_run)
+    return {
+        "queue-add": _cmd_queue_add,
+        "queue-list": _cmd_queue_list,
+        "queue-run": _cmd_queue_run,
+    }
 
 
 def register_tools(mcp: Any) -> None:

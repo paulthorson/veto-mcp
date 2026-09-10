@@ -29,8 +29,8 @@ export function TracksDemo() {
         ))}
       </div>
       <p className="idemo-foot">
-        Diagnostics place you; streaks keep you honest. Practice is practice —
-        never presented as a credential.
+        Diagnostics place you; streaks keep you honest. Practice is practice.
+        Never presented as a credential.
       </p>
     </DemoShell>
   );
@@ -40,19 +40,19 @@ export function TracksDemo() {
 
 const MENTORS = [
   {
-    name: 'S.K. — Staff Eng, fintech',
+    name: 'S.K., Staff Eng, fintech',
     match: 92,
     why: 'Same industry + role, 2 levels up. Open to mock system-design sessions.',
     topics: 'system design · leveling',
   },
   {
-    name: 'M.R. — Eng Manager, devtools',
+    name: 'M.R., Eng Manager, devtools',
     match: 84,
-    why: 'Matched on "negotiation" and "executive presence" — your weakest drill areas.',
+    why: 'Matched on "negotiation" and "executive presence", your weakest drill areas.',
     topics: 'negotiation · presence',
   },
   {
-    name: 'J.C. — Senior Eng, infra',
+    name: 'J.C., Senior Eng, infra',
     match: 78,
     why: 'Career switcher like you. Strong on interview storytelling.',
     topics: 'storytelling · switching',
@@ -76,7 +76,7 @@ export function MentorDemo() {
       </div>
       <p className="idemo-foot">
         Opt-in mentors, privacy your way (name or initials). Veto drafts the
-        intro {'<'}300 chars — you send it yourself on LinkedIn.
+        intro {'<'}300 chars. You send it yourself on LinkedIn.
       </p>
     </DemoShell>
   );
@@ -106,7 +106,7 @@ export function WarmPathDemo() {
           <text x="470" y="126" textAnchor="middle" fill="#6f6d84" fontSize="13" fontFamily="VT323, monospace">hiring mgr</text>
         </g>
         <text x="280" y="180" textAnchor="middle" fill="#a9a7ba" fontSize="15" fontFamily="VT323, monospace">
-          TargetCo · platform eng — via your Connections.csv
+          TargetCo · platform eng, via your Connections.csv
         </text>
       </svg>
       <p className="idemo-foot">

@@ -534,8 +534,13 @@ def register_tools(mcp: Any) -> None:
         )
 
 
-def register_cli(subparsers: Any) -> Any:
-    """Add the ``easy-apply`` command to an argparse subparsers object."""
+def register_cli(subparsers: Any) -> dict[str, Any]:
+    """Add the ``easy-apply`` command to an argparse subparsers object.
+
+    Returns a {command: handler} mapping the caller merges into its
+    own dispatch table (cli.py-style). The parser also gets ``func``
+    set so a caller can dispatch ``args.func(args)``.
+    """
     p = subparsers.add_parser(
         "easy-apply",
         help="Fill a LinkedIn Easy Apply form (fill-only; never submits).",
@@ -557,7 +562,7 @@ def register_cli(subparsers: Any) -> Any:
                    help="Run headless (default is headed so you can click "
                    "Submit yourself).")
     p.set_defaults(func=cmd_easy_apply)
-    return p
+    return {"easy-apply": cmd_easy_apply}
 
 
 def cmd_easy_apply(args: Any) -> int:

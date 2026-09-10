@@ -6,7 +6,7 @@ export default function CoverDemo() {
     <DemoShell title="> honesty scan demo" label="Cover letter honesty scan: a flagged invented claim versus a clean draft">
       <div className="diff-cols">
         <div className="diff-pane bad">
-          <p className="diff-head red">DRAFT — SCAN FAILED</p>
+          <p className="diff-head red">DRAFT: SCAN FAILED</p>
           <p className="cover-text">
             Dear hiring manager, I am excited to apply for the platform engineer
             role. <span className="hl-bad">I increased revenue by 300% at my
@@ -21,7 +21,7 @@ export default function CoverDemo() {
           <p className="cover-note">Neither claim traces to the profile. Blocked.</p>
         </div>
         <div className="diff-pane good">
-          <p className="diff-head go">DRAFT — SCAN CLEAN</p>
+          <p className="diff-head go">DRAFT: SCAN CLEAN</p>
           <p className="cover-text">
             Dear hiring manager, I am excited to apply for the platform engineer
             role. I led the migration of 12 services to Kubernetes, cutting
@@ -30,7 +30,7 @@ export default function CoverDemo() {
           <p className="cover-flag">
             <Flag tone="go">+ CLEAN: every claim traces to a profile bullet</Flag>
           </p>
-          <p className="cover-note">Gaps are named as gaps — never invented.</p>
+          <p className="cover-note">Gaps are named as gaps. Never invented.</p>
         </div>
       </div>
       <p className="idemo-foot">

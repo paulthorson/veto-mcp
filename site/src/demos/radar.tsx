@@ -89,9 +89,9 @@ export default function RadarDemo() {
           <p className={`radar-score ${vetoed ? 'bad' : ''}`}>{score}</p>
           <p className="radar-score-label">fit score / 100</p>
           {vetoed ? (
-            <p className="radar-verdict bad">X VETOED — {worst} {vals[worst]} {'<'} 40</p>
+            <p className="radar-verdict bad">X VETOED: {worst} {vals[worst]} {'<'} 40</p>
           ) : (
-            <p className="radar-verdict good">+ PROCEED — no veto trips</p>
+            <p className="radar-verdict good">+ PROCEED: no veto trips</p>
           )}
           <p className="radar-note">
             skills 50 · seniority 15 · salary 15 · location 15 · recency 5
@@ -109,7 +109,7 @@ export default function RadarDemo() {
         ))}
       </div>
       <p className="idemo-foot">
-        Drag skills to zero and watch the veto trip. Scores below 40 never apply.
+        Drag the sliders and watch the score move. Drop under 40 and the veto trips.
       </p>
     </DemoShell>
   );

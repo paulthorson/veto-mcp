@@ -5,14 +5,14 @@ const spec: PageSpec = {
   tag: 'Train · AI fluency',
   tagVariant: '',
   title: 'EMPLOYERS SCREEN FOR THIS NOW',
-  lede: 'ai_proficiency.py takes you from zero to demonstrably AI-fluent: seven tracks (engineer, product, data, design, marketing, sales, generalist), deterministic diagnostics, 6–7 hands-on lessons per track — and an ethics lesson in every single one.',
+  lede: 'ai_proficiency.py takes you from zero to demonstrably AI-fluent: seven tracks (engineer, product, data, design, marketing, sales, generalist), deterministic diagnostics, 6–7 hands-on lessons per track, and an ethics lesson in every single one.',
   interactive: 'tracks',
   points: [
     {
       icon: 'bolt',
       tone: '',
       title: 'Seven tracks',
-      body: 'Engineer, product, data, design, marketing, sales, generalist — each with 6–7 hands-on lessons built around doing real work with AI, not reading about it.',
+      body: 'Engineer, product, data, design, marketing, sales, generalist: each with 6–7 hands-on lessons built around doing real work with AI, not reading about it.',
     },
     {
       icon: 'target',
@@ -30,7 +30,7 @@ const spec: PageSpec = {
       icon: 'chart',
       tone: '',
       title: 'Streaks keep you honest',
-      body: 'Lessons log reps to the streak system. Progress, streaks, and practice history — the grind, gamified.',
+      body: 'Lessons log reps to the streak system. Progress, streaks, and practice history. The grind, gamified.',
     },
   ],
   demoTitle: 'Starting a track',
@@ -43,10 +43,10 @@ const spec: PageSpec = {
     { text: '+ rep logged: ai_lesson (engineer). Streak: 6 days.', kind: 'ok' },
   ],
   limits: [
-    'Practice is practice — it is never presented as a credential or certification.',
+    'Practice is practice, it is never presented as a credential or certification.',
     'Lessons are hands-on exercises, not lectures; they demand real work.',
     'AI tools change fast; lessons teach durable habits (review discipline, disclosure) over specific products.',
-    'The diagnostic is deterministic — it places you by demonstrated answers, not self-rating.',
+    'The diagnostic is deterministic, it places you by demonstrated answers, not self-rating.',
   ],
   faq: [
     {
