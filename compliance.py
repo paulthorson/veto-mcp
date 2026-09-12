@@ -417,6 +417,10 @@ def status_summary(state: dict | None = None) -> dict:
                 "cooling_down_until": state.get("blocks", {}).get(board, {}).get(
                     "blocked_until"
                 ),
+                "recovery_successes": state.get("blocks", {}).get(board, {}).get(
+                    "successes", 0
+                ),
+                "recovery_window": RECOVERY_SUCCESS_WINDOW,
             }
             for board in sorted(RISK_TIER)
         },
