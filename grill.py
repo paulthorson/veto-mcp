@@ -446,6 +446,12 @@ def _load_sessions() -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def get_grill_session(job_id: str) -> dict[str, Any] | None:
+    """Return the raw session dict for ``job_id``, or None when there is
+    none."""
+    return _load_sessions().get(job_id)
+
+
 def _save_sessions(sessions: dict[str, Any]) -> None:
     SESSIONS_FILE.write_text(
         json.dumps(sessions, indent=2, ensure_ascii=False) + "\n",
