@@ -46,6 +46,9 @@ export interface PageSpec {
   demoLines: { text: string; kind: TermKind }[];
   /** Key into the interactive demo registry (src/demos). Optional. */
   interactive?: string;
+  /** Optional "try it live" CTA rendered under the demo section, e.g.
+      a link to a full interactive tool page for this feature. */
+  tryIt?: { href: string; label: string };
   /** Honest limitations — the "boss fights" */
   limits: string[];
   faq?: SpecFaq[];

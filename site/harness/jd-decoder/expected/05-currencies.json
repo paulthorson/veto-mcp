@@ -1,0 +1,47 @@
+{
+  "verdict": "strong",
+  "score": 80,
+  "reasons": [
+    {
+      "impact": 25,
+      "reason": "Salary range disclosed",
+      "quote": "Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …"
+    },
+    {
+      "impact": 5,
+      "reason": "Green flag: salary range disclosed",
+      "quote": "Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …"
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 60,
+      "salary_range": {
+        "low": "100",
+        "high": "130",
+        "raw": "USD 100k to 130k",
+        "quote": "Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …"
+      },
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 62,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 2,
+      "word_count": 21
+    },
+    "growth": [],
+    "green_flags": [
+      {
+        "flag": "salary range disclosed",
+        "quote": "Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …"
+      }
+    ],
+    "markdown": "# JD decode\n\n## Transparency: 60/100\n- Salary range: USD 100k to 130k\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 62/100 concrete (0 buzzwords, 2 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 1\n- salary range disclosed"
+  },
+  "markdown": "# JD verdict: strong (80/100)\n\n- [+25] Salary range disclosed\n  > Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …\n- [+5] Green flag: salary range disclosed\n  > Data Analyst, EuroCorp Compensation: USD 100k to 130k base. London band: £60,000–£75,000. Berlin band: €90K-€110K. - Build …"
+}

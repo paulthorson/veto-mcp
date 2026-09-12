@@ -1,0 +1,53 @@
+{
+  "verdict": "caution",
+  "score": 22,
+  "reasons": [
+    {
+      "impact": -10,
+      "reason": "High buzzword density, few concrete details",
+      "quote": "“Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap - ship it"
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'hustle'",
+      "quote": "“Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap …"
+    },
+    {
+      "impact": -10,
+      "reason": "No compensation information listed",
+      "quote": null
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 0,
+      "salary_range": null,
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [
+      {
+        "phrase": "hustle",
+        "quote": "“Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap …",
+        "read": "Ambition language that can mask overwork. Ask how success is measured — output, or hours."
+      }
+    ],
+    "vagueness": {
+      "score": 18,
+      "buzzwords": [
+        {
+          "buzzword": "rockstar",
+          "quote": "“Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap - ship it"
+        }
+      ],
+      "buzzword_count": 1,
+      "buzzword_density_per_100_words": 5.56,
+      "responsibilities": 2,
+      "word_count": 18
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 0/100\n- No compensation information listed\n\n## Overwork language: 1 flag(s)\n- 'hustle': Ambition language that can mask overwork. Ask how success is measured — output, or hours.\n\n## Vagueness: 18/100 concrete (1 buzzwords, 2 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: caution (22/100)\n\n- [-10] High buzzword density, few concrete details\n  > “Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap - ship it\n- [-8] Overwork-language flag: 'hustle'\n  > “Hustle” culture – we’re a 🚀 rocketship of rockstars — seriously. – own the roadmap …\n- [-10] No compensation information listed"
+}

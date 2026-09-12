@@ -1,0 +1,60 @@
+{
+  "verdict": "mixed",
+  "score": 49,
+  "reasons": [
+    {
+      "impact": 10,
+      "reason": "Salary mentioned, but no range given",
+      "quote": "Support Engineer, Helpful Inc We pay a competitive salary and offer equity to everyone who joins. - Answer customer tickets - …"
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'fast-paced'",
+      "quote": "… everyone who joins. - Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days."
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'wear many hats'",
+      "quote": "… Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days."
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 40,
+      "salary_range": null,
+      "salary_mention": {
+        "raw": "competitive salary",
+        "quote": "Support Engineer, Helpful Inc We pay a competitive salary and offer equity to everyone who joins. - Answer customer tickets - …"
+      },
+      "equity": {
+        "term": "equity",
+        "concrete": false,
+        "quote": "Support Engineer, Helpful Inc We pay a competitive salary and offer equity to everyone who joins. - Answer customer tickets - Write help center …"
+      }
+    },
+    "overwork": [
+      {
+        "phrase": "fast-paced",
+        "quote": "… everyone who joins. - Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days.",
+        "read": "Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set."
+      },
+      {
+        "phrase": "wear many hats",
+        "quote": "… Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days.",
+        "read": "The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core."
+      }
+    ],
+    "vagueness": {
+      "score": 62,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 2,
+      "word_count": 32
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 40/100\n- Salary mentioned, no range: competitive salary\n- Equity (vague): equity\n\n## Overwork language: 2 flag(s)\n- 'fast-paced': Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set.\n- 'wear many hats': The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core.\n\n## Vagueness: 62/100 concrete (0 buzzwords, 2 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: mixed (49/100)\n\n- [+10] Salary mentioned, but no range given\n  > Support Engineer, Helpful Inc We pay a competitive salary and offer equity to everyone who joins. - Answer customer tickets - …\n- [-8] Overwork-language flag: 'fast-paced'\n  > … everyone who joins. - Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days.\n- [-8] Overwork-language flag: 'wear many hats'\n  > … Answer customer tickets - Write help center articles Fast-paced inbox, wear many hats some days."
+}

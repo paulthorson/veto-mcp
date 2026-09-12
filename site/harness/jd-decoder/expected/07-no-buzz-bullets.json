@@ -1,0 +1,40 @@
+{
+  "verdict": "mixed",
+  "score": 65,
+  "reasons": [
+    {
+      "impact": 10,
+      "reason": "Salary mentioned, but no range given",
+      "quote": "QA Engineer, SolidCo $95,000 base salary, no range published. - Write test plans - Automate regression …"
+    },
+    {
+      "impact": 5,
+      "reason": "Concrete responsibilities spelled out",
+      "quote": null
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 25,
+      "salary_range": null,
+      "salary_mention": {
+        "raw": "$95,000",
+        "quote": "QA Engineer, SolidCo $95,000 base salary, no range published. - Write test plans - Automate regression …"
+      },
+      "equity": null
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 68,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 3,
+      "word_count": 22
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 25/100\n- Salary mentioned, no range: $95,000\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 68/100 concrete (0 buzzwords, 3 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: mixed (65/100)\n\n- [+10] Salary mentioned, but no range given\n  > QA Engineer, SolidCo $95,000 base salary, no range published. - Write test plans - Automate regression …\n- [+5] Concrete responsibilities spelled out"
+}
