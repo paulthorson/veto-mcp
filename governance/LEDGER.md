@@ -196,3 +196,16 @@ Entry schema:
   over-engineering a fix.
 - **What changed:** the methodology page now discloses the limitation
   honestly.
+
+## 2026-09-12 - Follow-up: status_summary recovery observability
+
+- **Shipped:** `compliance.status_summary()` now surfaces `recovery_successes`
+  and `recovery_window` per board, closing the observability gap left by the
+  circuit-breaker recovery work.
+- **What happened:** Small, direct change plus one regression test pinning the
+  streak through block, partial recovery, and full recovery. 12/12 recovery
+  tests pass.
+- **Learning:** A new state machine field that no status surface shows is a
+  field nobody can debug. Ship the observability with the mechanism, not
+  after.
+- **What changed:** None to process; applied the lesson the same turn.
