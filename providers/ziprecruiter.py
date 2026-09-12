@@ -5,17 +5,19 @@ Technique (verified 2026-07; see theabhishekchandra/applyverse
 
     https://www.ziprecruiter.com/jobs-search?search=<q>&location=<loc>&page=N
 
-and read the ``ld+json`` ``ItemList`` — 20 ``ListItem`` entries each with
+and read the ``ld+json`` ``ItemList``: 20 ``ListItem`` entries each with
 a title (``name``) and the real job link (``url``, a ``?jid=`` URL).
 Company / location / salary are paired **by index** with the rendered
 ``div[class*="job_result"]`` cards (``[data-testid="job-card-company"]``,
 ``[data-testid="job-card-location"]``, salary via a ``$`` regex).
 Pagination via ``&page=N``.
 
-Risk tier: scraping. CAPTCHAs are detected and stop the search — never
-bypassed. HTTP 403/429 trips the compliance circuit breaker via
-``compliance.record_block`` and degrades to an empty result (one dead
-board must not crash a multi-board search).
+Risk tier: scraping. robots.txt is honored before any request. HTTP
+403/429 and CAPTCHA/bot-check pages trip the compliance circuit breaker
+via ``compliance.record_block`` (1h cooldown, doubling, capped at 24h)
+and degrade to an empty result (one dead board must not crash a
+multi-board search). CAPTCHAs are detected and stop the search; they are never
+bypassed.
 
 Job ids follow the standard ``<board>:<base64url(payload)>`` format via
 :mod:`providers._common`; the payload is the canonical job URL.
@@ -36,6 +38,7 @@ from providers._common import (
     make_client,
     make_job_id,
     polite_delay,
+    robots_allows,
     strip_html,
 )
 
@@ -113,6 +116,12 @@ class ZipRecruiterProvider:
     def search(
         self, query: str, location: str, limit: int, remote_only: bool
     ) -> list[dict[str, Any]]:
+        if not robots_allows(self.name, SEARCH_URL):
+            log.warning(
+                "ZipRecruiter: robots.txt disallows %s; skipping search",
+                SEARCH_URL,
+            )
+            return []
         jobs: list[dict[str, Any]] = []
         seen_urls: set[str] = set()
         page = 1
@@ -149,9 +158,10 @@ class ZipRecruiterProvider:
                     break
                 text = resp.text or ""
                 if _CAPTCHA_RE.search(text):
+                    compliance.record_block(self.name)
                     log.warning(
-                        "ZipRecruiter CAPTCHA/bot-check detected; stopping "
-                        "(never bypassed)"
+                        "ZipRecruiter CAPTCHA/bot-check detected; circuit "
+                        "breaker tripped, stopping (never bypassed)"
                     )
                     break
                 soup = BeautifulSoup(text, "lxml")
@@ -201,6 +211,16 @@ class ZipRecruiterProvider:
     def get_details(self, payload: str) -> dict[str, Any]:
         """Fetch the full description for a job URL (the id payload)."""
         url = payload
+        if not robots_allows(self.name, url):
+            log.warning(
+                "ZipRecruiter: robots.txt disallows %s; skipping details",
+                url,
+            )
+            return {
+                "url": url,
+                "board": self.name,
+                "error": "Disallowed by robots.txt; fetch skipped.",
+            }
         try:
             with make_client() as client:
                 polite_delay()
@@ -213,6 +233,18 @@ class ZipRecruiterProvider:
                         "error": f"Blocked by ZipRecruiter (HTTP {resp.status_code})",
                     }
                 resp.raise_for_status()
+                text = resp.text or ""
+                if _CAPTCHA_RE.search(text):
+                    compliance.record_block(self.name)
+                    log.warning(
+                        "ZipRecruiter CAPTCHA/bot-check on details page; "
+                        "circuit breaker tripped (never bypassed)"
+                    )
+                    return {
+                        "url": url,
+                        "board": self.name,
+                        "error": "CAPTCHA/bot-check detected; fetch stopped.",
+                    }
                 soup = BeautifulSoup(resp.text or "", "lxml")
                 title = company = description = ""
                 for tag in soup.find_all("script", type="application/ld+json"):
