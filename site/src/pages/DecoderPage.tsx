@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { Heading } from '@astryxdesign/core';
 import { PxTag } from '../px';
 import { jdVerdict, type JdVerdict } from '../lib/jdDecoder';
+import {
+  buildSharePayload,
+  buildShareUrl,
+  makeExcerpt,
+} from '../lib/jdShare';
 import { JD_SAMPLE } from '../demos/win';
 
 /* ------------------------------------------------------------------ */
@@ -31,7 +36,110 @@ function Quote({ text }: { text: string }) {
   return <p className="jdtry-quote">&ldquo;{text}&rdquo;</p>;
 }
 
-function Results({ result }: { result: JdVerdict }) {
+/** Copy text to the clipboard. Falls back to execCommand for browsers
+ *  (mostly older mobile Safari) where the async clipboard API fails. */
+async function copyText(t: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(t);
+      return true;
+    }
+  } catch {
+    /* fall through to the legacy path */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+function ShareLink({ result, text }: { result: JdVerdict; text: string }) {
+  const [includeExcerpt, setIncludeExcerpt] = useState(false);
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [manualUrl, setManualUrl] = useState<string | null>(null);
+
+  const share = async () => {
+    const payload = buildSharePayload(
+      result,
+      includeExcerpt ? makeExcerpt(text) : null,
+    );
+    if (payload == null) {
+      setState('failed');
+      return;
+    }
+    const url = buildShareUrl(payload);
+    if (await copyText(url)) {
+      setManualUrl(null);
+      setState('copied');
+      window.setTimeout(() => setState('idle'), 2000);
+    } else {
+      setManualUrl(url);
+      setState('failed');
+    }
+  };
+
+  return (
+    <div className="jdtry-panel">
+      <h3 className="jdtry-panel-title px-font">Share this decode</h3>
+      <p className="jdtry-line">
+        The link carries scores, verdict, and flags only. Your posting text
+        stays in this browser.
+      </p>
+      <label className="jdshare-opt" htmlFor="jdshare-excerpt">
+        <input
+          id="jdshare-excerpt"
+          type="checkbox"
+          checked={includeExcerpt}
+          onChange={(e) => setIncludeExcerpt(e.target.checked)}
+        />
+        <span>Include a short excerpt (first ~140 chars of the posting)</span>
+      </label>
+      <div className="jdshare-row">
+        <button
+          type="button"
+          className="px-btn secondary"
+          onClick={share}
+          aria-live="polite"
+        >
+          {state === 'copied'
+            ? 'Copied'
+            : state === 'failed'
+              ? 'Copy failed'
+              : 'Copy share link'}
+        </button>
+      </div>
+      {state === 'failed' ? (
+        <p className="jdshare-copyfail" role="alert">
+          Your browser blocked the copy. Long-press the link below to copy it
+          by hand.
+        </p>
+      ) : null}
+      {manualUrl != null ? (
+        <input
+          className="jdshare-url"
+          readOnly
+          value={manualUrl}
+          onFocus={(e) => e.target.select()}
+          aria-label="Share link, copy manually"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function Results({ result, text }: { result: JdVerdict; text: string }) {
   const s = result.signals;
   // Unreachable: the page only calls jdVerdict on non-blank text, so the
   // empty-input verdict (which carries no signals, mirroring Python) is
@@ -154,9 +262,11 @@ function Results({ result }: { result: JdVerdict }) {
         This reads language, not lies. A transparent-sounding scam still
         scores well. That is a documented limit, not a bug.{' '}
         <a className="demo-docs" href="#/features/jd-decoder">
-          How the scoring works {'>'}
+          How the scoring works&nbsp;{'>'}
         </a>
       </p>
+
+      <ShareLink result={result} text={text} />
     </div>
   );
 }
@@ -245,7 +355,7 @@ export default function DecoderPage() {
               </button>
             </div>
 
-            {result != null ? <Results result={result} /> : null}
+            {result != null ? <Results result={result} text={text} /> : null}
           </div>
         </section>
       </main>

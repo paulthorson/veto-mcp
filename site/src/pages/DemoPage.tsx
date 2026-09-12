@@ -239,7 +239,7 @@ export default function DemoPage() {
                         <span className="dot r" />
                         <span className="dot y" />
                         <span className="dot g" />
-                        <span className="terminal-title">veto — zsh</span>
+                        <span className="terminal-title">veto - zsh</span>
                       </div>
                       <div className="terminal-body">
                         <div className="tline t-info">{'>'} grill: 3/3 answered +</div>
@@ -254,7 +254,7 @@ export default function DemoPage() {
                       {'>'} Play again
                     </button>
                     <a className="demo-docs" href="#/features/the-grill">
-                      How the real grill works {'>'}
+                      How the real grill works&nbsp;{'>'}
                     </a>
                   </div>
                 </div>

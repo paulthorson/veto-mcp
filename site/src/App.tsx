@@ -10,6 +10,7 @@ import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
 import DashboardPage from './pages/DashboardPage';
 import DecoderPage from './pages/DecoderPage';
+import DecoderSharePage from './pages/DecoderSharePage';
 import type { PageSpec } from './pages/spec';
 import { PixelX, PxBtn, PxTag, PixelIcon, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
@@ -161,7 +162,7 @@ function TerminalDemo() {
         <span className="dot r" />
         <span className="dot y" />
         <span className="dot g" />
-        <span className="terminal-title">veto — zsh</span>
+        <span className="terminal-title">veto - zsh</span>
       </div>
       <div className="terminal-body">
         {shown.map((l, i) => (
@@ -873,7 +874,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 {'>'} works with Claude Desktop, Cursor, Muse CLI, any MCP client_
               </p>
               <p className="hero-note">
-                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds {'>'}</a>
+                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds&nbsp;{'>'}</a>
               </p>
               <p className="hero-note">
                 {'>'} it won&rsquo;t apply while you sleep, and it won&rsquo;t get you hired. It does the homework.
@@ -918,13 +919,13 @@ function HomePage({ routeHash }: { routeHash: string }) {
                   key={f.slug}
                   href={`#/features/${f.slug}`}
                   className="card-anchor"
-                  aria-label={`${f.title} — learn more`}
+                  aria-label={`${f.title} - learn more`}
                 >
                   <Card className="feature-card">
                     <div className={`feature-icon ${f.tone}`} aria-hidden="true"><PixelIcon name={f.icon} /></div>
                     <Heading level={3} className="feature-title">{f.title}</Heading>
                     <p className="feature-body">{f.body}</p>
-                    <span className="card-more">Read more {'>'}</span>
+                    <span className="card-more">Read more&nbsp;{'>'}</span>
                   </Card>
                 </a>
               ))}
@@ -963,13 +964,13 @@ function HomePage({ routeHash }: { routeHash: string }) {
                     key={f.slug}
                     href={`#/features/${f.slug}`}
                     className="card-anchor"
-                    aria-label={`${f.title} — learn more`}
+                    aria-label={`${f.title} - learn more`}
                   >
                     <Card className="feature-card">
                       <div className={`feature-icon ${f.tone}`} aria-hidden="true"><PixelIcon name={f.icon} /></div>
                       <Heading level={3} className="feature-title">{f.title}</Heading>
                       <p className="feature-body">{f.body}</p>
-                      <span className="card-more">Read more {'>'}</span>
+                      <span className="card-more">Read more&nbsp;{'>'}</span>
                     </Card>
                   </a>
                 ))}
@@ -1017,13 +1018,13 @@ function HomePage({ routeHash }: { routeHash: string }) {
                   key={c.slug}
                   href={`#/features/${c.slug}`}
                   className="card-anchor"
-                  aria-label={`${c.title} — learn more`}
+                  aria-label={`${c.title} - learn more`}
                 >
                   <Card className="feature-card">
                     <div className={`feature-icon ${c.tone}`} aria-hidden="true"><PixelIcon name={c.icon} /></div>
                     <Heading level={3} className="feature-title">{c.title}</Heading>
                     <p className="feature-body">{c.body}</p>
-                    <span className="card-more">Read more {'>'}</span>
+                    <span className="card-more">Read more&nbsp;{'>'}</span>
                   </Card>
                 </a>
               ))}
@@ -1151,21 +1152,23 @@ export default function App() {
 
   useEffect(() => {
     if (hash === '#/demo') {
-      document.title = 'Get vetoed — interactive demo — Veto';
+      document.title = 'Get vetoed - interactive demo - Veto';
     } else if (hash === '#/docs') {
-      document.title = 'Docs — Veto';
+      document.title = 'Docs - Veto';
     } else if (hash === '#/dashboard') {
-      document.title = 'Mission control — Veto dashboard';
+      document.title = 'Mission control - Veto dashboard';
     } else if (hash === '#/decoder/try') {
-      document.title = 'Decode a posting — Veto';
+      document.title = 'Decode a posting - Veto';
+    } else if (hash.startsWith('#/decoder/r/')) {
+      document.title = 'Shared decode - Veto';
     } else if (hash.startsWith('#/features/')) {
       const slug = hash.slice('#/features/'.length);
       const spec = SPECS[slug];
       document.title = spec
-        ? `${spec.title} — Veto`
-        : 'Not found — Veto';
+        ? `${spec.title} - Veto`
+        : 'Not found - Veto';
     } else {
-      document.title = 'Veto — the AI job applier that says no';
+      document.title = 'Veto - the AI job applier that says no';
     }
   }, [hash]);
 
@@ -1204,6 +1207,16 @@ export default function App() {
       <div className="page">
         <SiteNav routeHash={hash} />
         <DecoderPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (hash.startsWith('#/decoder/r/')) {
+    return (
+      <div className="page">
+        <SiteNav routeHash={hash} />
+        <DecoderSharePage />
         <SiteFooter />
       </div>
     );
