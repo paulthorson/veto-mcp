@@ -1,0 +1,68 @@
+{
+  "verdict": "mixed",
+  "score": 56,
+  "reasons": [
+    {
+      "impact": 25,
+      "reason": "Salary range disclosed",
+      "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token stays one word."
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'wear many hats'",
+      "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many …"
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'fast paced'",
+      "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token …"
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 60,
+      "salary_range": {
+        "low": "120",
+        "high": "150",
+        "raw": "$120k\u001c-\u001c$150k",
+        "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token stays one word."
+      },
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [
+      {
+        "phrase": "wear many hats",
+        "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many …",
+        "read": "The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core."
+      },
+      {
+        "phrase": "fast paced",
+        "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token …",
+        "read": "Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set."
+      },
+      {
+        "phrase": "wear many hats",
+        "quote": "… many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token stays one word.",
+        "read": "The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core."
+      }
+    ],
+    "vagueness": {
+      "score": 50,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 0,
+      "word_count": 26
+    },
+    "growth": [],
+    "green_flags": [
+      {
+        "flag": "salary range disclosed",
+        "quote": "We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token stays one word."
+      }
+    ],
+    "markdown": "# JD decode\n\n## Transparency: 60/100\n- Salary range: $120k\u001c-\u001c$150k\n\n## Overwork language: 3 flag(s)\n- 'wear many hats': The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core.\n- 'fast paced': Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set.\n- 'wear many hats': The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core.\n\n## Vagueness: 50/100 concrete (0 buzzwords, 0 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 1\n- salary range disclosed"
+  },
+  "markdown": "# JD verdict: mixed (56/100)\n\n- [+25] Salary range disclosed\n  > We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token stays one word.\n- [-8] Overwork-language flag: 'wear many hats'\n  > We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many …\n- [-8] Overwork-language flag: 'fast paced'\n  > We wear many hats and move at a fast paced clip. Salary: $120k - $150k. Also wear many hats again. The a﻿b token …"
+}

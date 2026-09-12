@@ -1,0 +1,13 @@
+Senior Backend Engineer, StealthCo
+
+We are hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years.
+
+What you will do:
+- Own backend services end to end
+- Design Postgres schemas that survive scale
+- Run weekly on-call rotations
+- Ship features with product and design
+
+We need a rockstar who thrives on synergy and channels their inner ninja. We move in a fast-paced environment where everyone wear many hats. Unlimited PTO, obviously.
+
+We offer mentorship from staff engineers.
