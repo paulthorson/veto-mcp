@@ -79,6 +79,27 @@ class ComplianceRecoveryTest(unittest.TestCase):
         allowed, _ = compliance.check_search_allowed("ziprecruiter")
         self.assertTrue(allowed)
 
+    # -- (f) observability -------------------------------------------------
+
+    def test_status_summary_surfaces_recovery_streak(self):
+        summary = compliance.status_summary()
+        board = summary["boards"]["ziprecruiter"]
+        self.assertEqual(board["recovery_successes"], 0)
+        self.assertEqual(board["recovery_window"], compliance.RECOVERY_SUCCESS_WINDOW)
+
+        compliance.record_block("ziprecruiter")
+        compliance.record_search_success("ziprecruiter")
+        board = compliance.status_summary()["boards"]["ziprecruiter"]
+        self.assertEqual(board["recovery_successes"], 1)
+        self.assertEqual(board["consecutive_blocks"], 1)
+
+        # Recovery clears the block and the streak together.
+        for _ in range(compliance.RECOVERY_SUCCESS_WINDOW - 1):
+            compliance.record_search_success("ziprecruiter")
+        board = compliance.status_summary()["boards"]["ziprecruiter"]
+        self.assertEqual(board["recovery_successes"], 0)
+        self.assertEqual(board["consecutive_blocks"], 0)
+
     def test_block_after_recovery_restarts_at_base_cooldown(self):
         compliance.record_block("ziprecruiter")
         for _ in range(compliance.RECOVERY_SUCCESS_WINDOW):
