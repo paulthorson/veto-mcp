@@ -248,3 +248,16 @@ Entry schema:
   author's tests. Privacy-by-construction (never put the text in the URL)
   is easier to verify than redaction-after-the-fact.
 - **What changed:** None to process.
+
+## 2026-09-12 - WS3: first release (v0.1.0)
+
+- **Shipped:** Tag `v0.1.0` pushed; Release workflow built and pushed the
+  GHCR container image and created the GitHub Release. First release of the
+  project.
+- **What happened:** Final verification before tagging: 928 passed / 8
+  skipped Python suite, site build + lint clean, tree clean on main, CI
+  green on the tagged commit. Release workflow watched to completion; all
+  steps green.
+- **Learning:** Tag-triggered releases compose cleanly with the existing CI
+  (push runs tests, tag runs release). No process change needed.
+- **What changed:** None.
