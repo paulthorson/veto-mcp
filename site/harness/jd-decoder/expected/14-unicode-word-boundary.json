@@ -1,0 +1,82 @@
+{
+  "verdict": "strong",
+  "score": 85,
+  "reasons": [
+    {
+      "impact": 25,
+      "reason": "Salary range disclosed",
+      "quote": "… caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+    },
+    {
+      "impact": -10,
+      "reason": "High buzzword density, few concrete details",
+      "quote": "We need a caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru …"
+    },
+    {
+      "impact": 5,
+      "reason": "Growth signal: mentorship",
+      "quote": "… synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 60,
+      "salary_range": {
+        "low": "100",
+        "high": "130",
+        "raw": "USD 100k to 130k",
+        "quote": "… caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+      },
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 0,
+      "buzzwords": [
+        {
+          "buzzword": "rockstar",
+          "quote": "We need a caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru …"
+        },
+        {
+          "buzzword": "synergy",
+          "quote": "We need a caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship …"
+        },
+        {
+          "buzzword": "ninja",
+          "quote": "… a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+        },
+        {
+          "buzzword": "guru",
+          "quote": "… rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+        }
+      ],
+      "buzzword_count": 4,
+      "buzzword_density_per_100_words": 14.81,
+      "responsibilities": 0,
+      "word_count": 27
+    },
+    "growth": [
+      {
+        "signal": "mentorship",
+        "quote": "… synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+      },
+      {
+        "signal": "mentoring",
+        "quote": "… rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+      },
+      {
+        "signal": "learning budget",
+        "quote": "… flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+      }
+    ],
+    "green_flags": [
+      {
+        "flag": "salary range disclosed",
+        "quote": "… caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+      }
+    ],
+    "markdown": "# JD decode\n\n## Transparency: 60/100\n- Salary range: USD 100k to 130k\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 0/100 concrete (4 buzzwords, 0 responsibilities)\n\n## Growth signals: 3\n- mentorship\n- mentoring\n- learning budget\n\n## Green flags: 1\n- salary range disclosed"
+  },
+  "markdown": "# JD verdict: strong (85/100)\n\n- [+25] Salary range disclosed\n  > … caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget.\n- [-10] High buzzword density, few concrete details\n  > We need a caférockstar here, not a rockstar. True synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru …\n- [+5] Growth signal: mentorship\n  > … synergy, and synergiesé flow. USD 100k to 130k. Our ninja guru mentors with mentorship and a learning budget."
+}

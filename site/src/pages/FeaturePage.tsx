@@ -98,6 +98,13 @@ export default function FeaturePage({ spec }: { spec: PageSpec }) {
             <div className="page-demo">
               <StaticTerminal lines={spec.demoLines} label={`Demo terminal: ${spec.demoTitle}`} />
             </div>
+            {spec.tryIt != null ? (
+              <div className="page-demo-try">
+                <a className="px-btn primary" href={spec.tryIt.href} aria-label={spec.tryIt.label}>
+                  {'>'} {spec.tryIt.label}
+                </a>
+              </div>
+            ) : null}
           </div>
         </section>
 

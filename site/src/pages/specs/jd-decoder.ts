@@ -67,7 +67,7 @@ const spec: PageSpec = {
           ['work hard play hard', 'Culture framing often paired with long hours. Ask what a normal week looks like, not the highlight reel.'],
           ['do whatever it takes', 'Open-ended commitment language. Ask for concrete examples of what this has meant recently.'],
           ['nights and weekends', 'Explicitly names off-hours work. Ask how often it happens and whether it is compensated or comped.'],
-          ['hustle', 'Ambition language that can mask overwork. Ask how success is measured: output, or hours.'],
+          ['hustle', 'Ambition language that can mask overwork. Ask how success is measured — output, or hours.'],
         ],
       },
       {
@@ -103,6 +103,7 @@ const spec: PageSpec = {
     ],
   },
   demoTitle: 'Decoding a posting',
+  tryIt: { href: '#/decoder/try', label: 'Try the live decoder' },
   demoLines: [
     { text: '$ veto decode-jd posting.txt', kind: 'cmd' },
     { text: '+ TRANSPARENCY: 100/100, salary range $150k-$185k, equity concrete', kind: 'ok' },

@@ -1,0 +1,117 @@
+{
+  "verdict": "caution",
+  "score": 0,
+  "reasons": [
+    {
+      "impact": -10,
+      "reason": "High buzzword density, few concrete details",
+      "quote": "… need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary talk until the final round. Competitive? …"
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'fast-paced'",
+      "quote": "Junior Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever …"
+    },
+    {
+      "impact": -8,
+      "reason": "Overwork-language flag: 'wear many hats'",
+      "quote": "… Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. …"
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 0,
+      "salary_range": null,
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [
+      {
+        "phrase": "fast-paced",
+        "quote": "Junior Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever …",
+        "read": "Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set."
+      },
+      {
+        "phrase": "wear many hats",
+        "quote": "… Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. …",
+        "read": "The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core."
+      },
+      {
+        "phrase": "hustle",
+        "quote": "… Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. We are …",
+        "read": "Ambition language that can mask overwork. Ask how success is measured — output, or hours."
+      },
+      {
+        "phrase": "do whatever it takes",
+        "quote": "… fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. We are always on, 24/7. Work hard play …",
+        "read": "Open-ended commitment language. Ask for concrete examples of what this has meant recently."
+      },
+      {
+        "phrase": "nights and weekends",
+        "quote": "… rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. We are always on, 24/7. Work hard play hard is not a slogan …",
+        "read": "Explicitly names off-hours work. Ask how often it happens and whether it is compensated or comped."
+      },
+      {
+        "phrase": "always on",
+        "quote": "… hard, and do whatever it takes. Nights and weekends are normal. We are always on, 24/7. Work hard play hard is not a slogan here, it is the job. Unlimited …",
+        "read": "Suggests after-hours expectations. Ask how the team protects off-hours time."
+      },
+      {
+        "phrase": "24/7",
+        "quote": "… whatever it takes. Nights and weekends are normal. We are always on, 24/7. Work hard play hard is not a slogan here, it is the job. Unlimited vacation, …",
+        "read": "Round-the-clock language. Ask whether on-call or weekend coverage is part of the role."
+      },
+      {
+        "phrase": "work hard play hard",
+        "quote": "… whatever it takes. Nights and weekends are normal. We are always on, 24/7. Work hard play hard is not a slogan here, it is the job. Unlimited vacation, obviously. …",
+        "read": "Culture framing often paired with long hours. Ask what a normal week looks like, not the highlight reel."
+      },
+      {
+        "phrase": "unlimited vacation",
+        "quote": "… always on, 24/7. Work hard play hard is not a slogan here, it is the job. Unlimited vacation, obviously. We need a ninja guru who lives for synergy and thinks in …",
+        "read": "Teams with unlimited vacation often take less time off than teams with a fixed allotment. Ask how many days the team actually took last year."
+      }
+    ],
+    "vagueness": {
+      "score": 0,
+      "buzzwords": [
+        {
+          "buzzword": "thought leader",
+          "quote": "… need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary talk until the final round. Competitive? …"
+        },
+        {
+          "buzzword": "game changer",
+          "quote": "… lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary talk until the final round. Competitive? No. Just vibes."
+        },
+        {
+          "buzzword": "rockstar",
+          "quote": "Junior Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights …"
+        },
+        {
+          "buzzword": "paradigm",
+          "quote": "… obviously. We need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary talk until the final …"
+        },
+        {
+          "buzzword": "synergy",
+          "quote": "… job. Unlimited vacation, obviously. We need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary …"
+        },
+        {
+          "buzzword": "ninja",
+          "quote": "… slogan here, it is the job. Unlimited vacation, obviously. We need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader …"
+        },
+        {
+          "buzzword": "guru",
+          "quote": "… here, it is the job. Unlimited vacation, obviously. We need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader …"
+        }
+      ],
+      "buzzword_count": 7,
+      "buzzword_density_per_100_words": 8.86,
+      "responsibilities": 0,
+      "word_count": 79
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 0/100\n- No compensation information listed\n\n## Overwork language: 9 flag(s)\n- 'fast-paced': Signals high urgency and shifting priorities. Ask about sprint load, on-call rotations, and how deadlines get set.\n- 'wear many hats': The role may span several jobs' worth of work. Ask what a typical week looks like and which responsibilities are core.\n- 'hustle': Ambition language that can mask overwork. Ask how success is measured — output, or hours.\n- 'do whatever it takes': Open-ended commitment language. Ask for concrete examples of what this has meant recently.\n- 'nights and weekends': Explicitly names off-hours work. Ask how often it happens and whether it is compensated or comped.\n- 'always on': Suggests after-hours expectations. Ask how the team protects off-hours time.\n- '24/7': Round-the-clock language. Ask whether on-call or weekend coverage is part of the role.\n- 'work hard play hard': Culture framing often paired with long hours. Ask what a normal week looks like, not the highlight reel.\n- 'unlimited vacation': Teams with unlimited vacation often take less time off than teams with a fixed allotment. Ask how many days the team actually took last year.\n\n## Vagueness: 0/100 concrete (7 buzzwords, 0 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: caution (0/100)\n\n- [-10] High buzzword density, few concrete details\n  > … need a ninja guru who lives for synergy and thinks in paradigms. A true thought leader and game changer. No salary talk until the final round. Competitive? …\n- [-8] Overwork-language flag: 'fast-paced'\n  > Junior Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever …\n- [-8] Overwork-language flag: 'wear many hats'\n  > … Developer, Grindhouse We are a fast-paced team of rockstars. You will wear many hats, hustle hard, and do whatever it takes. Nights and weekends are normal. …"
+}
