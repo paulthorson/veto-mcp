@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -300,6 +301,86 @@ def cmd_wizard(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+# Help grouping mirrors the dashboard's grouped menu:
+# FIND / TAILOR / APPLY / TRAIN / WIN / GOVERN / UTILITIES.
+
+_GROUP_ORDER = ("FIND", "TAILOR", "APPLY", "TRAIN", "WIN", "GOVERN", "UTILITIES")
+
+_CORE_COMMAND_GROUPS = {
+    "boards": "FIND",
+    "search": "FIND",
+    "show": "FIND",
+    "apply": "APPLY",
+    "applications": "APPLY",
+    "dashboard": "UTILITIES",
+    "serve": "UTILITIES",
+    "wizard": "UTILITIES",
+    "profile": "UTILITIES",
+}
+
+# Enhancement-plugin module -> help group. A command whose module is not
+# listed here still gets a home: it falls back to UTILITIES, so every
+# registered command always appears somewhere in --help.
+_PLUGIN_MODULE_GROUPS = {
+    "match": "FIND",
+    "radar": "FIND",
+    "jd_decoder": "FIND",
+    "cover_letters": "TAILOR",
+    "linkedin_optimizer": "TAILOR",
+    "ats_apply": "APPLY",
+    "easy_apply": "APPLY",
+    "apply_queue": "APPLY",
+    "grill": "APPLY",
+    "mock_interview": "TRAIN",
+    "soft_skills": "TRAIN",
+    "ai_proficiency": "TRAIN",
+    "mentors": "TRAIN",
+    "skill_gaps": "TRAIN",
+    "briefs": "WIN",
+    "followup": "WIN",
+    "referrals": "WIN",
+    "network_crm": "WIN",
+    "offer_compare": "WIN",
+    "rejection_autopsy": "WIN",
+    "analytics": "WIN",
+    "email_sync": "WIN",
+    "crew": "GOVERN",
+    "streaks": "GOVERN",
+    "contribute": "GOVERN",
+    "doctor": "UTILITIES",
+}
+
+# command -> plugin module that registered it; filled by _plugin_cli_handlers.
+_COMMAND_MODULES: dict[str, str] = {}
+
+
+def _command_group(command: str) -> str:
+    if command in _CORE_COMMAND_GROUPS:
+        return _CORE_COMMAND_GROUPS[command]
+    return _PLUGIN_MODULE_GROUPS.get(_COMMAND_MODULES.get(command, ""), "UTILITIES")
+
+
+class _GroupedHelpFormatter(argparse.HelpFormatter):
+    """Render subcommands under FIND / TAILOR / ... group headings."""
+
+    def _format_action(self, action):
+        if not isinstance(action, argparse._SubParsersAction):
+            return super()._format_action(action)
+        parts: list[str] = []
+        for group in _GROUP_ORDER:
+            subactions = [
+                a
+                for a in action._choices_actions
+                if _command_group(a.dest) == group
+            ]
+            if not subactions:
+                continue
+            parts.append(f"{group}:")
+            for subaction in subactions:
+                parts.append("  " + super()._format_action(subaction).rstrip("\n"))
+        return "\n".join(parts) + "\n"
+
+
 _PLUGIN_CLI_MODULES = (
     "ats_apply",
     "easy_apply",
@@ -366,7 +447,11 @@ def _plugin_cli_handlers(sub) -> dict:
             )
             continue
         for _cmd, _fn in _registered.items():
-            handlers.setdefault(_cmd, _fn)
+            if _cmd not in handlers:
+                handlers[_cmd] = _fn
+                # Record which module registered the command so --help can
+                # group it (an existing command is never overwritten).
+                _COMMAND_MODULES[_cmd] = _mod_name
     return handlers
 
 
@@ -383,13 +468,25 @@ def build_parser() -> argparse.ArgumentParser:
         prog="cli.py",
         description="CLI for the job-apply MCP server: search jobs, "
         "read details, and prepare applications from the terminal.",
+        formatter_class=_GroupedHelpFormatter,
     )
     parser.add_argument(
         "--json",
         action="store_true",
         help="Machine-readable JSON output (search, show, applications).",
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show routine operational log chatter on stderr.",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Errors only on stderr (suppresses warnings too).",
+    )
+    sub = parser.add_subparsers(dest="command", required=True, title="commands", metavar="command")
 
     sub.add_parser("boards", help="List supported job boards and their status.")
 
@@ -482,9 +579,27 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     return webui.cmd_serve(args)
 
 
+def _configure_stderr_verbosity(args: argparse.Namespace) -> None:
+    """Keep stderr for errors and genuine warnings only.
+
+    The repo logs through the stdlib tree rooted at "job-apply-mcp"
+    (server.py configures it at INFO to stderr), so a successful read-only
+    command used to spray INFO chatter on stderr. Default the CLI to
+    warnings+, so a successful command leaves stderr silent. --verbose opts
+    back into the chatter; --quiet drops to errors only.
+    """
+    level = logging.WARNING
+    if args.verbose:
+        level = logging.DEBUG
+    elif args.quiet:
+        level = logging.ERROR
+    logging.getLogger("job-apply-mcp").setLevel(level)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    _configure_stderr_verbosity(args)
     handlers = {
         "boards": cmd_boards,
         "search": cmd_search,
