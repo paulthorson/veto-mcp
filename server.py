@@ -149,6 +149,16 @@ except ImportError as exc:
     )
     _ZipRecruiterReal = None  # type: ignore[assignment]
 
+try:
+    from providers.glassdoor import WHY_NOT_SUPPORTED as _GLASSDOOR_REASON
+except ImportError as exc:
+    log.warning("providers.glassdoor unavailable: %s", exc)
+    _GLASSDOOR_REASON = (
+        "Glassdoor is not supported: it has no public API, and its "
+        "search pages sit behind aggressive bot mitigation that "
+        "plain-HTTP fetching cannot pass."
+    )
+
 _PLUGIN_MODULES: list = []
 for _plugin_name in (
     "ats_apply",
@@ -538,38 +548,41 @@ class LinkedInProvider(JobProvider):
 
 
 class GlassdoorProvider(JobProvider):
-    """Stub: Glassdoor requires JS-heavy pages / auth for search results."""
+    """Documented stub: Glassdoor cannot be implemented within policy.
+
+    The full rationale lives in providers/glassdoor.py (no public API,
+    partner-only access; React search pages behind aggressive bot
+    mitigation that instantly CAPTCHAs/blocks plain-HTTP fetches; the
+    policy forbids CAPTCHA bypass, and an httpx scraper would return
+    fake-empty results). The compliant path is a future logged-in
+    Playwright session provider, which this plain-HTTP layer cannot do.
+    """
 
     name = "glassdoor"
 
     def search(self, query: str, location: str, limit: int, remote_only: bool):
-        # TODO: Glassdoor search is behind bot mitigation. Options:
-        #   1. Playwright with a logged-in session (see Phase 2 hook below).
-        #   2. Official/partner API access if available.
-        raise NotImplementedError(
-            "Glassdoor provider is a stub: scraping is blocked without a "
-            "logged-in browser session. See Phase 2 hook."
-        )
+        raise NotImplementedError(_GLASSDOOR_REASON)
 
     def get_details(self, url: str):
-        raise NotImplementedError("Glassdoor provider is a stub.")
+        raise NotImplementedError(_GLASSDOOR_REASON)
 
 
 class _ZipRecruiterStub(JobProvider):
-    """Stub: ZipRecruiter search pages are JS-rendered and bot-protected."""
+    """Fallback stub used only if providers.ziprecruiter failed to import."""
 
     name = "ziprecruiter"
 
     def search(self, query: str, location: str, limit: int, remote_only: bool):
-        # TODO: ZipRecruiter needs a JS-capable fetcher (Playwright) or
-        # partner API. Wire into the Phase 2 browser hook when available.
         raise NotImplementedError(
-            "ZipRecruiter provider is a stub: pages are JS-rendered and "
-            "bot-protected. See Phase 2 hook."
+            "ZipRecruiter provider module failed to import; "
+            "the real provider is unavailable."
         )
 
     def get_details(self, url: str):
-        raise NotImplementedError("ZipRecruiter provider is a stub.")
+        raise NotImplementedError(
+            "ZipRecruiter provider module failed to import; "
+            "the real provider is unavailable."
+        )
 
 
 PROVIDERS: dict[str, JobProvider] = {
@@ -637,7 +650,8 @@ def list_boards() -> list[dict[str, str]]:
     """List supported job boards and whether each provider is active or a stub."""
     notes = {
         "adzuna": "needs ADZUNA_APP_ID + ADZUNA_APP_KEY env vars (developer.adzuna.com)",
-        "glassdoor": "not yet implemented; see provider TODO",
+        "glassdoor": "deliberately unsupported: no public API; plain-HTTP "
+        "blocked by bot mitigation (see providers/glassdoor.py)",
     }
     return [
         {
@@ -722,7 +736,8 @@ def search_jobs(
                 query, location, limit=limit, remote_only=remote_only
             )
         except (NotImplementedError, RuntimeError) as exc:
-            # NotImplementedError: stub boards (glassdoor).
+            # NotImplementedError: documented stub boards (glassdoor) and
+            # the ZipRecruiter import-failure fallback stub.
             # RuntimeError: providers needing user credentials (adzuna
             # without ADZUNA_APP_ID/ADZUNA_APP_KEY). Surface as ValueError
             # so the tool contract stays consistent.
