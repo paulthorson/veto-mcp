@@ -209,3 +209,42 @@ Entry schema:
   field nobody can debug. Ship the observability with the mechanism, not
   after.
 - **What changed:** None to process; applied the lesson the same turn.
+
+## 2026-09-12 - WS1: remaining adversarial UX findings
+
+- **Shipped:** All six open findings fixed on the marketing site — A6 tag
+  clearance (12px padding, measured 16px/15.5px rendered), A7 funnel labels
+  untruncated at 390px, A8+Q1 orphaned ">" widows fixed systemically,
+  A9 code-block scroll affordance (styled square scrollbars), A10 8px-rhythm
+  corrections, A11 steps()-only motion. Zero em dashes in touched files.
+- **What happened:** The systemic grep for A8 found **7** widows, not the 2
+  the finding listed — fixing the pattern beat fixing the instances.
+  Adversarial QA independently measured every claim and passed with zero
+  open issues. Coordination incident: two builders worked the shared tree
+  concurrently; WS1's mid-flight `git stash` captured WS2's `App.tsx` edits,
+  and the pop was blocked. Resolved by diffing stash vs tree, confirming
+  the tree was a strict superset, then dropping the stash. Nothing lost.
+- **Learning:** Parallel builders on one tree need partitioned file scopes
+  or serialized merges; a `git stash` taken mid-flight on a shared tree is
+  dangerous. Pattern-level fixes (grep the class) outperform
+  instance-level fixes (the finding's count).
+- **What changed:** Coordinator verifies tree-superset before dropping any
+  stash; future parallel site workstreams get explicit file partitions.
+
+## 2026-09-12 - WS2: shareable JD decoder result links
+
+- **Shipped:** `#/decoder/r/<payload>` — read-only shared decode cards.
+  Payload is base64url JSON (scores/verdict/flags only) with a 12-char
+  SHA-256 integrity hash; raw posting text never enters the URL. Opt-in
+  excerpt (default off), "Copy share link" with clipboard fallback,
+  tampered payloads render a clean error card.
+- **What happened:** Adversarial QA cross-checked the hand-rolled SHA-256
+  against `node:crypto` (exact match), ran a 6-case tamper matrix (all
+  clean), proved the posting is not recoverable from the URL, and verified
+  the share panel generates byte-identical payloads to an independent
+  implementation. Zero open issues at 390x844 and 1440x900.
+- **Learning:** Client-side hand-rolled crypto needs independent
+  cross-verification against a reference implementation, not just the
+  author's tests. Privacy-by-construction (never put the text in the URL)
+  is easier to verify than redaction-after-the-fact.
+- **What changed:** None to process.
