@@ -13,6 +13,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -138,7 +139,10 @@ class TestDiscovery(unittest.TestCase):
             old = os.environ.get("GOVERNANCE_ROOT")
             os.environ["GOVERNANCE_ROOT"] = tmp
             try:
-                self.assertIsNone(adapter.find_governance_root())
+                # Isolate the home-directory fallbacks too: a framework
+                # installed at ~/agentic-governance must not leak in.
+                with mock.patch.object(Path, "home", return_value=Path(tmp)):
+                    self.assertIsNone(adapter.find_governance_root())
             finally:
                 if old is None:
                     del os.environ["GOVERNANCE_ROOT"]
