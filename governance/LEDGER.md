@@ -121,35 +121,78 @@ Entry schema:
 - **What changed:** This ledger. Every future program writes retros here as
   work ships.
 
-## 2026-09-12 - Follow-up pass: JD fuzz parity, circuit-breaker recovery, /api/tools catalog, \w skew docs
+## 2026-09-12 - Follow-up: persist JD-decoder fuzz parity script (`0ef1403`)
 
-- **Shipped:** Four follow-ups, each adversarially QA'd then independently
-  verified before committing separately: (1) seeded 400-case JD-decoder
-  fuzz parity harness (`site/harness/jd-decoder/fuzz.py`,
-  `fuzz_runner.mjs`, `README.md`) - 400/400 match; (2) circuit-breaker
-  recovery in `compliance.py` (`RECOVERY_SUCCESS_WINDOW=3`,
-  `record_search_success`) wired into `providers/ziprecruiter.py` genuine
-  fetches, server-side counting removed after a QA rejection (blocked/
-  CAPTCHA'd fetches must never count), 11 tests in `test_block_recovery.py`;
-  (3) four new `/api/tools` entries (watch, grill, briefs, email_sync) in
-  `webui.py`, 16 tests in `test_webui_catalog.py`; (4) Python-vs-ICU
-  `\w` skew documented as comment + specs copy, no behavior change.
-- **What happened:** Independent verifier ran the full checklist from
-  scratch: tree matched expected files exactly, full suite 927 passed +
-  4 skipped (green), fuzz 400/400 exit 0, `npm run build` succeeded,
-  `npm run lint` 0 errors (2 pre-existing warnings in untouched App.tsx),
-  Item 2 fix re-verified via its 11 tests plus a grep confirming
-  `record_search_success` is absent from `server.py`, diff review showed
-  no `.github/workflows` touches, no secrets, and the only new U+2014
-  occurrences are an escaped `\\u2014` in fuzz test data and an
-  `assertNotIn("\\u2014")` test - both intentional. Committed as four
-  separate commits and pushed; tree clean.
-- **Learning:** The QA rejection on server-side recovery counting was the
-  value event of this pass - independent verification caught it again
-  only as a grep; a verifier can confirm the fix but only the adversarial
-  QA reviewer catches it first. Also: a concurrent process pushed my
-  commits between my `git commit` and `git push` (push reported
-  "Everything up-to-date"), so verifying remote state via
-  `git branch -r --contains` after push matters more than the push output.
-- **What changed:** Retro-ledger convention itself landed in AGENTS.md
-  mid-pass; this entry honors it.
+- **Effort:** commit `0ef1403829f061e3c5e2775a3c1aff862d5d90eb`
+- **Shipped:** `site/harness/jd-decoder/fuzz.py` (+ `fuzz_runner.mjs`,
+  `README.md`). Deterministic seeded 400-case corpus, dual-engine parity
+  assertion, non-zero exit on mismatch, ~3s runtime, documented command.
+- **What happened:** closed the gap the enhancement program left (400/400
+  claim, no rerunnable artifact). Independent verifier ran the script from
+  repo root: 400/400 match, exit 0. The corpus embeds the skew exclusion
+  (`SKEW_RANGES`) so the two engines are never asked to agree on code
+  points where Python's unicodedata and browser ICU inherently disagree.
+- **Learning:** a parity claim without a rerunnable artifact is a claim,
+  not evidence. Persist the harness alongside the port.
+- **What changed:** `fuzz.py` is now the runnable parity proof for the TS
+  decoder port.
+
+## 2026-09-12 - Follow-up: circuit-breaker recovery path (`d8c9bd9`)
+
+- **Effort:** commit `d8c9bd95113fa1e500fced08b00daf4f87162281`
+- **Shipped:** `compliance.RECOVERY_SUCCESS_WINDOW = 3` with
+  `record_search_success`; 3 consecutive genuine successes clear a block
+  via `record_block_cleared` and reset the cooldown. Escalation (1h base,
+  doubling, 24h cap) unchanged. Genuine-fetch call sites in
+  `providers/ziprecruiter.py` (search + details). `docs/compliance.md`
+  updated. 11 tests in `tests/test_block_recovery.py`.
+- **What happened:** adversarial QA rejected the first version -
+  `server.py` counted blocked/CAPTCHA'd fetches toward recovery because
+  the ZipRecruiter provider swallows pushback and returns `[]`. Fix:
+  providers record successes themselves after block/CAPTCHA checks; the
+  server-side counting call was removed, with a comment at the call site
+  explaining why. Two regression tests pin the corrected contract.
+  Verifier re-ran the 11 tests (all pass) and confirmed via grep that
+  `record_search_success` no longer appears in `server.py`.
+- **Learning:** "returned without raising" is not "succeeded." Success
+  signals must be recorded at the point where success is actually known,
+  never inferred from a non-raising return.
+- **What changed:** sporadic 429s no longer ratchet irreversibly toward
+  the 24h cap; the missing decay path exists.
+
+## 2026-09-12 - Follow-up: `/api/tools` catalog covers new dashboard modules (`0024815`)
+
+- **Effort:** commit `00248158a51052ace658f0c2fbb137a57bbf44a3`
+- **Shipped:** 4 new tools in the `webui.TOOLS` catalog (watch, grill,
+  briefs, email_sync) with handlers (`_h_watch_*`, `_h_grill_*`,
+  `_h_briefs_*`, `_h_email_*`), plus one softened help-text string.
+  16 tests in `tests/test_webui_catalog.py`.
+- **What happened:** the catalog predated the wizard work, so 4 real
+  dashboard modules had no entry. Verifier ran the catalog tests (16/16
+  pass) and reviewed the full handler diff: `email_sync.scan` is
+  hardwired to `apply_updates=False` (proposals only), `draft_followup`
+  never sends mail, grill validates its `job` param shape, and watch
+  check persists baselines.
+- **Learning:** a tool catalog is a contract surface. Verify it against
+  reality programmatically (tests against the catalog object), not by
+  eyeballing.
+- **What changed:** the catalog is now a tested, truthful surface for the
+  dashboard's tool layer.
+
+## 2026-09-12 - Follow-up: document inherent Python-vs-ICU `\w` skew (`a034770`)
+
+- **Effort:** commit `a034770536ea050929552c0452a82975e692138d`
+- **Shipped:** code comment at `PY_WORD` in `site/src/lib/jdDecoder.ts`
+  + 3-sentence caveat in the decoder specs "Honesty gates" block
+  (`site/src/pages/specs/jd-decoder.ts`). Zero behavior change.
+- **What happened:** documented the inherent ~9.6k newest-code-point
+  skew between Python's `unicodedata` and browser ICU for `\w`.
+  Fixing it would mean shipping a Unicode table to the browser - not
+  worth it. Verifier confirmed the diff was comment/copy only (6+/1+1
+  lines) and that `npm run build` in `site/` still succeeds with the
+  copy addition in place.
+- **Learning:** some limitations are inherent. State them plainly in the
+  user's language instead of silently accepting the skew or
+  over-engineering a fix.
+- **What changed:** the methodology page now discloses the limitation
+  honestly.
