@@ -1,0 +1,93 @@
+{
+  "verdict": "strong",
+  "score": 100,
+  "reasons": [
+    {
+      "impact": 25,
+      "reason": "Salary range disclosed",
+      "quote": "Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. …"
+    },
+    {
+      "impact": 10,
+      "reason": "Equity described concretely",
+      "quote": "Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. This is a remote-first …"
+    },
+    {
+      "impact": 5,
+      "reason": "Growth signal: mentoring",
+      "quote": "… Design and run our event pipeline - Own on-call for the platform team - Mentor junior engineers - Write the runbooks nobody writes Must-haves: - 5+ …"
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 100,
+      "salary_range": {
+        "low": "180,000",
+        "high": "220,000",
+        "raw": "$180,000 - $220,000",
+        "quote": "Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. …"
+      },
+      "salary_mention": null,
+      "equity": {
+        "term": "Stock options",
+        "concrete": true,
+        "quote": "Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. This is a remote-first …"
+      }
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 92,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 7,
+      "word_count": 91
+    },
+    "growth": [
+      {
+        "signal": "mentoring",
+        "quote": "… Design and run our event pipeline - Own on-call for the platform team - Mentor junior engineers - Write the runbooks nobody writes Must-haves: - 5+ …"
+      },
+      {
+        "signal": "learning budget",
+        "quote": "… backend work - Production Kubernetes Nice-to-haves: - Rust We offer a learning budget, conference stipend, and a clear promotion track. Career growth is a …"
+      },
+      {
+        "signal": "career path",
+        "quote": "… offer a learning budget, conference stipend, and a clear promotion track. Career growth is a first-class goal here."
+      },
+      {
+        "signal": "promotion path",
+        "quote": "… Nice-to-haves: - Rust We offer a learning budget, conference stipend, and a clear promotion track. Career growth is a first-class goal here."
+      },
+      {
+        "signal": "conference budget",
+        "quote": "… Production Kubernetes Nice-to-haves: - Rust We offer a learning budget, conference stipend, and a clear promotion track. Career growth is a first-class goal here."
+      }
+    ],
+    "green_flags": [
+      {
+        "flag": "remote flexibility",
+        "quote": "… options with a 4-year vesting schedule and annual refreshers. This is a remote-first role on a distributed team. We offer flexible hours. What you will do: …"
+      },
+      {
+        "flag": "flexible schedule",
+        "quote": "… refreshers. This is a remote-first role on a distributed team. We offer flexible hours. What you will do: - Design and run our event pipeline - Own on-call …"
+      },
+      {
+        "flag": "must-haves listed",
+        "quote": "… platform team - Mentor junior engineers - Write the runbooks nobody writes Must-haves: - 5+ years of backend work - Production Kubernetes Nice-to-haves: - …"
+      },
+      {
+        "flag": "nice-to-haves listed",
+        "quote": "… writes Must-haves: - 5+ years of backend work - Production Kubernetes Nice-to-haves: - Rust We offer a learning budget, conference stipend, and a clear …"
+      },
+      {
+        "flag": "salary range disclosed",
+        "quote": "Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. …"
+      }
+    ],
+    "markdown": "# JD decode\n\n## Transparency: 100/100\n- Salary range: $180,000 - $220,000\n- Equity (concrete): Stock options\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 92/100 concrete (0 buzzwords, 7 responsibilities)\n\n## Growth signals: 5\n- mentoring\n- learning budget\n- career path\n- promotion path\n- conference budget\n\n## Green flags: 5\n- remote flexibility\n- flexible schedule\n- must-haves listed\n- nice-to-haves listed\n- salary range disclosed"
+  },
+  "markdown": "# JD verdict: strong (100/100)\n\n- [+25] Salary range disclosed\n  > Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. …\n- [+10] Equity described concretely\n  > Senior Platform Engineer, Brightline Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers. This is a remote-first …\n- [+5] Growth signal: mentoring\n  > … Design and run our event pipeline - Own on-call for the platform team - Mentor junior engineers - Write the runbooks nobody writes Must-haves: - 5+ …"
+}

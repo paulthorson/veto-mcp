@@ -1,0 +1,66 @@
+{
+  "verdict": "caution",
+  "score": 30,
+  "reasons": [
+    {
+      "impact": -10,
+      "reason": "High buzzword density, few concrete details",
+      "quote": "… driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler filler filler filler …"
+    },
+    {
+      "impact": -10,
+      "reason": "No compensation information listed",
+      "quote": null
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 0,
+      "salary_range": null,
+      "salary_mention": null,
+      "equity": null
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 15,
+      "buzzwords": [
+        {
+          "buzzword": "rockstar",
+          "quote": "… driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler filler filler filler …"
+        },
+        {
+          "buzzword": "paradigm",
+          "quote": "… ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler filler filler filler filler filler filler …"
+        },
+        {
+          "buzzword": "synergy",
+          "quote": "Posting, BankersCo We seek a synergy driven synergy team. Our ninja culture needs another ninja. Every guru …"
+        },
+        {
+          "buzzword": "synergy",
+          "quote": "Posting, BankersCo We seek a synergy driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar …"
+        },
+        {
+          "buzzword": "ninja",
+          "quote": "Posting, BankersCo We seek a synergy driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm …"
+        },
+        {
+          "buzzword": "ninja",
+          "quote": "… We seek a synergy driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler …"
+        },
+        {
+          "buzzword": "guru",
+          "quote": "… synergy driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler filler …"
+        }
+      ],
+      "buzzword_count": 7,
+      "buzzword_density_per_100_words": 4.38,
+      "responsibilities": 0,
+      "word_count": 160
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 0/100\n- No compensation information listed\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 15/100 concrete (7 buzzwords, 0 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: caution (30/100)\n\n- [-10] High buzzword density, few concrete details\n  > … driven synergy team. Our ninja culture needs another ninja. Every guru and rockstar here chases paradigm shifts daily. filler filler filler filler filler …\n- [-10] No compensation information listed"
+}

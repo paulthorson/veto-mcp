@@ -9,6 +9,7 @@ import FeaturePage from './pages/FeaturePage';
 import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
 import DashboardPage from './pages/DashboardPage';
+import DecoderPage from './pages/DecoderPage';
 import type { PageSpec } from './pages/spec';
 import { PixelX, PxBtn, PxTag, PixelIcon, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
@@ -1155,6 +1156,8 @@ export default function App() {
       document.title = 'Docs — Veto';
     } else if (hash === '#/dashboard') {
       document.title = 'Mission control — Veto dashboard';
+    } else if (hash === '#/decoder/try') {
+      document.title = 'Decode a posting — Veto';
     } else if (hash.startsWith('#/features/')) {
       const slug = hash.slice('#/features/'.length);
       const spec = SPECS[slug];
@@ -1191,6 +1194,16 @@ export default function App() {
       <div className="page">
         <SiteNav routeHash={hash} />
         <DashboardPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (hash === '#/decoder/try') {
+    return (
+      <div className="page">
+        <SiteNav routeHash={hash} />
+        <DecoderPage />
         <SiteFooter />
       </div>
     );

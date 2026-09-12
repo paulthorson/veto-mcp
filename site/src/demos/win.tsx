@@ -84,7 +84,8 @@ export function GapDemo() {
 //   print(json.dumps(jd_verdict(text), indent=2, ensure_ascii=False))
 //   EOF
 // JD_SAMPLE is byte-identical to the text the engine decoded (no trailing newline).
-const JD_SAMPLE = `Senior Backend Engineer, StealthCo
+// Exported so the interactive decoder page can load this exact sample.
+export const JD_SAMPLE = `Senior Backend Engineer, StealthCo
 
 We are hiring a senior backend engineer for our remote-first team. Salary range: $150k-$185k. Equity: RSUs that vest over 4 years.
 
@@ -161,7 +162,6 @@ const JD_RESULT = {
 
 export function JdDemo() {
   const r = JD_RESULT;
-  void JD_SAMPLE; // byte-identical source of truth; the numbers above came from it
   return (
     <DemoShell title="> jd decoder demo" label="Job-description decoder: red and green flags called out on a sample posting">
       <div className="jd-paper">

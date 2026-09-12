@@ -1,0 +1,7 @@
+QA Engineer, SolidCo
+
+$95,000 base salary, no range published.
+
+- Write test plans
+- Automate regression suites
+- Triage bugs with developers
