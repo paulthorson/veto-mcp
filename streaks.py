@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -105,6 +104,18 @@ def _day_of(ts: float) -> date:
     return datetime.fromtimestamp(ts).date()
 
 
+def _default_ts() -> float:
+    """Local-noon timestamp of the effective today.
+
+    Uses ``_today()`` so reps logged without an explicit ``ts`` honor the
+    injectable test override, and noon keeps the stored value safely
+    inside the day boundary under either local or UTC interpretation of
+    the epoch value (see tests/test_dashboard.py's ``_streaks_store``).
+    """
+    today = _today()
+    return datetime(today.year, today.month, today.day, 12, 0, 0).timestamp()
+
+
 def _rep_days(store: dict[str, Any], kind: str | None = None) -> set[date]:
     days: set[date] = set()
     for rep in store["reps"]:
@@ -160,11 +171,16 @@ def _count_on(store: dict[str, Any], day: date, kind: str | None = None) -> int:
 
 
 def log_rep(kind: str, ts: float | None = None) -> dict[str, Any]:
-    """Log one rep of ``kind``. Returns the stored entry."""
+    """Log one rep of ``kind``. Returns the stored entry.
+
+    When ``ts`` is omitted the rep is stamped at local noon of the
+    effective today (see ``_default_ts``), so it always lands in the day
+    bucket that ``_today()`` reports.
+    """
     if kind not in REP_KINDS:
         raise ValueError(f"unknown rep kind {kind!r}; expected one of {list(REP_KINDS)}")
     store = _load_store()
-    entry = {"kind": kind, "ts": ts if ts is not None else time.time()}
+    entry = {"kind": kind, "ts": ts if ts is not None else _default_ts()}
     store["reps"].append(entry)
     _save_store(store)
     return {"ok": True, "rep": entry, "today_count": _count_on(store, _today(), kind)}
