@@ -1,10 +1,17 @@
-"""Interactive terminal dashboard for the job-apply repo (stdlib only).
+"""Interactive terminal dashboard for the job-apply repo.
 
-Launches a grouped menu (FIND / TAILOR / TRAIN / WIN / GOVERN / UTILITIES)
-that wires every one of the 19 feature modules through short guided
-workflows. The dashboard only ever reads state or saves local previews:
-it NEVER sends email, submits applications, or transmits data — those
-steps print a preview and point at the module's own confirm flow.
+Launches a grouped menu (FIND / TAILOR / APPLY / TRAIN / WIN / GOVERN /
+UTILITIES) that wires the feature modules through short guided
+workflows. The dashboard never sends email, submits applications, or
+transmits your personal data: those steps print a preview and point at
+the module's own confirm flow.
+
+Reads do go to the public web (job searches, company-brief fetches):
+they are risk-adjudicated and carry no personal data. Heavier modules
+are lazy-imported inside the workflow body (``ats_apply`` needs httpx,
+search and watch checks need the search engine), so this module stays
+importable when the optional dependency is missing; the workflow says
+so and stops.
 
 Entry point: ``cmd_dashboard(args)`` — takes an argparse namespace and
 ignores it (the coordinator wires the subparser).
@@ -45,6 +52,16 @@ import rejection_autopsy  # noqa: E402
 import streaks  # noqa: E402
 import crew  # noqa: E402
 import doctor  # noqa: E402
+import grill  # noqa: E402
+import apply_queue  # noqa: E402
+import email_sync  # noqa: E402
+import briefs  # noqa: E402
+import analytics  # noqa: E402
+import watch  # noqa: E402
+import compliance  # noqa: E402
+import easy_apply  # noqa: E402
+import browser_apply  # noqa: E402
+# NOTE: ats_apply is imported lazily inside wf_apply (it needs httpx).
 
 
 class _Quit(Exception):
@@ -287,6 +304,142 @@ def wf_radar() -> None:
     print(f"\n  Chart saved to {out}")
 
 
+def wf_watch() -> None:
+    """Manage job watches: list, add, check for new postings, remove."""
+    _divider("JOB WATCHES")
+    store_path = REPO_DIR / "watches.json"
+    watches = watch.load_watches(store_path)
+    action = ask_choice(
+        "Action",
+        ["list watches", "add a watch", "check for new postings",
+         "remove a watch"],
+        default="list watches",
+    )
+    if action == "list watches":
+        if not watches:
+            print("  No watches saved yet.")
+            return
+        for name, w in watches.items():
+            last = w.get("last_checked_at") or "never checked"
+            print(f"  - {name}: {w.get('query')} / "
+                  f"{w.get('location') or 'anywhere'} "
+                  f"[{w.get('board', 'all')}], last checked {last}")
+        return
+    if action == "add a watch":
+        name = ask("Watch name", required=True)
+        query = ask("Search query", required=True)
+        location = ask("Location (blank = anywhere)", "")
+        board = ask_choice(
+            "Board",
+            ["all", "greenhouse", "lever", "ashby", "adzuna", "linkedin",
+             "indeed", "ziprecruiter"],
+            default="all",
+        )
+        remote = ask_yes_no("Remote only?")
+        try:
+            saved = watch.add_watch(
+                watches, name, query, location, board,
+                {"remote_only": remote} if remote else None,
+            )
+        except ValueError as exc:
+            print(f"  {exc}")
+            return
+        watch.save_watches(store_path, watches)
+        print(f"  Watch {saved['name']!r} saved. The first check records a "
+              f"baseline (no alerts); later checks report only new postings.")
+        return
+    if action == "check for new postings":
+        if not watches:
+            print("  No watches saved yet. Add one first.")
+            return
+        try:
+            from server import search_jobs as _search_jobs
+        except ImportError as exc:
+            print(f"  Can't run the check without the search engine: {exc}")
+            print("  Run `python watch.py` or use the check_watches MCP tool.")
+            return
+        results = watch.check_all(watches, _search_jobs)
+        watch.save_watches(store_path, watches)
+        total_new = 0
+        for name, res in results.items():
+            new_jobs = res.get("new_jobs") or []
+            total_new += len(new_jobs)
+            if res.get("error"):
+                print(f"  - {name}: check failed ({res['error']})")
+                continue
+            print(f"  - {name}: {len(new_jobs)} new of "
+                  f"{res.get('total_seen', 0)} seen")
+            for job in new_jobs[:5]:
+                print(f"      {job.get('title', '?')} @ "
+                      f"{job.get('company', '?')} [{job.get('board', '')}]")
+        if total_new == 0:
+            print("  Nothing new since the last check.")
+        return
+    if not watches:
+        print("  No watches saved yet.")
+        return
+    name = ask_choice("Remove which watch", sorted(watches),
+                      default=sorted(watches)[0])
+    if not ask_yes_no(f"Remove watch {name!r}?", default=False):
+        print("  Kept.")
+        return
+    watch.remove_watch(watches, name)
+    watch.save_watches(store_path, watches)
+    print(f"  Removed {name!r}.")
+
+
+def wf_search() -> None:
+    """Free-form job search over the real engine (risk-adjudicated like
+    the watch check), with risk tags and the ToS disclosure on the
+    results. Parking a result is a local queue write; the dashboard
+    never applies from search."""
+    _divider("SEARCH JOBS")
+    query = ask("Search query", required=True)
+    location = ask("Location (blank = anywhere)", "")
+    board = ask_choice(
+        "Board",
+        ["all", "greenhouse", "lever", "ashby", "adzuna", "linkedin",
+         "indeed", "ziprecruiter"],
+        default="all",
+    )
+    limit = ask_int("Max results per board", 10, lo=1, hi=50)
+    try:
+        from server import search_jobs as _search_jobs
+    except ImportError as exc:
+        print(f"  Can't search without the search engine: {exc}")
+        return
+    try:
+        results = _search_jobs(query=query, location=location,
+                               board=board, limit=limit)
+    except Exception as exc:
+        print(f"  Search failed: {exc}")
+        return
+    if not results:
+        print("  No postings found. Try a broader query or another board.")
+        return
+    print(f"\n  {len(results)} result(s):")
+    for i, job in enumerate(results, 1):
+        tier = job.get("tos_risk_tier") or "?"
+        print(f"  {i}. {job.get('title', '?')} @ {job.get('company', '?')} "
+              f"[{job.get('board', '')}] (risk tier {tier})")
+        loc = job.get("location")
+        if loc:
+            print(f"     {loc}")
+    print(f"\n  ToS disclosure: {compliance.apply_disclosure(board)}")
+    if not ask_yes_no("Park one of these in the drip queue (paced, "
+                      "human-speed)?"):
+        print("  Nothing queued. The dashboard never applies from search.")
+        return
+    labels = [f"{j.get('title', '?')} @ {j.get('company', '?')} "
+              f"[{j.get('board', '')}]" for j in results]
+    pick = ask_choice("Park which result", labels, default=labels[0])
+    job_id = results[labels.index(pick)].get("id")
+    item = apply_queue.add_to_queue(job_id)
+    print(f"  Queued {item.get('job_id')} (status {item.get('status')}). "
+          f"The queue enforces the daily cap and pauses between "
+          f"applications. Local write only; nothing applied.")
+
+
 # ---------------------------------------------------------------------------
 # TAILOR workflows
 # ---------------------------------------------------------------------------
@@ -359,6 +512,231 @@ def wf_linkedin() -> None:
         for src in (rw.get("built_from") or [])[:3]:
             print(f"    from: {src}")
         print("  Preview only — paste your pick into LinkedIn yourself.")
+
+
+# ---------------------------------------------------------------------------
+# APPLY workflows
+# ---------------------------------------------------------------------------
+
+
+def wf_apply() -> None:
+    """Guided dry-run of one application (official ATS, browser fill, or
+    LinkedIn Easy Apply), with the paced drip queue as the alternative:
+    park, view, remove, or run it (run submits for real and asks first).
+    Preview only: the dashboard never submits an application."""
+    _divider("APPLY TO A JOB (DRY-RUN)")
+    path = ask_choice(
+        "Application path",
+        ["official ATS (direct API)", "browser fill (your logged-in session)",
+         "LinkedIn Easy Apply (fill-only)"],
+        default="official ATS (direct API)",
+    )
+    job_id = ask("Job id (board:payload, from search results)", required=True)
+    board = job_id.partition(":")[0].lower() or "unknown"
+    profile = load_profile()
+    resume = ask("Resume PDF path (blank = none)",
+                 str(REPO_DIR / "profiles" / "resume.pdf"))
+    resume_path = resume if resume and Path(resume).expanduser().is_file() else None
+    if resume and not resume_path:
+        print("  No file at that path. Continuing without a resume.")
+    cl_path = ask("Cover letter file path (blank = none)", "")
+    cover_letter = ""
+    if cl_path:
+        cl_file = Path(cl_path).expanduser()
+        if cl_file.is_file():
+            cover_letter = cl_file.read_text(encoding="utf-8")
+        else:
+            print("  No file at that path. Continuing without a cover letter.")
+
+    # Grill gate: nothing is recorded while the grill is open.
+    try:
+        grill_state = grill.grill_status(job_id)
+    except Exception:
+        grill_state = {}
+    if grill_state.get("total") and not grill_state.get("complete"):
+        print(f"  Grill: {grill_state.get('answered')}/"
+              f"{grill_state.get('total')} answered, not complete. "
+              f"Applications stay grill-pending until it is.")
+        if ask_yes_no("Answer the grill now?", default=True):
+            wf_grill(job_id)
+    elif not grill_state.get("total"):
+        print("  No grill session for this job. The grill asks the questions "
+              "the tailor step needs answered (menu 22).")
+
+    allowed, why = compliance.check_apply_allowed()
+    print(f"  Daily cap: {'OK' if allowed else 'reached'}"
+          + (f" ({why})" if why else ""))
+    print(f"  ToS disclosure: {compliance.apply_disclosure(board)}\n")
+
+    if path.startswith("official ATS"):
+        try:
+            import ats_apply
+        except ImportError:
+            print("  ats_apply needs httpx. Install the requirements first, "
+                  "then retry this path.")
+            return
+        applicant = {
+            key: str(profile.get(key) or "") for key in
+            ("full_name", "email", "phone", "location", "linkedin_url",
+             "website")
+        }
+        try:
+            preview = ats_apply.apply_direct(
+                board, {"id": job_id}, applicant, resume_path, cover_letter,
+                confirm=False, dry_run=True)
+        except ValueError as exc:
+            print(f"  {exc}")
+            return
+        if preview.get("error"):
+            print(f"  {preview['error']}")
+            return
+        print("  Dry-run preview (zero network calls):")
+        print(f"    board: {preview.get('board')} | "
+              f"endpoint: {preview.get('endpoint')}")
+        print(f"    endpoint status: {preview.get('endpoint_status')}")
+        print(f"    direct apply available: "
+              f"{preview.get('direct_apply_available')}")
+        fields = preview.get("fields_that_would_be_sent") or {}
+        if fields:
+            print(f"    fields that would be sent: {', '.join(fields)}")
+        if preview.get("note"):
+            print(f"    note: {preview['note']}")
+    elif path.startswith("LinkedIn"):
+        preview = easy_apply.preview_easy_apply(job_id, profile, resume_path)
+        if preview.get("status") == "error":
+            print(f"  {preview.get('error')}")
+            return
+        print("  Fill plan (no browser launched):")
+        for step in preview.get("steps") or []:
+            print(f"    - {step}")
+        fields = preview.get("fields_would_fill") or []
+        if fields:
+            print(f"    fields it would fill: {', '.join(fields)}")
+        print(f"    guarantee: {preview.get('guarantee')}")
+    else:
+        print("  Browser fill preview:")
+        print(f"    saved {board} login session: "
+              f"{'yes' if browser_apply.has_saved_session(board) else 'no'}")
+        print("    The browser flow opens the posting, fills the form from "
+              "your profile, and stops at the review step. The submit click "
+              "is always yours.")
+        print("    Run it via apply_to_job with JOB_MCP_BROWSER_APPLY=1 and "
+              "confirm=True.")
+
+    print("\n  The dashboard never submits applications. To file for real, "
+          "use the module's own confirm flow "
+          "(apply_to_job / apply_via_ats / easy_apply_fill).")
+    if ask_yes_no("Park this job in the drip queue instead (paced, "
+                  "human-speed)?"):
+        item = apply_queue.add_to_queue(job_id)
+        print(f"  Queued {item.get('job_id')} (status {item.get('status')}). "
+              f"The queue enforces the daily cap and pauses between "
+              f"applications.")
+    queued = [i for i in apply_queue.list_queue()
+              if i.get("status") == "queued"]
+    print(f"\n  {len(queued)} job(s) queued. The queue enforces the daily "
+          f"cap and pauses between applications.")
+    if not queued:
+        print("  Or run `python apply_queue.py queue-run` later, or on a "
+              "cron schedule.")
+        return
+    action = ask_choice(
+        "Queue",
+        ["done", "view the queue", "remove a queued job",
+         "run the queue (submit real applications)"],
+        default="done",
+    )
+    if action == "view the queue":
+        for i in queued:
+            print(f"  - {i.get('job_id')} (status {i.get('status')}, "
+                  f"attempts {i.get('attempts', 0)})")
+    elif action == "remove a queued job":
+        ids = [i.get("job_id") for i in queued]
+        pick = ask_choice("Remove which job", ids, default=ids[0])
+        if apply_queue.remove_from_queue(pick):
+            print(f"  Removed {pick} from the queue.")
+        else:
+            print(f"  {pick} is no longer queued.")
+    elif action == "run the queue (submit real applications)":
+        if not ask_yes_no(
+            "Run the queue now? This submits REAL applications for every "
+            "job that is due, paced at human speed. The queue run stops "
+            "at the daily cap. Nothing runs until you say yes.",
+            default=False,
+        ):
+            print("  Queue run cancelled. Nothing was submitted.")
+        else:
+            try:
+                from server import apply_to_job as _apply_to_job
+            except ImportError as exc:
+                print(f"  Can't run the queue without the engine: {exc}")
+                return
+
+            def _apply(queued_job_id: str) -> dict:
+                return _apply_to_job(
+                    queued_job_id, resume or "",
+                    cover_letter=cover_letter, confirm=True, profile=profile)
+
+            report = apply_queue.run_queue(_apply)
+            applied = report.get("applied") or []
+            failed = report.get("failed") or []
+            print(f"  Queue run: {report.get('processed')} processed, "
+                  f"{len(applied)} applied, {len(failed)} failed, "
+                  f"{report.get('remaining')} remaining.")
+            if report.get("stopped"):
+                print(f"  Stopped early: {report.get('stopped')} "
+                      f"({report.get('cap_reason')})")
+
+
+def wf_grill(job_id: str | None = None) -> None:
+    """Walk a grill session: generate questions from the job/profile gaps,
+    answer them one by one, track completion. Answers feed the tailor step
+    so it never invents facts."""
+    _divider("THE GRILL")
+    job_id = job_id or ask("Job id (board:payload)", required=True)
+    try:
+        session = grill.get_grill_session(job_id)
+    except Exception:
+        session = None
+    if session is None:
+        print("  No session yet. Starting one from the job and your profile.")
+        profile = load_profile()
+        title = ask("Job title", "")
+        company = ask("Company", "")
+        jd = read_text_or_file("Job description")
+        job = {"title": title, "company": company, "description": jd}
+        started = grill.start_grill(job_id, job, profile)
+        questions = started.get("questions") or []
+        answers: dict[str, str] = {}
+    else:
+        questions = session.get("questions") or []
+        answers = session.get("answers") or {}
+    if not questions:
+        print("  No questions generated. The job text may be too thin.")
+        return
+    unanswered = [q for q in questions if not answers.get(q.get("id"))]
+    if not unanswered:
+        print(f"  Grill complete ({len(questions)}/{len(questions)} answered).")
+    else:
+        print(f"  {len(unanswered)} of {len(questions)} question(s) "
+              f"unanswered.")
+        for q in unanswered:
+            print(f"\n  [{q.get('kind', 'question')}] {q.get('question')}")
+            answer = _read("  Your answer (blank = skip): ").strip()
+            if not answer:
+                continue
+            res = grill.record_answer(job_id, q["id"], answer)
+            if res.get("complete"):
+                print("  That was the last one. Grill complete.")
+                break
+    state = grill.grill_status(job_id)
+    if state.get("complete"):
+        print("  Grill complete. The tailor step can use these answers "
+              "instead of inventing facts.")
+    else:
+        print(f"  {state.get('answered')}/{state.get('total')} answered. "
+              f"Come back any time. The application stays grill-pending "
+              f"until every question has an answer.")
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +894,32 @@ def wf_mentors() -> None:
         print("  Preview only — the dashboard never sends connection requests.")
 
 
+def wf_briefs() -> None:
+    """Company brief (public web research, fields marked unverified when the
+    fetch returns nothing) or a full interview-prep doc for a job id."""
+    _divider("COMPANY BRIEF / INTERVIEW PREP")
+    action = ask_choice("Action", ["company brief", "interview prep"],
+                        default="company brief")
+    if action == "company brief":
+        company = ask("Company", required=True)
+        print("  Searching the public web for company info...")
+        brief = briefs.company_brief(company)
+        print()
+        print(brief.get("markdown") or "No brief produced.")
+        if not brief.get("verified"):
+            print("  Unverified: the fetch returned nothing usable. Fields "
+                  "are marked, not invented.")
+        return
+    job_id = ask("Job id (board:payload)", required=True)
+    profile = load_profile()
+    prep = briefs.prep_interview(job_id, profile=profile)
+    if prep.get("error"):
+        print(f"  {prep['error']}")
+        return
+    print()
+    print(prep.get("markdown") or "No prep doc produced.")
+
+
 # ---------------------------------------------------------------------------
 # WIN workflows
 # ---------------------------------------------------------------------------
@@ -539,6 +943,46 @@ def wf_followup() -> None:
     print("  " + draft.get("body", "").replace("\n", "\n  "))
     print("\n  The dashboard never sends email — send this via the followup "
           "module's own confirm flow.")
+
+
+def wf_email() -> None:
+    """Scan recruiter email and review proposed stage updates, then draft a
+    follow-up. Proposals only: the dashboard never applies updates and
+    never sends email."""
+    _divider("RECRUITER EMAIL SCAN")
+    days = ask_int("Scan how many days back", 14, lo=1, hi=90)
+    res = email_sync.scan_recruiter_emails(days=days, apply_updates=False)
+    if res.get("error") == "gmail_not_connected":
+        print(f"  {res.get('message')}")
+        return
+    if res.get("error"):
+        print(f"  Scan failed: {res.get('message') or res.get('error')}")
+        return
+    print(f"  Scanned {res.get('scanned', 0)} message(s), matched "
+          f"{res.get('matched', 0)} to applications.")
+    proposals = res.get("proposed_updates") or []
+    for p in proposals[:10]:
+        print(f"  - {str(p.get('subject', '?'))[:60]}")
+        print(f"    {p.get('company', '?')} / {p.get('title', '?')}: "
+              f"{p.get('current_stage')} -> {p.get('proposed_stage')} "
+              f"(confidence {p.get('confidence')}, action: {p.get('action')})")
+    if not proposals:
+        print("  No stage updates proposed.")
+    print("\n  Proposals only. Nothing was applied. Use the email_sync "
+          "module's own confirm flow to apply updates.")
+    if ask_yes_no("Draft a follow-up email for one of your applications?"):
+        app_id = ask("Application id (job id)", required=True)
+        kind = ask_choice("Kind", ["check_in", "thank_you", "nudge"],
+                          default="check_in")
+        try:
+            draft = email_sync.draft_followup(app_id, kind)
+        except KeyError:
+            print("  No application with that id.")
+            return
+        print(f"\n  To: {draft.get('to') or '(no contact on file)'}")
+        print(f"  Subject: {draft.get('subject')}\n")
+        print("  " + draft.get("body", "").replace("\n", "\n  "))
+        print("\n  Draft only, not sent. The dashboard never sends email.")
 
 
 def wf_referrals() -> None:
@@ -650,6 +1094,48 @@ def wf_rejection_autopsy() -> None:
             print(f"  • {s}")
     if not d.get("suggestions"):
         print("  Not enough outcome data yet — record outcomes as decisions land.")
+
+
+def wf_analytics() -> None:
+    """Read-only pipeline analytics: funnel counts, per-board response
+    rates, median days to first response, and stale applications."""
+    _divider("APPLICATION ANALYTICS")
+    report = analytics.generate_report()
+    print(f"  Total applications: {report.get('total_applications', 0)}")
+    funnel = report.get("funnel") or {}
+    counts = funnel.get("current_stage_counts") or {}
+    nonzero = [f"{k} {v}" for k, v in counts.items() if v]
+    if nonzero:
+        print("  Pipeline: " + ", ".join(nonzero))
+    for key, label in (("applied_to_interview_rate", "applied -> interview"),
+                       ("interview_to_offer_rate", "interview -> offer"),
+                       ("applied_to_offer_rate", "applied -> offer")):
+        rate = funnel.get(key)
+        if isinstance(rate, (int, float)):
+            print(f"  {label}: {rate:.0%}")
+    boards = report.get("response_rate_by_board") or {}
+    if boards:
+        print("  Response rate by board:")
+        for board, stats in boards.items():
+            rate = stats.get("rate")
+            rate_txt = f"{rate:.0%}" if isinstance(rate, (int, float)) else "?"
+            print(f"    {board}: {stats.get('responded', 0)}/"
+                  f"{stats.get('applied', 0)} ({rate_txt})")
+    medians = report.get("time_to_first_response_days") or {}
+    if medians:
+        print("  Median days to first response:")
+        for board, info in list(medians.items())[:8]:
+            days = info.get("median_days") if isinstance(info, dict) else info
+            days_txt = f"{days}" if days is not None else "no replies yet"
+            print(f"    {board}: {days_txt}")
+    stale = report.get("stale_applications") or []
+    if stale:
+        print(f"  Stale applications ({len(stale)}):")
+        for s in stale[:8]:
+            print(f"    {s.get('company', '?')}: {s.get('title', '?')} "
+                  f"({s.get('days_stale', '?')} days quiet)")
+    else:
+        print("  Nothing stale.")
 
 
 # ---------------------------------------------------------------------------
@@ -779,6 +1265,13 @@ MENU: dict[str, tuple[str, object]] = {
     "17": ("Red-team scan / compliance screen", wf_crew),
     "18": ("Log a rep / view streaks", wf_streaks),
     "19": ("Preview a data contribution", wf_contribute),
+    "20": ("Job watches", wf_watch),
+    "21": ("Apply to a job (guided dry-run)", wf_apply),
+    "22": ("Answer the grill", wf_grill),
+    "23": ("Company brief / interview prep", wf_briefs),
+    "24": ("Scan recruiter email", wf_email),
+    "25": ("Application analytics", wf_analytics),
+    "26": ("Search jobs (free-form search)", wf_search),
     "w": ("Onboarding wizard", wf_wizard),
     "d": ("Run the doctor", wf_doctor),
 }
@@ -787,10 +1280,11 @@ MENU: dict[str, tuple[str, object]] = {
 def print_menu() -> None:
     """Print the grouped menu."""
     groups = [
-        ("FIND", ["1", "2", "3"]),
+        ("FIND", ["1", "2", "3", "20", "26"]),
         ("TAILOR", ["4", "5", "6"]),
-        ("TRAIN", ["7", "8", "9", "10", "11"]),
-        ("WIN", ["12", "13", "14", "15", "16"]),
+        ("APPLY", ["21", "22"]),
+        ("TRAIN", ["7", "8", "9", "10", "11", "23"]),
+        ("WIN", ["12", "24", "13", "14", "15", "16", "25"]),
         ("GOVERN", ["17", "18", "19"]),
         ("UTILITIES", ["w", "d"]),
     ]
