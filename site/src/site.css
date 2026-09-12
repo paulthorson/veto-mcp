@@ -1,4 +1,4 @@
-/* VETO — pixel-arcade marketing theme.
+/* VETO - pixel-arcade marketing theme.
    Chunky 8-bit chrome over Astryx primitives: Press Start 2P display type,
    VT323 terminal type, hard offset shadows, scanlines, pixel dividers.
    Palette: phosphor-on-near-black with veto red as the brand signal. */
@@ -114,7 +114,7 @@ html {
   color: var(--go);
   border: 2px solid var(--go);
   background: rgba(61, 255, 115, 0.07);
-  padding: 5px 12px 3px;
+  padding: 12px 12px 10px;
 }
 .px-tag.red {
   color: var(--veto);
@@ -798,7 +798,7 @@ html {
 .footer-links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   font-family: var(--font-term);
   font-size: 20px;
   letter-spacing: 0.04em;
@@ -812,7 +812,7 @@ html {
 }
 .footer-base {
   border-top: 3px solid var(--line);
-  padding: 18px 24px;
+  padding: 16px 24px;
   color: var(--ink-faint);
   font-family: var(--font-term);
   font-size: 18px;
@@ -975,7 +975,7 @@ section[id] {
 .demo-sec {
   padding-top: 8px;
 }
-/* Pixel panels — Astryx Card reset to the design system */
+/* Pixel panels - Astryx Card reset to the design system */
 .demo-job,
 .demo-q,
 .demo-pass {
@@ -1035,7 +1035,7 @@ section[id] {
   border: 3px solid var(--line);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition: transform 0.08s steps(2), box-shadow 0.08s steps(2);
 }
 .demo-opt:hover {
   transform: translate(-2px, -2px);
@@ -1816,7 +1816,7 @@ section[id] {
 }
 
 /* ==================================================================
-   UX audit fixes — 2026-09-10 (Worker D)
+   UX audit fixes - 2026-09-10 (Worker D)
    Pixel aesthetic preserved: VT323 ≥18px, 44px touch targets,
    8px rhythm, 12px minimum text-to-border clearance.
    ================================================================== */
@@ -2017,8 +2017,8 @@ section[id] {
 .feed-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 .feed-filter {
   font-family: var(--font-term);
@@ -2046,7 +2046,7 @@ section[id] {
   margin: 18px 0 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .signal {
   display: flex;
@@ -2108,7 +2108,7 @@ section[id] {
 }
 @media (max-width: 620px) {
   .kpi-grid { grid-template-columns: 1fr; }
-  .funnel-label { flex-basis: 104px; font-size: 18px; }
+  .funnel-label { flex-basis: 120px; font-size: 18px; }
   .funnel-count { flex-basis: 52px; }
 }
 
@@ -2121,7 +2121,14 @@ section[id] {
 .px-code pre {
   overflow-x: auto;
   max-width: 100%;
+  /* A9: visible scroll affordance - thin square scrollbar in system colors,
+     only present when the block actually overflows. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+.px-code pre::-webkit-scrollbar { height: 8px; }
+.px-code pre::-webkit-scrollbar-track { background: transparent; }
+.px-code pre::-webkit-scrollbar-thumb { background: var(--line); }
 /* Grid children must be allowed to shrink below content width. */
 .install-grid > *,
 .grid > *,
@@ -2228,7 +2235,7 @@ section[id] {
   stroke-width: 5px;
 }
 
-/* UI POLISH 2026-09-10 — Worker C */
+/* UI POLISH 2026-09-10 - Worker C */
 /* Additive mobile polish fixes. Do not reorder; keep below existing rules. */
 
 /* P4 (major): #/docs quick-link pills - impose 2-column grid discipline on
@@ -2250,7 +2257,7 @@ section[id] {
 }
 
 /* ==================================================================
-   UI POLISH 2026-09-10 — Worker B
+   UI POLISH 2026-09-10 - Worker B
    P0: breadcrumb/pill collision · P1: negotiation chat thread · P1: dashboard void
    Additive only: do not reorder or edit existing rules. Pixel aesthetic
    preserved: 8px rhythm, 12px+ text-to-border clearance, 44px touch
@@ -2614,4 +2621,111 @@ button.px-btn {
   color: var(--ink-faint);
   margin: 0;
   padding: 0 16px;
+}
+
+/* ==================================================================
+   SHAREABLE JD DECODER RESULT LINKS 2026-09-12
+   #/decoder/r/<payload>: read-only shared result card, plus the share
+   link generator on the decoder try page. Additive only. Pixel
+   aesthetic: 8px rhythm, 12px+ text-to-border clearance, 44px touch
+   targets, VT323 >= 18px, 3px borders, hard offset shadows, square
+   corners.
+   ================================================================== */
+
+/* Opt-in excerpt checkbox row on the try page. */
+.jdshare-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 12px 0 0;
+  cursor: pointer;
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+.jdshare-opt input[type="checkbox"] {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+
+.jdshare-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.jdshare-row .px-btn {
+  min-height: 44px;
+  font-family: var(--font-px);
+}
+
+.jdshare-copyfail {
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--veto);
+  margin: 16px 0 0;
+}
+
+.jdshare-url {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: var(--terminal-bg);
+  color: var(--ink);
+  font-family: var(--font-term);
+  font-size: 18px;
+  line-height: 1.5;
+  border: 3px solid #000;
+  border-radius: 0;
+  box-shadow: var(--shadow-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Read-only shared result card. */
+.jdshare-error {
+  border: 3px solid var(--veto);
+  background: rgba(255, 77, 94, 0.08);
+  box-shadow: var(--shadow);
+  padding: 24px 16px;
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+.jdshare-error-title {
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--veto);
+  margin: 0;
+}
+.jdshare-error-text {
+  font-family: var(--font-term);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  margin: 0;
+}
+.jdshare-error .px-btn {
+  min-height: 44px;
+  font-family: var(--font-px);
+}
+
+.jdshare-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.jdshare-cta .px-btn {
+  min-height: 44px;
+  font-family: var(--font-px);
 }
