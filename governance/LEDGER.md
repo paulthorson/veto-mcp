@@ -261,3 +261,12 @@ Entry schema:
 - **Learning:** Tag-triggered releases compose cleanly with the existing CI
   (push runs tests, tag runs release). No process change needed.
 - **What changed:** None.
+
+## 2026-09-12 - Agentic governance: framework reinstall + contributor protocol
+
+- **Date:** 2026-09-12
+- **Effort:** framework status check in the Muse runtime; learnings pipeline to paulthorson/agentic-governance
+- **Shipped:** Framework reinstalled to `~/agentic-governance` (persistent); `test_find_root_miss` decoupled from `$HOME` (`43c245c`); per-contributor intake convention proposed via PR #12 (`docs/improve/intake/muse-2026-09-12.md` + intake README); nightly retro cron switched to the intake protocol.
+- **What happened:** The framework checkout at `/tmp/agentic-governance` had been wiped on VM replacement; `governance_enabled()` was False and the veto gate silently inactive. Discovery treats "not found" as "not installed", so nothing raised an alarm. Paul clarified the operating model: his Grokbot maintains the framework git, other bots contribute from their own environments, and my learnings must roll up without stepping on anyone's work. First attempt (PR #11) appended directly to the shared calibration ledger; reworked into the intake-file pattern after Paul approved the protocol.
+- **Learning:** On shared multi-agent repos, contributors must never edit shared files: unique per-source filenames plus namespaced branches make merge conflicts structurally impossible, and the maintainer keeps editorial control. Also, ephemeral paths are never install locations for governance dependencies; a missing dependency should fail loud, not silent.
+- **What changed:** Standing rule: framework installs go on persistent disk only. Learnings flow: project LEDGER.md -> nightly 21:00 EDT retro -> `docs/improve/intake/muse-YYYY-MM-DD.md` -> PR from `muse/learnings/YYYY-MM-DD` -> maintainer curates. Never push to framework `main`; never edit the calibration ledger or daily improve report directly.
