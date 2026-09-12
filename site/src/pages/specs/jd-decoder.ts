@@ -98,7 +98,7 @@ const spec: PageSpec = {
       },
       {
         title: 'Honesty gates',
-        body: 'The decoder presents evidence, it never moralizes. Absence is reported as absence: "no salary range found" is never filled in with market data or assumptions. It cannot detect lies, only language: a transparent-sounding scam is still a scam. English postings only, and the phrase lists are curated, not exhaustive, so novel euphemisms slip through.',
+        body: 'The decoder presents evidence, it never moralizes. Absence is reported as absence: "no salary range found" is never filled in with market data or assumptions. It cannot detect lies, only language: a transparent-sounding scam is still a scam. English postings only, and the phrase lists are curated, not exhaustive, so novel euphemisms slip through. One more honest caveat: the live decoder on this site is a TypeScript port, and it can disagree with the Python engine on word-boundary checks for brand-new Unicode characters. Python\'s Unicode data and your browser\'s disagree on roughly the newest 9,600 assigned code points for word characters. That is inherent to shipping without a Unicode table, which is not worth the bytes, and it does not affect normal job-post text.',
       },
     ],
   },
