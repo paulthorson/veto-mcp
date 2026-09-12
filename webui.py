@@ -205,6 +205,75 @@ def _h_referrals_targets(_params):
     return {"companies": referrals.target_companies()}
 
 
+# ---- FIND: watch ------------------------------------------------------------
+
+_WATCHES_PATH = BASE_DIR / "watches.json"
+
+
+def _h_watch_list(_params):
+    import watch
+    watches = watch.load_watches(_WATCHES_PATH)
+    return {"watches": [
+        {"name": name, "query": w.get("query"), "location": w.get("location"),
+         "board": w.get("board"), "initialized": w.get("initialized"),
+         "last_checked_at": w.get("last_checked_at")}
+        for name, w in watches.items()
+    ]}
+
+
+def _h_watch_add(params):
+    import watch
+    _require(params, "name", "query")
+    watches = watch.load_watches(_WATCHES_PATH)
+    filters = params.get("filters") if isinstance(params.get("filters"), dict) else None
+    if params.get("remote_only") and filters is None:
+        filters = {"remote_only": True}
+    saved = watch.add_watch(
+        watches, params["name"], params["query"],
+        params.get("location") or "",
+        params.get("board") or "all",
+        filters,
+    )
+    watch.save_watches(_WATCHES_PATH, watches)
+    return {"watch": {k: saved.get(k) for k in
+                      ("name", "query", "location", "board", "filters")}}
+
+
+def _h_watch_check(params):
+    import watch
+    try:
+        import server as _server
+    except ImportError as exc:
+        return {"ok": False,
+                "error": f"search engine unavailable: {exc}"}
+    watches = watch.load_watches(_WATCHES_PATH)
+    name = params.get("name")
+    if name:
+        if name not in watches:
+            return {"ok": False, "error": f"no watch named {name!r}"}
+        targets = {name: watches[name]}
+    else:
+        targets = watches
+    results = watch.check_all(targets, _server.search_jobs)
+    watch.save_watches(_WATCHES_PATH, watches)
+    return {"results": {
+        n: {"new_jobs": res.get("new_jobs") or [],
+            "total_seen": res.get("total_seen", 0),
+            "error": res.get("error")}
+        for n, res in results.items()
+    }}
+
+
+def _h_watch_remove(params):
+    import watch
+    _require(params, "name")
+    watches = watch.load_watches(_WATCHES_PATH)
+    removed = watch.remove_watch(watches, params["name"])
+    if removed:
+        watch.save_watches(_WATCHES_PATH, watches)
+    return {"removed": removed}
+
+
 # ---- TAILOR: tailor -------------------------------------------------------
 
 def _h_tailor_resume(params):
@@ -282,6 +351,58 @@ def _h_linkedin_about(params):
 def _h_linkedin_keyword_gap(params):
     import linkedin_optimizer
     return linkedin_optimizer.keyword_gap(_profile(params), params.get("target_role"))
+
+# ---- APPLY: grill ------------------------------------------------------------
+
+def _h_grill_session(params):
+    import grill
+    _require(params, "job_id")
+    return {"session": grill.get_grill_session(params["job_id"])}
+
+
+def _h_grill_start(params):
+    import grill
+    _require(params, "job_id", "job")
+    job = params["job"]
+    if not isinstance(job, dict):
+        raise ValueError("job must be an object")
+    return grill.start_grill(params["job_id"], job, _profile(params))
+
+
+def _h_grill_answer(params):
+    import grill
+    _require(params, "job_id", "question_id", "answer")
+    return grill.record_answer(params["job_id"], params["question_id"],
+                               params["answer"])
+
+
+def _h_grill_status(params):
+    import grill
+    _require(params, "job_id")
+    return grill.grill_status(params["job_id"])
+
+
+def _h_grill_qa_pairs(params):
+    import grill
+    _require(params, "job_id")
+    pairs = grill.get_qa_pairs(params["job_id"])
+    return {"qa_pairs": [{"question": q, "answer": a} for q, a in pairs]}
+
+
+def _h_grill_cancel(params):
+    import grill
+    _require(params, "job_id")
+    return {"cancelled": grill.cancel_grill(params["job_id"])}
+
+
+def _h_grill_keywords(params):
+    import grill
+    _require(params, "job")
+    job = params["job"]
+    if not isinstance(job, dict):
+        raise ValueError("job must be an object")
+    return {"keywords": grill.extract_jd_keywords(job)}
+
 
 # ---- TRAIN: mock_interview --------------------------------------------------
 
@@ -447,6 +568,20 @@ def _h_gaps_mark(params):
     _require(params, "skill", "status")
     return skill_gaps.mark_gap_progress(params["skill"], params["status"],
                                        params.get("evidence"))
+
+# ---- TRAIN: briefs ------------------------------------------------------------
+
+def _h_briefs_company(params):
+    import briefs
+    _require(params, "company")
+    return briefs.company_brief(params["company"])
+
+
+def _h_briefs_prep(params):
+    import briefs
+    _require(params, "job_id")
+    return briefs.prep_interview(params["job_id"], profile=_profile(params))
+
 
 # ---- WIN: followup ------------------------------------------------------------
 
@@ -620,6 +755,23 @@ def _h_streaks_weekly(_params):
 def _h_streaks_card(_params):
     import streaks
     return streaks.share_card()
+
+# ---- WIN: email_sync -----------------------------------------------------------
+
+def _h_email_scan(params):
+    import email_sync
+    days = int(params.get("days") or 14)
+    # Proposals only: the dashboard flow applies nothing; applying stage
+    # updates goes through email_sync's own confirm flow.
+    return email_sync.scan_recruiter_emails(days=days, apply_updates=False)
+
+
+def _h_email_draft(params):
+    import email_sync
+    _require(params, "application_id")
+    return email_sync.draft_followup(params["application_id"],
+                                     params.get("kind") or "check_in")
+
 
 # ---- GOVERN: contribute --------------------------------------------------------
 
@@ -966,6 +1118,21 @@ TOOLS = [
          _a("targets", "Target companies derived from watches + applications.",
             _h_referrals_targets, []),
      ]},
+    {"id": "watch", "group": "FIND", "name": "Job watches",
+     "description": "Named saved searches that diff each check against previously seen postings and report only what is new.",
+     "actions": [
+         _a("list", "List saved watches with their last check.",
+            _h_watch_list, []),
+         _a("add", "Create (or replace) a named watch. The first check records a baseline and alerts on nothing.",
+            _h_watch_add, [_p("name", "string", True), _p("query", "string", True),
+                                       _p("location", "string"), _p("board", "string", default="all"),
+                                       _p("remote_only", "boolean", default=False),
+                                       _p("filters", "object", help="Extra watch filters (e.g. {\"limit\": 20}).")]),
+         _a("check", "Check one watch, or all watches when name is omitted, for new postings.",
+            _h_watch_check, [_p("name", "string", help="Watch name; omit to check every watch.")]),
+         _a("remove", "Delete a watch.",
+            _h_watch_remove, [_p("name", "string", True)]),
+     ]},
     # ---------------- TAILOR ----------------
     {"id": "tailor", "group": "TAILOR", "name": "Resume tailor",
      "description": "Rewrites resume bullets around a job's keywords; keeps a library of approved variants.",
@@ -1005,6 +1172,28 @@ TOOLS = [
             _h_linkedin_about, [_profile_param()]),
          _a("keyword_gap", "Keywords missing from the profile for a target role.",
             _h_linkedin_keyword_gap, [_profile_param(), _p("target_role", "string")]),
+     ]},
+    # ---------------- APPLY ----------------
+    {"id": "grill", "group": "APPLY", "name": "Application grill",
+     "description": "Asks the questions the tailor step needs answered, one job at a time; the application stays grill-pending until every question has an answer.",
+     "actions": [
+         _a("session", "Raw saved session for a job, or null when there is none.",
+            _h_grill_session, [_p("job_id", "string", True)]),
+         _a("start", "Start (or restart) a grill session from a job and profile; returns the questions plus a ready-to-send outbound message.",
+            _h_grill_start, [_p("job_id", "string", True),
+                                         _p("job", "object", True, help="Job dict (title, company, description)."),
+                                         _profile_param()]),
+         _a("answer", "Record an answer to one grill question.",
+            _h_grill_answer, [_p("job_id", "string", True), _p("question_id", "string", True),
+                                          _p("answer", "string", True)]),
+         _a("status", "Completion status (complete / answered / total) plus answered Q/A pairs.",
+            _h_grill_status, [_p("job_id", "string", True)]),
+         _a("qa_pairs", "Answered (question, answer) pairs in question order; the handoff so the tailor step never invents facts.",
+            _h_grill_qa_pairs, [_p("job_id", "string", True)]),
+         _a("cancel", "Delete a grill session.",
+            _h_grill_cancel, [_p("job_id", "string", True)]),
+         _a("keywords", "JD keywords with profile evidence for one job.",
+            _h_grill_keywords, [_p("job", "object", True, help="Job dict (title, company, description).")]),
      ]},
     # ---------------- TRAIN ----------------
     {"id": "mock_interview", "group": "TRAIN", "name": "Mock interview",
@@ -1083,6 +1272,14 @@ TOOLS = [
             _h_gaps_mark, [_p("skill", "string", True), _p("status", "string", True),
                                       _p("evidence", "string")]),
      ]},
+    {"id": "briefs", "group": "TRAIN", "name": "Company briefs & interview prep",
+     "description": "Public-web company research and full interview-prep docs. Fields are marked unverified when the fetch returns nothing; nothing is invented.",
+     "actions": [
+         _a("company_brief", "Research brief for a company: what they do, funding, headcount hints, recent news, interview-process hints.",
+            _h_briefs_company, [_p("company", "string", True)]),
+         _a("interview_prep", "Interview-prep doc for a job id: role summary, key requirements, likely questions, STAR stories from the profile, questions to ask, salary talking points.",
+            _h_briefs_prep, [_p("job_id", "string", True), _profile_param()]),
+     ]},
     # ---------------- WIN ----------------
     {"id": "followup", "group": "WIN", "name": "Follow-up emails",
      "description": "Drafts follow-up emails from application history. Sending email requires a two-step confirmation.",
@@ -1157,6 +1354,15 @@ TOOLS = [
          _a("today", "Today's progress vs goals.", _h_streaks_today, []),
          _a("weekly", "Weekly recap.", _h_streaks_weekly, []),
          _a("card", "Shareable streak card.", _h_streaks_card, []),
+     ]},
+    {"id": "email_sync", "group": "WIN", "name": "Recruiter email scan",
+     "description": "Scans Gmail for recruiter mail and proposes application stage updates. Proposals only: never applies updates and never sends mail.",
+     "actions": [
+         _a("scan", "Scan recruiter mail from the last N days and return proposed stage updates. Nothing is applied.",
+            _h_email_scan, [_p("days", "integer", default=14, help="How many days back to scan.")]),
+         _a("draft_followup", "Draft a follow-up email for an application. Draft only; the dashboard never sends email.",
+            _h_email_draft, [_p("application_id", "string", True),
+                                            _p("kind", "string", default="check_in", help="'check_in', 'thank_you', or 'nudge'.")]),
      ]},
     # ---------------- GOVERN ----------------
     {"id": "contribute", "group": "GOVERN", "name": "Training-data contributions",
