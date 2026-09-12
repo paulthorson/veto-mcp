@@ -613,7 +613,7 @@ ACTIVE_BOARDS = {
 # environment variable JOB_MCP_BROWSER_APPLY=1. When enabled and
 # apply_to_job(..., confirm=True) is called, the server opens the job's
 # apply_url in headless Chromium, fills the form from `profile`, uploads
-# the resume, screenshots the result, and clicks submit — all logged to
+# the resume, screenshots the result, and clicks submit - all logged to
 # applications.json. Without the env var, Phase 1 (preview + local log)
 # behavior is preserved.
 #
@@ -745,6 +745,10 @@ def search_jobs(
             raise ValueError(f"Board {name!r} is not usable: {exc}")
         # Budget accounting + risk tagging. (The ZipRecruiter provider
         # stamps its own tag; re-stamping here is idempotent.)
+        # Recovery streaks are recorded by the providers themselves at
+        # the exact points where a genuine fetch completed (post
+        # block/CAPTCHA checks). Recording here would count blocked or
+        # CAPTCHA'd fetches that returned without raising.
         if _compliance is not None:
             _compliance.record_search(name)
             _tag = _compliance.result_risk_tag(name)
@@ -1189,7 +1193,7 @@ def _apply_via_browser_and_record(
     """Phase 2: fill + submit the form in a real browser, then log it.
 
     Any failure (missing Playwright, navigation error, no submit button)
-    is recorded with submitted=False — the tool never raises.
+    is recorded with submitted=False - the tool never raises.
     """
     if cover_letter and not profile.get("cover_letter"):
         profile = {**profile, "cover_letter": cover_letter}
@@ -1447,7 +1451,7 @@ def tailor_application(
     Uses tailor.py: extracts the posting's keywords, front-loads matching
     experience bullets in the resume, and drafts a 3-paragraph cover
     letter. Honesty rule: only rephrases/reorders facts already in the
-    profile — skills the job wants but the profile lacks are reported in
+    profile - skills the job wants but the profile lacks are reported in
     ``missing_skills`` and are NOT added to the resume.
 
     Args:
