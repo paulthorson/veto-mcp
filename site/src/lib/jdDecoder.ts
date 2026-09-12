@@ -45,6 +45,12 @@ const PY_WS = `[${PY_SPACE_SRC}]`;
 const PY_WS_Q = `${PY_WS}?`;
 const PY_WS_STAR = `${PY_WS}*`;
 const PY_WS_PLUS = `${PY_WS}+`;
+/* Python \w for str patterns: Unicode letters/numbers + underscore.
+ * Inherent skew: Python's unicodedata and browser ICU disagree on roughly
+ * the newest ~9.6k assigned code points for \w. Fixing it would require
+ * shipping a Unicode table to the browser, which is not worth it. This
+ * only affects text containing very recently assigned Unicode characters;
+ * normal job-post text is unaffected. Behavior intentionally not changed. */
 const PY_WORD = '[\\p{L}\\p{N}_]'; // Python \w: Unicode letters/numbers + _
 const PY_DIGIT = '\\p{Nd}'; // Python \d: Unicode decimal digits
 /* Python \b for str patterns: a boundary iff exactly one side is a
