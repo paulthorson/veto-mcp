@@ -17,7 +17,9 @@ Risk tier: scraping. robots.txt is honored before any request. HTTP
 via ``compliance.record_block`` (1h cooldown, doubling, capped at 24h)
 and degrade to an empty result (one dead board must not crash a
 multi-board search). CAPTCHAs are detected and stop the search; they are never
-bypassed.
+bypassed. Consecutive genuine successful fetches clear the breaker via
+``compliance.record_search_success`` (recovery), so a one-off 429 does not
+escalate toward the 24h cap forever.
 
 Job ids follow the standard ``<board>:<base64url(payload)>`` format via
 :mod:`providers._common`; the payload is the canonical job URL.
@@ -164,6 +166,10 @@ class ZipRecruiterProvider:
                         "breaker tripped, stopping (never bypassed)"
                     )
                     break
+                # Genuine successful fetch (no block, no CAPTCHA): count it
+                # toward circuit-breaker recovery. A streak of these clears
+                # the block and resets the cooldown.
+                compliance.record_search_success(self.name)
                 soup = BeautifulSoup(text, "lxml")
                 items = _extract_itemlist(soup)
                 if not items:
@@ -278,6 +284,9 @@ class ZipRecruiterProvider:
                     main = soup.find("main") or soup.find("article")
                     if main:
                         description = main.get_text("\n", strip=True)[:20000]
+                # Genuine successful fetch (no block, no CAPTCHA): count it
+                # toward circuit-breaker recovery.
+                compliance.record_search_success(self.name)
                 return {
                     "url": url,
                     "board": self.name,

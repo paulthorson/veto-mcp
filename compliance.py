@@ -23,7 +23,10 @@ Enforcement points (wired by server.py, cli.py, apply_queue.py):
 
   search  ``check_search_allowed(board)`` gates every provider call;
           ``record_search(board)`` spends daily budget; ``record_block``
-          trips the circuit breaker with exponential cooldown.
+          trips the circuit breaker with exponential cooldown, and
+          ``record_search_success(board)`` counts consecutive genuine
+          successful fetches toward recovery: a full window of them
+          clears the block via ``record_block_cleared``.
   apply   ``check_apply_allowed()`` enforces a small daily cap so
           applications always move at a human pace; apply flows must
           surface ``apply_disclosure(board)`` in the preview, and for
@@ -76,6 +79,12 @@ APPLY_PACE_SECONDS = (120, 420)
 #: Circuit-breaker cooldown after a block: 1h, doubling, capped at 24h.
 BLOCK_COOLDOWN_BASE_SECONDS = 3600
 BLOCK_COOLDOWN_MAX_SECONDS = 86400
+
+#: Consecutive genuine successful fetches that clear a tripped circuit
+#: breaker. After this many successes with no intervening block, the
+#: block is cleared and the cooldown resets, so the next block starts
+#: again at the 1h base instead of escalating toward the 24h cap.
+RECOVERY_SUCCESS_WINDOW = 3
 
 TIER_NOTICES = {
     "official": (
@@ -280,12 +289,14 @@ def record_block(board: str, state: dict | None = None,
                  path: Path | None = None) -> int:
     """Record the site pushing back (403/429/CAPTCHA).
 
-    Trips the circuit breaker with exponential cooldown. Returns the
-    cooldown in seconds.
+    Trips the circuit breaker with exponential cooldown. Any block
+    resets the recovery success streak, so intermittent failures keep
+    escalating. Returns the cooldown in seconds.
     """
     state = state if state is not None else load_state(path)
     info = _block_info(state, board)
     info["consecutive"] = int(info.get("consecutive", 0)) + 1
+    info["successes"] = 0
     cooldown = min(
         BLOCK_COOLDOWN_BASE_SECONDS * (2 ** (info["consecutive"] - 1)),
         BLOCK_COOLDOWN_MAX_SECONDS,
@@ -304,8 +315,37 @@ def record_block_cleared(board: str, state: dict | None = None,
     info = _block_info(state, board)
     info["consecutive"] = 0
     info["blocked_until"] = None
+    info["successes"] = 0
     save_state(state, path)
     return state
+
+
+def record_search_success(board: str, state: dict | None = None,
+                          path: Path | None = None) -> bool:
+    """Record one genuine successful fetch for a board.
+
+    Counts consecutive successful fetches toward circuit-breaker
+    recovery. When ``RECOVERY_SUCCESS_WINDOW`` successes accumulate
+    with no intervening block, the block is cleared (the cooldown
+    resets to the base via ``record_block_cleared``) and True is
+    returned.
+
+    Any block (``record_block``) resets the streak, so intermittent
+    failures still escalate instead of decaying. CAPTCHA detections
+    record blocks, never successes, so recovery only ever follows
+    genuine successful fetches. Boards with no block history are a
+    no-op (returns False) so healthy boards cause no state churn.
+    """
+    state = state if state is not None else load_state(path)
+    info = _block_info(state, board)
+    if int(info.get("consecutive", 0)) <= 0:
+        return False  # no block history; nothing to recover
+    info["successes"] = int(info.get("successes", 0)) + 1
+    if info["successes"] >= RECOVERY_SUCCESS_WINDOW:
+        record_block_cleared(board, state, path)
+        return True
+    save_state(state, path)
+    return False
 
 
 # ---------------------------------------------------------------------------
