@@ -1,4 +1,4 @@
-"""Glassdoor provider — honest stub (no reliable access without login).
+"""Glassdoor provider: honest stub (no reliable access without login).
 
 Why this stays a stub instead of a fake provider (researched 2026-09):
 
@@ -7,7 +7,7 @@ Why this stays a stub instead of a fake provider (researched 2026-09):
 * Job search pages are a React app behind aggressive bot mitigation.
   The only documented working technique (theabhishekchandra/applyverse
   ``docs/TECHNIQUES.md``, rewritten 2026-07) is "DOM scrape +
-  client-side 'Show more jobs' clicks" — i.e. it needs a *rendered
+  client-side 'Show more jobs' clicks": i.e. it needs a *rendered
   browser session* and is explicitly flagged "bot-sensitive".
 * This provider layer is plain-HTTP (httpx). Fetching Glassdoor search
   HTML without a browser is instantly CAPTCHA'd / blocked (HTTP 403),
@@ -29,7 +29,7 @@ from typing import Any
 
 WHY_NOT_SUPPORTED = (
     "Glassdoor is not supported: it has no public API (partner-only), and "
-    "its React search pages sit behind aggressive bot mitigation — reliable "
+    "its React search pages sit behind aggressive bot mitigation; reliable "
     "access requires a rendered, logged-in browser session, which plain-HTTP "
     "providers cannot do. An httpx scraper would be CAPTCHA'd/blocked "
     "instantly and return fake-empty results. The honest path is a future "

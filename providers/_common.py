@@ -13,6 +13,8 @@ import os
 import random
 import re
 import time
+import urllib.parse
+import urllib.robotparser
 from typing import Any
 
 import httpx
@@ -77,6 +79,53 @@ def polite_delay(min_s: float = 1.0, max_s: float = 2.0) -> None:
     delay = random.uniform(min_s, max_s)
     log.debug("Politeness delay: %.2fs", delay)
     time.sleep(delay)
+
+
+#: How long a fetched robots.txt is trusted before re-fetching.
+_ROBOTS_TTL_SECONDS = 3600.0
+
+#: base URL ("https://host") -> (fetched_at_epoch, robots.txt body or None).
+_robots_cache: dict[str, tuple[float, str | None]] = {}
+
+
+def robots_allows(board: str, url: str, timeout: float = 5.0) -> bool:
+    """True when the site's robots.txt permits fetching ``url``.
+
+    Fetches ``/robots.txt`` once per host (cached for an hour) and honors
+    it. Fail-open: when robots.txt is missing, unreachable, or unparsable,
+    the URL is treated as allowed (a down robots file is not a ban).
+    Disallowed URLs must be skipped by the caller; they are never fetched.
+    """
+    base = urllib.parse.urlsplit(url)
+    host = f"{base.scheme}://{base.netloc}"
+    now = time.time()
+    cached = _robots_cache.get(host)
+    if cached is not None and now - cached[0] < _ROBOTS_TTL_SECONDS:
+        body = cached[1]
+    else:
+        body = None
+        try:
+            with make_client(timeout=timeout) as client:
+                resp = client.get(host + "/robots.txt")
+                if resp.status_code == 200 and resp.text:
+                    body = resp.text
+        except Exception as exc:
+            log.debug("robots.txt fetch failed for %s: %s", host, exc)
+        _robots_cache[host] = (now, body)
+    if body is None:
+        return True
+    try:
+        parser = urllib.robotparser.RobotFileParser()
+        parser.parse(body.splitlines())
+        return parser.can_fetch("*", url)
+    except Exception as exc:
+        log.debug("robots.txt parse failed for %s: %s", host, exc)
+        return True
+
+
+def clear_robots_cache() -> None:
+    """Drop the in-memory robots.txt cache (tests)."""
+    _robots_cache.clear()
 
 
 def encode_payload(payload: str) -> str:
