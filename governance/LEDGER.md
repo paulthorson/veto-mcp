@@ -120,3 +120,36 @@ Entry schema:
   review" held up at this scale.
 - **What changed:** This ledger. Every future program writes retros here as
   work ships.
+
+## 2026-09-12 - Follow-up pass: JD fuzz parity, circuit-breaker recovery, /api/tools catalog, \w skew docs
+
+- **Shipped:** Four follow-ups, each adversarially QA'd then independently
+  verified before committing separately: (1) seeded 400-case JD-decoder
+  fuzz parity harness (`site/harness/jd-decoder/fuzz.py`,
+  `fuzz_runner.mjs`, `README.md`) - 400/400 match; (2) circuit-breaker
+  recovery in `compliance.py` (`RECOVERY_SUCCESS_WINDOW=3`,
+  `record_search_success`) wired into `providers/ziprecruiter.py` genuine
+  fetches, server-side counting removed after a QA rejection (blocked/
+  CAPTCHA'd fetches must never count), 11 tests in `test_block_recovery.py`;
+  (3) four new `/api/tools` entries (watch, grill, briefs, email_sync) in
+  `webui.py`, 16 tests in `test_webui_catalog.py`; (4) Python-vs-ICU
+  `\w` skew documented as comment + specs copy, no behavior change.
+- **What happened:** Independent verifier ran the full checklist from
+  scratch: tree matched expected files exactly, full suite 927 passed +
+  4 skipped (green), fuzz 400/400 exit 0, `npm run build` succeeded,
+  `npm run lint` 0 errors (2 pre-existing warnings in untouched App.tsx),
+  Item 2 fix re-verified via its 11 tests plus a grep confirming
+  `record_search_success` is absent from `server.py`, diff review showed
+  no `.github/workflows` touches, no secrets, and the only new U+2014
+  occurrences are an escaped `\\u2014` in fuzz test data and an
+  `assertNotIn("\\u2014")` test - both intentional. Committed as four
+  separate commits and pushed; tree clean.
+- **Learning:** The QA rejection on server-side recovery counting was the
+  value event of this pass - independent verification caught it again
+  only as a grep; a verifier can confirm the fix but only the adversarial
+  QA reviewer catches it first. Also: a concurrent process pushed my
+  commits between my `git commit` and `git push` (push reported
+  "Everything up-to-date"), so verifying remote state via
+  `git branch -r --contains` after push matters more than the push output.
+- **What changed:** Retro-ledger convention itself landed in AGENTS.md
+  mid-pass; this entry honors it.
