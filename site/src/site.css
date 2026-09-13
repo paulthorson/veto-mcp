@@ -2458,8 +2458,13 @@ section[id] {
 }
 .jdtry-textarea::placeholder { color: var(--ink-faint); }
 .jdtry-textarea:focus {
-  outline: none;
   border-color: var(--amber);
+}
+/* Visible keyboard focus: the shared :focus-visible ring must survive here.
+   (An earlier `outline: none` killed it — a web-contract violation.) */
+.jdtry-textarea:focus-visible {
+  outline: var(--border-width-thick) solid var(--green-neon);
+  outline-offset: 2px;
 }
 
 .jdtry-error {
