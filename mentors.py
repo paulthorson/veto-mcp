@@ -20,6 +20,17 @@ Connects mentors with people seeking mentorship, opt-in only on both sides:
   for your weakest areas, with evidence drawn from real scores.
 * ``session_agenda(mentor_id, mentee_goal)`` builds a 30-minute first-
   session plan as markdown — a starting template, not a script.
+* ``matchmake(answers, consent_preview=False)``: the questionnaire now
+  takes context, urgency, expected outcome, and (voluntarily supplied)
+  identity preferences — the last are echoed, never ranked on. With
+  ``consent_preview=True``, contact fields are redacted per the
+  Initiative 07 revelation rule (see initiatives/i07/CONTRACTS.md):
+  neither profile contact detail is revealed until both parties approve
+  the introduction via the consent handshake.
+* Mentor cards may carry ``availability_windows``, ``boundaries``
+  (offers/wont/note), and ``preferred_contact`` ("hidden" default —
+  contact sealed until mutual consent; "linkedin_public" opts the URL
+  into the public discovery card).
 * ``rate_mentorship(mentor_id, stars, note="", by="mentee")`` records
   two-sided ratings ("mentee" or "mentor" perspective); per-side averages
   show on cards and match results.
@@ -185,6 +196,50 @@ def _validate_profile(profile: dict[str, Any]) -> dict[str, Any]:
     if len(bio) > 280:
         raise ValueError("profile['bio'] must be 280 characters or fewer")
 
+    # Preferred contact path: "hidden" (default — revealed only after
+    # mutual two-sided consent) or "linkedin_public" (the mentor explicitly
+    # opts their LinkedIn URL into the public discovery card).
+    preferred_contact = profile.get("preferred_contact", "hidden")
+    if preferred_contact not in ("hidden", "linkedin_public"):
+        raise ValueError(
+            "profile['preferred_contact'] must be 'hidden' or "
+            f"'linkedin_public', got {preferred_contact!r}"
+        )
+
+    # Structured availability windows: list of {"day", "start", "end"} or
+    # plain strings like "Tue/Thu afternoons".
+    availability_windows = profile.get("availability_windows") or []
+    if not isinstance(availability_windows, list):
+        raise ValueError("profile['availability_windows'] must be a list")
+    for w in availability_windows:
+        if isinstance(w, dict):
+            if not w.get("day"):
+                raise ValueError(
+                    "availability_windows entries need at least a 'day'"
+                )
+        elif not isinstance(w, str) or not w.strip():
+            raise ValueError(
+                "availability_windows entries must be dicts or non-empty strings"
+            )
+
+    # Boundaries: what the mentor offers and what they will not do.
+    boundaries = profile.get("boundaries") or {}
+    if not isinstance(boundaries, dict):
+        raise ValueError("profile['boundaries'] must be a dict")
+    for key in ("offers", "wont"):
+        vals = boundaries.get(key) or []
+        if not isinstance(vals, list) or any(
+            not isinstance(v, str) or not v.strip() for v in vals
+        ):
+            raise ValueError(
+                f"profile['boundaries'][{key!r}] must be a list of non-empty strings"
+            )
+    note = boundaries.get("note", "")
+    if note is not None and not isinstance(note, str):
+        raise ValueError("profile['boundaries']['note'] must be a string")
+    if len(note) > 500:
+        raise ValueError("profile['boundaries']['note'] must be 500 characters or fewer")
+
     return {
         "id": _card_id(linkedin_url),
         "name": name,
@@ -193,7 +248,14 @@ def _validate_profile(profile: dict[str, Any]) -> dict[str, Any]:
         "seniority": seniority,
         "topics": list(dict.fromkeys(topics)),  # dedupe, keep order
         "linkedin_url": linkedin_url.strip(),
+        "preferred_contact": preferred_contact,
         "availability": (availability or "").strip(),
+        "availability_windows": availability_windows,
+        "boundaries": {
+            "offers": [str(v).strip() for v in (boundaries.get("offers") or [])],
+            "wont": [str(v).strip() for v in (boundaries.get("wont") or [])],
+            "note": note.strip(),
+        },
         "max_mentees": max_mentees,
         "mentee_count": 0,
         "bio": bio.strip(),
@@ -211,11 +273,17 @@ def mentor_opt_in(profile: dict[str, Any], own: bool = True) -> dict[str, Any]:
     """Publish a mentor card to the local directory.
 
     The mentor controls their own privacy: ``name`` may be a full display
-    name or just initials. Only the LinkedIn URL is shared as contact info.
-    Cards contributed by others (e.g. synced from the community directory)
-    are added with ``own=False``. Raises ``ValueError`` on invalid profiles
-    (bad LinkedIn URL, unknown topic, non-positive max_mentees, missing
-    fields).
+    name or just initials. Contact info is sealed by default
+    (``preferred_contact="hidden"``): the LinkedIn URL is revealed only
+    after mutual two-sided consent via the Initiative 07 handshake; a
+    mentor may instead pass ``preferred_contact="linkedin_public"`` to opt
+    the URL into the public discovery card. Optional profile fields:
+    ``availability_windows`` (structured availability), ``boundaries``
+    (``offers`` / ``wont`` lists plus a ``note`` — what the mentor will
+    and will not discuss). Cards contributed by others (e.g. synced from
+    the community directory) are added with ``own=False``. Raises
+    ``ValueError`` on invalid profiles (bad LinkedIn URL, unknown topic,
+    non-positive max_mentees, missing fields).
     """
     card = _validate_profile(profile)
     card["own"] = own
@@ -248,7 +316,8 @@ def my_mentor_card(updates: dict[str, Any] | None = None) -> dict[str, Any]:
     """Show (and optionally edit) your own mentor card.
 
     ``updates`` may change name, industry, role, seniority, topics,
-    availability, max_mentees, bio, or linkedin_url. Invalid updates raise
+    availability, availability_windows, boundaries, preferred_contact,
+    max_mentees, bio, or linkedin_url. Invalid updates raise
     ``ValueError``; contact-info rules still apply.
     """
     directory = _load_directory()
@@ -265,7 +334,9 @@ def my_mentor_card(updates: dict[str, Any] | None = None) -> dict[str, Any]:
         merged["mentee_count"] = card.get("mentee_count", 0)
         for key, value in updates.items():
             if key in ("name", "industry", "role", "seniority", "topics",
-                       "linkedin_url", "availability", "max_mentees", "bio"):
+                       "linkedin_url", "preferred_contact", "availability",
+                       "availability_windows", "boundaries", "max_mentees",
+                       "bio"):
                 merged[key] = value
         # Re-validate everything through the same gate.
         rechecked = _validate_profile(merged)
@@ -306,11 +377,23 @@ def _role_similarity(target_role: str, mentor_role: str) -> float:
     return len(target & mentor) / len(target | mentor)
 
 
-def matchmake(answers: dict[str, Any]) -> dict[str, Any]:
+_VALID_URGENCY = ("this_week", "this_month", "exploring")
+
+
+def matchmake(
+    answers: dict[str, Any],
+    consent_preview: bool = False,
+    exclude_mentor_ids: tuple[str, ...] | list[str] = (),
+) -> dict[str, Any]:
     """Rank mentors against a mentee's questionnaire.
 
     ``answers`` keys: industry (str), target_role (str),
-    topics_ranked (list, most important first), goal (one sentence, str).
+    topics_ranked (list, most important first), goal (one sentence, str),
+    context (str, optional background), urgency (one of "this_week",
+    "this_month", "exploring"), expected_outcome (str — what a useful
+    session would produce), identity_preferences (optional dict, accepted
+    ONLY when voluntarily supplied; stored verbatim and NEVER used for
+    ranking).
 
     Score out of 100 (deterministic):
       industry match 40, role proximity 25, topic overlap 25 (rank-weighted),
@@ -318,24 +401,55 @@ def matchmake(answers: dict[str, Any]) -> dict[str, Any]:
 
     Only mentors with remaining capacity are considered. An empty directory
     returns an empty match list plus guidance — mentors are never invented.
+
+    ``consent_preview=True`` redacts contact fields from every match
+    (Initiative 07 revelation rule): no LinkedIn URL unless the mentor
+    explicitly opted it into the public discovery card. Use this mode for
+    the two-sided-consent introduction flow; the default full mode remains
+    for the self-serve cold-contact path (the mentee sends their own
+    LinkedIn note via ``connection_draft``).
+
+    ``exclude_mentor_ids`` hides mentors from results entirely (blocked or
+    quarantined actors — see ``initiatives.i07.safety.discovery_exclusions``).
     """
     answers = answers or {}
     industry = str(answers.get("industry", "")).strip().lower()
     target_role = str(answers.get("target_role", "")).strip()
     topics_ranked = [t for t in (answers.get("topics_ranked") or []) if t in TOPICS]
     goal = str(answers.get("goal", "")).strip()
+    context = str(answers.get("context", "")).strip()
+    expected_outcome = str(
+        answers.get("expected_outcome") or answers.get("useful_session_outcome") or ""
+    ).strip()
+    urgency = str(answers.get("urgency", "") or "exploring").strip().lower()
+    if urgency not in _VALID_URGENCY:
+        urgency = "exploring"
+    # Voluntary only: echoed back for transparency, never ranked on.
+    identity_preferences = answers.get("identity_preferences")
+    if not isinstance(identity_preferences, dict):
+        identity_preferences = {}
 
     directory = _load_directory()
-    available = [c for c in directory.values() if remaining_capacity(c) > 0]
+    excluded = set(exclude_mentor_ids or ())
+    with_capacity = [c for c in directory.values() if remaining_capacity(c) > 0]
+    available = [c for c in with_capacity if c.get("id") not in excluded]
     if not available:
-        return {
-            "ok": True,
-            "matches": [],
-            "guidance": (
+        if with_capacity and excluded:
+            guidance = (
+                "No mentors available after applying your safety exclusions "
+                "(blocked or under-review mentors are hidden). Unblock or "
+                "wait for review to clear before they can reappear."
+            )
+        else:
+            guidance = (
                 "No mentors with remaining capacity in the local directory yet. "
                 "Opt in as a mentor with mentor_opt_in, or contribute a card to "
                 "the community directory with publish_mentor_card(confirmed=True)."
-            ),
+            )
+        return {
+            "ok": True,
+            "matches": [],
+            "guidance": guidance,
         }
 
     ranked: list[dict[str, Any]] = []
@@ -396,7 +510,11 @@ def matchmake(answers: dict[str, Any]) -> dict[str, Any]:
                 "seniority": card.get("seniority"),
                 "topics": card.get("topics"),
                 "linkedin_url": card.get("linkedin_url"),
+                "preferred_contact": card.get("preferred_contact", "hidden"),
+                "bio": card.get("bio"),
                 "availability": card.get("availability"),
+                "availability_windows": card.get("availability_windows", []),
+                "boundaries": card.get("boundaries", {}),
                 "remaining_capacity": cap,
                 "score": min(100, round(score, 1)),
                 "reasons": reasons,
@@ -406,16 +524,65 @@ def matchmake(answers: dict[str, Any]) -> dict[str, Any]:
         )
 
     ranked.sort(key=lambda m: (-m["score"], m["name"]))
+    if consent_preview:
+        ranked = [_consent_preview_view(m) for m in ranked]
+    guidance = (
+        f"{len(ranked)} mentor(s) with open capacity. The mentee always "
+        "initiates: use connection_draft to write a LinkedIn note and send "
+        "it yourself — the tool never sends on your behalf."
+    )
+    if urgency == "this_week":
+        guidance += (
+            " You marked this urgent: prefer mentors whose availability "
+            "mentions this week, and keep your first message short."
+        )
+    if identity_preferences:
+        guidance += (
+            " Your identity preferences were recorded as you supplied them; "
+            "they are never used for ranking."
+        )
     return {
         "ok": True,
         "matches": ranked,
-        "guidance": (
-            f"{len(ranked)} mentor(s) with open capacity. The mentee always "
-            "initiates: use connection_draft to write a LinkedIn note and send "
-            "it yourself — the tool never sends on your behalf."
-        ),
+        "guidance": guidance,
         "mentee_goal": goal,
+        "mentee_context": context,
+        "mentee_urgency": urgency,
+        "mentee_expected_outcome": expected_outcome,
+        "identity_preferences": identity_preferences,
+        "consent_preview": consent_preview,
     }
+
+
+def _consent_preview_view(match: dict[str, Any]) -> dict[str, Any]:
+    """Redact a match dict for pre-consent display (Initiative 07).
+
+    Discovery fields stay; contact fields go unless the mentor explicitly
+    opted their LinkedIn URL into the public discovery card. Lazy import
+    keeps mentors.py free of import cycles with initiatives.i07.
+    """
+    from initiatives.i07 import consent as _consent
+
+    cardish = {
+        "id": match.get("mentor_id"),
+        "name": match.get("name"),
+        "industry": match.get("industry"),
+        "role": match.get("role"),
+        "seniority": match.get("seniority"),
+        "topics": match.get("topics"),
+        "bio": match.get("bio"),
+        "availability": match.get("availability"),
+        "remaining_capacity": match.get("remaining_capacity"),
+        "rating_summary": match.get("ratings"),
+        "reasons": match.get("reasons"),
+        "score": match.get("score"),
+        "preferred_contact": match.get("preferred_contact"),
+        "linkedin_url": match.get("linkedin_url"),
+    }
+    preview = _consent.redacted_preview(cardish)
+    preview["mentor_id"] = preview.pop("id", match.get("mentor_id"))
+    preview["ratings"] = preview.pop("rating_summary", match.get("ratings"))
+    return preview
 
 
 def record_outreach(mentor_id: str) -> dict[str, Any]:
