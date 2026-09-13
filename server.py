@@ -187,6 +187,10 @@ for _plugin_name in (
     "network_crm",
     "rejection_autopsy",
     "streaks",
+    "notify",
+    "provider_health",
+    "reply_radar",
+    "action_inbox",
 ):
     try:
         _PLUGIN_MODULES.append((_plugin_name, __import__(_plugin_name)))
@@ -1166,6 +1170,14 @@ def apply_to_job(
     _governance_record_outcome(
         job_id=job_id, preview=preview, passed=True, note="phase-1 recorded"
     )
+    # outcome-min-v0 capture: append-only `applied` event. Guarded so
+    # capture can never break a confirmed submission.
+    try:
+        import outcomes as _outcomes
+
+        _outcomes.record_application_event(entry, source="server:apply_to_job")
+    except Exception:
+        log.exception("outcome-min-v0 capture failed for %s", job_id)
     log.info("Application confirmed for %s (%s)", entry["title"], job_id)
     return {
         "status": "confirmed",
@@ -1254,6 +1266,14 @@ def _apply_via_browser_and_record(
     applications = _load_applications()
     applications.append(entry)
     _save_applications(applications)
+    # outcome-min-v0 capture: append-only `applied` event. Guarded so
+    # capture can never break a confirmed submission.
+    try:
+        import outcomes as _outcomes
+
+        _outcomes.record_application_event(entry, source="server:browser_apply")
+    except Exception:
+        log.exception("outcome-min-v0 capture failed for %s", job_id)
     log.info(
         "Phase 2 apply for %s (%s): submitted=%s",
         entry["title"],
