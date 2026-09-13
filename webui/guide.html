@@ -92,7 +92,27 @@
       transition: var(--motion-reduced) !important;
     }
   }
+  /* Delight toast (context-gated; see ../delight.js gate contract). */
+  .delight-toast {
+    position: fixed; right: 16px; bottom: 16px; z-index: 700;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel); color: var(--ink);
+    border: var(--border-width-thick) solid var(--green); box-shadow: var(--shadow-hard-md);
+    padding: 12px 12px 12px 16px; font: inherit; font-size: 14px;
+    max-width: min(420px, calc(100vw - 32px));
+    animation: delight-in 0.24s steps(6);
+  }
+  @keyframes delight-in { from { transform: translateY(12px); opacity: 0; } }
+  .delight-toast.delight-static { animation: none; }
+  .delight-mark { color: var(--green); font-weight: 800; }
+  .delight-text { flex: 1; }
+  .delight-close {
+    width: 44px; height: 44px; flex: 0 0 44px; background: transparent;
+    color: var(--dim); border: 2px solid var(--line); font-size: 20px;
+    line-height: 1; cursor: pointer; font: inherit;
+  }
 </style>
+<script src="delight.js"></script>
 </head>
 <body>
 <header>
@@ -182,12 +202,21 @@
     document.getElementById("bar").firstElementChild.style.width =
       (100 * done.length / total) + "%";
   }
+  var toasted = false;
   document.querySelectorAll(".step .donebtn").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var id = btn.closest(".step").id;
       var i = done.indexOf(id);
       if (i === -1) done.push(id); else done.splice(i, 1);
       save(done); refresh();
+      /* Context-gated delight: ONLY after the user-initiated success of
+         completing every setup step. Never on error/empty states. */
+      var total = document.querySelectorAll(".step").length;
+      if (!toasted && done.length === total && window.VetoDelight) {
+        toasted = true;
+        window.VetoDelight.success("Phone setup complete — you're ready to connect.");
+      }
+      if (done.length < total) toasted = false;
     });
   });
   refresh();
