@@ -595,6 +595,33 @@ def draft_outreach(
     }
 
 
+def plan_outreach_drafts(
+    prospects: list[dict[str, Any]],
+    job: dict[str, Any] | None = None,
+    profile: dict[str, Any] | None = None,
+    *,
+    kind: str = "warm",
+    max_drafts: int = 5,
+) -> list[dict[str, Any]]:
+    """Draft outreach for ranked referral prospects — drafts only, never sent.
+
+    Takes prospects as returned by :func:`rank_referrals` and produces one
+    draft per prospect (up to ``max_drafts``), each carrying the prospect's
+    ``evidence`` labels so the human reviewer can see exactly what the
+    draft is based on. Returns draft dicts; nothing is transmitted.
+    """
+    drafts: list[dict[str, Any]] = []
+    for prospect in (prospects or [])[:max(0, max_drafts)]:
+        if not isinstance(prospect, dict) or not prospect.get("name"):
+            continue
+        text = draft_outreach(prospect, job=job, profile=profile, kind=kind)
+        text["evidence"] = list(prospect.get("evidence", []))
+        text["reasons"] = list(prospect.get("reasons", []))
+        text["status"] = "draft"
+        drafts.append(text)
+    return drafts
+
+
 # ---------------------------------------------------------------------------
 # MCP + CLI wiring (called by the parent; never imported by server.py here)
 # ---------------------------------------------------------------------------
