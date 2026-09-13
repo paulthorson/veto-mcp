@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+> Design-system checkout assumption: this package depends on the Veto
+> design-system monorepo (`@veto/tokens`, `@veto/web`) via `file:`
+> references, so `veto-design-system` must sit **alongside** this checkout
+> (i.e. `../../veto-design-system` relative to `site/`) with the same
+> directory name, or `npm install` will fail to resolve them.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
