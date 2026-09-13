@@ -6,8 +6,9 @@ initiative: the previous version is archived under `archive/` first, then
 the counts below are recomputed from the sources of truth.
 
 - **Current as of:** 2026-09-13
-- **Initiatives with proof:** 2 of 3
-  (`initiative-01-outcomes-lifecycle`, `initiative-02-adaptive-fit-engine`)
+- **Initiatives with proof:** 3 of 3
+  (`initiative-01-outcomes-lifecycle`, `initiative-02-adaptive-fit-engine`,
+  `initiative-03-daily-operating-loop`)
 
 ## Cumulative review verdicts
 
@@ -34,6 +35,7 @@ By domain: compliance 1, engineer 1, product 2, researcher 2 — all ALLOW.
 |------------|------------|-------------|-----------|----------|
 | 2026-09-13 | 01 outcomes-lifecycle | WS-6: funnels, experiment ledger, outcome nudges | 23 | researcher ALLOW |
 | 2026-09-13 | 02 adaptive-fit-engine | WS-5: calibration gate, model card, near-miss | 20 | researcher ALLOW |
+| 2026-09-13 | 03 daily-operating-loop | WS-1..WS-4: notify controls, provider health, reply radar + confirmation gate, top-five brief + action inbox | 101 | compliance/engineer/product ALLOW |
 
 ## Quality / test results
 
@@ -52,6 +54,7 @@ By domain: compliance 1, engineer 1, product 2, researcher 2 — all ALLOW.
 
 - `initiatives/initiative-01-outcomes-lifecycle.md` — shipped 2026-09-13.
 - `initiatives/initiative-02-adaptive-fit-engine.md` — shipped 2026-09-13.
+- `initiatives/initiative-03-daily-operating-loop.md` — shipped 2026-09-13.
 
 ## Learnings
 
