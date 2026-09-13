@@ -191,6 +191,12 @@ for _plugin_name in (
     "provider_health",
     "reply_radar",
     "action_inbox",
+    "calibration",
+    "model_card",
+    "near_miss",
+    "funnels",
+    "experiment_ledger",
+    "outcome_nudges",
 ):
     try:
         _PLUGIN_MODULES.append((_plugin_name, __import__(_plugin_name)))

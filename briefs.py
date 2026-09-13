@@ -692,6 +692,154 @@ def _prep_markdown(prep: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _score_provenance() -> dict[str, Any]:
+    """How the fit scores were produced (Initiative 02 evidence gate).
+
+    Personalized weights stay pinned OFF until the Initiative 02 evidence
+    gate passes (>=20 resolved outcomes incl. >=4 qualified replies, and no
+    role-family slice below 10 resolved / 2 replies). When the calibration
+    module exists and reports the gate met, provenance says so explicitly;
+    otherwise it says ``static`` and why.
+    """
+    provenance: dict[str, Any] = {
+        "model": "static",
+        "personalized": False,
+        "weights_source": "static defaults (match.score_job)",
+    }
+    try:
+        import calibration  # Initiative 02 (may not exist yet)
+
+        status = calibration.evidence_gate_status()
+    except Exception as exc:  # fail closed: any calibration problem pins OFF
+        log.warning("calibration.evidence_gate_status failed: %s", exc)
+        provenance["reason"] = (
+            "adaptive weights pinned off: calibration unavailable or "
+            f"errored ({exc.__class__.__name__}); static scoring only"
+        )
+        return provenance
+    gate = bool(status.get("gate_met"))
+    provenance["personalized"] = gate
+    provenance["model"] = "personalized" if gate else "static"
+    provenance["weights_source"] = status.get("weights_source", "unknown")
+    provenance["evidence"] = {
+        "resolved_outcomes": status.get("resolved_outcomes"),
+        "qualified_replies": status.get("qualified_replies"),
+        "gate_met": gate,
+    }
+    if not gate:
+        provenance["reason"] = (
+            "adaptive weights pinned off: Initiative 02 evidence gate not "
+            "met; static scoring only"
+        )
+    return provenance
+
+
+def _readiness_notes(
+    job: dict[str, Any], profile: dict[str, Any]
+) -> list[str]:
+    """Application readiness signals (never invents facts)."""
+    notes: list[str] = []
+    missing = [
+        field for field in ("skills", "seniority", "location")
+        if not profile.get(field)
+    ]
+    if missing:
+        notes.append(f"profile incomplete: add {', '.join(missing)}")
+    else:
+        notes.append("profile complete (skills, seniority, location)")
+    resume = list((BASE_DIR / "profiles").glob("resume.*"))
+    if resume:
+        notes.append("resume on file")
+    else:
+        notes.append("no resume on file — add one before applying")
+    return notes
+
+
+def daily_top_five(
+    jobs: list[dict[str, Any]] | None = None,
+    profile: dict[str, Any] | None = None,
+    preferences: dict[str, Any] | None = None,
+    limit: int = 5,
+) -> dict[str, Any]:
+    """Rank today's best qualified opportunities (Initiative 03 daily loop).
+
+    Args:
+        jobs: candidate postings (e.g. from a saved search). ``None`` means
+            no input — the brief says so rather than inventing candidates.
+        profile: candidate profile (defaults to the saved profile, {} when
+            none exists).
+        preferences: user preferences ({} when none exist).
+        limit: how many to return (default 5).
+
+    Returns:
+        {date, considered, vetoed, top: [...], provenance}. Each entry:
+        {job_id, title, company, fit_score, fit_band, evidence (top score
+        reasons), freshness_days, readiness (notes), tos}. ``provenance``
+        states explicitly whether scores are static or personalized
+        (Initiative 02 gate).
+    """
+    from datetime import date as _date
+
+    import match
+
+    jobs = list(jobs or [])
+    if profile is None:
+        try:
+            import profiles
+
+            profile = profiles.load_profile()
+        except (ImportError, AttributeError):
+            profile = {}
+    profile = profile or {}
+    preferences = preferences or {}
+
+    ranked: list[dict[str, Any]] = []
+    vetoed = 0
+    for job in jobs:
+        scored = match.score_job(job, profile, preferences)
+        if scored.get("veto"):
+            vetoed += 1
+            continue
+        age = match._posting_age_days(job)  # same-package freshness helper
+        ranked.append(
+            {
+                "job_id": job.get("job_id") or job.get("id"),
+                "title": job.get("title"),
+                "company": job.get("company"),
+                "location": job.get("location"),
+                "board": job.get("board"),
+                "fit_score": scored.get("score"),
+                "fit_band": _fit_band(scored.get("score", 0)),
+                "evidence": list(scored.get("reasons", []))[:6],
+                "matched_skills": list(scored.get("matched", [])),
+                "missing_skills": list(scored.get("missing", [])),
+                "freshness_days": round(age, 1) if age is not None else None,
+                "readiness": _readiness_notes(job, profile),
+            }
+        )
+    ranked.sort(key=lambda r: (r.get("fit_score") or 0), reverse=True)
+    top = ranked[: max(0, limit)]
+    return {
+        "date": _date.today().isoformat(),
+        "considered": len(jobs),
+        "qualified": len(ranked),
+        "vetoed": vetoed,
+        "top": top,
+        "provenance": _score_provenance(),
+        **({} if jobs else {"note": "no jobs supplied — nothing ranked"}),
+    }
+
+
+def _fit_band(score: int) -> str:
+    if score >= 85:
+        return "excellent"
+    if score >= 70:
+        return "strong"
+    if score >= 60:
+        return "borderline"
+    return "weak"
+
+
 def register_tools(mcp: Any) -> None:
     """Register the brief/prep MCP tools on an MCP server instance."""
     # Bind the module-level implementations explicitly: the @mcp.tool()
@@ -699,6 +847,7 @@ def register_tools(mcp: Any) -> None:
     # the globals inside this scope.
     _impl_brief = globals()["company_brief"]
     _impl_prep = globals()["prep_interview"]
+    _impl_top5 = globals()["daily_top_five"]
 
     @mcp.tool()
     def company_brief(company: str) -> dict:
@@ -730,6 +879,21 @@ def register_tools(mcp: Any) -> None:
         """
         return _impl_prep(job_id)
 
+    @mcp.tool()
+    def brief_top_five(jobs: list) -> dict:
+        """Rank today's top-five opportunities by fit, with evidence.
+
+        Args:
+            jobs: candidate postings (e.g. from search_jobs), each with
+                title/company/snippet/description/requirements/location/board.
+
+        Returns:
+            Dict with date, considered/qualified/vetoed counts, top five
+            entries (fit score, fit band, evidence, freshness, readiness),
+            and scoring provenance (static vs personalized).
+        """
+        return _impl_top5(jobs)
+
 
 def _print_result(result: dict[str, Any], as_json: bool) -> None:
     if as_json:
@@ -750,6 +914,39 @@ def cmd_prep_interview(args: Any) -> int:
         prep_interview(args.job_id), getattr(args, "json", False)
     )
     return 0
+
+
+def cmd_top_five(args: Any) -> int:
+    """CLI handler for `top-five`."""
+    try:
+        jobs = json.loads(Path(args.jobs_file).read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        print(f"error: cannot read jobs file: {exc}")
+        return 2
+    if not isinstance(jobs, list):
+        print("error: jobs file must contain a JSON list of postings")
+        return 2
+    result = daily_top_five(jobs, limit=args.limit)
+    _print_top_five(result, getattr(args, "json", False))
+    return 0
+
+
+def _print_top_five(result: dict[str, Any], as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    prov = result.get("provenance", {})
+    print(f"Top opportunities — {result.get('date')} "
+          f"({result.get('qualified')}/{result.get('considered')} qualified, "
+          f"{result.get('vetoed')} vetoed)")
+    print(f"Scoring: {prov.get('model')} ({prov.get('weights_source')})")
+    for i, entry in enumerate(result.get("top", []), 1):
+        fresh = entry.get("freshness_days")
+        print(f"\n{i}. {entry.get('title')} @ {entry.get('company')} "
+              f"— fit {entry.get('fit_score')} ({entry.get('fit_band')})"
+              + (f", posted {fresh}d ago" if fresh is not None else ""))
+        for reason in entry.get("evidence", [])[:3]:
+            print(f"   - {reason}")
 
 
 def register_cli(subparsers: Any) -> dict[str, Any]:
@@ -774,7 +971,19 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
         "--json", action="store_true", help="Machine-readable JSON output."
     )
 
+    p_top = subparsers.add_parser(
+        "top-five", help="Rank today's top opportunities by fit."
+    )
+    p_top.add_argument(
+        "jobs_file", help="JSON file with a list of candidate postings."
+    )
+    p_top.add_argument("--limit", type=int, default=5)
+    p_top.add_argument(
+        "--json", action="store_true", help="Machine-readable JSON output."
+    )
+
     return {
         "company-brief": cmd_company_brief,
         "prep-interview": cmd_prep_interview,
+        "top-five": cmd_top_five,
     }
