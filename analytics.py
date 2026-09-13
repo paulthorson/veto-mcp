@@ -12,6 +12,10 @@ backfills legacy entries in memory) and computes pipeline statistics:
 * :func:`stale_applications` — applications stuck in ``applied`` with no
   update for N days (feeds follow-up nudges).
 * :func:`generate_report` — the full report dict.
+* :func:`outcome_coverage` — outcome-event coverage vs the Q4 exit gate
+  (>= 95% of observed state changes captured as auditable events).
+* :func:`outcome_timeline` — recent ``outcome-min-v0`` events, newest
+  first (optionally for one application).
 
 Wiring (additive; the parent wires these in, this module never imports
 ``server.py`` or ``cli.py``):
@@ -34,6 +38,7 @@ from pathlib import Path
 from typing import Any
 
 import lifecycle
+import outcomes
 
 BASE_DIR = Path(__file__).resolve().parent
 APPLICATIONS_FILE = BASE_DIR / "applications.json"
@@ -267,6 +272,7 @@ def generate_report(
     """Build the full analytics report from the applications store."""
     now = now or datetime.now(timezone.utc)
     applications = load_applications(path)
+    events_path = outcomes.default_events_path(path or APPLICATIONS_FILE)
     return {
         "generated_at": now.isoformat(),
         "total_applications": len(applications),
@@ -277,7 +283,69 @@ def generate_report(
             applications, days=stale_days, now=now
         ),
         "stale_days": stale_days,
+        "event_coverage": outcome_coverage(
+            applications=applications, events_path=events_path, now=now
+        ),
+        "recent_outcome_events": outcome_timeline(
+            events_path=events_path, limit=10
+        ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Outcome-event queries (outcome-min-v0 event-query side)
+# ---------------------------------------------------------------------------
+
+
+def outcome_coverage(
+    applications: list[dict[str, Any]] | None = None,
+    events_path: str | Path | None = None,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Outcome-event coverage vs the Q4 exit gate.
+
+    Wraps :func:`outcomes.coverage_report`: cohort coverage (applied
+    events for post-enablement submissions), semantic coverage
+    (canonical types observed ÷ 11), and state-change coverage (the
+    >= 95% gate metric).
+    """
+    apps = (
+        applications
+        if applications is not None
+        else load_applications()
+    )
+    return outcomes.coverage_report(apps, events_path, now=now)
+
+
+def outcome_timeline(
+    events_path: str | Path | None = None,
+    *,
+    application_id: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Recent outcome events, newest first (optionally one application)."""
+    return outcomes.timeline(
+        events_path, application_id=application_id, limit=limit
+    )
+
+
+def outcome_prompts(
+    applications: list[dict[str, Any]] | None = None,
+    events_path: str | Path | None = None,
+    *,
+    stale_days: int = 14,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Applications needing an outcome prompt (stale/missing outcomes)."""
+    apps = (
+        applications
+        if applications is not None
+        else load_applications()
+    )
+    return outcomes.missing_outcome_prompts(
+        apps, events_path, stale_days=stale_days, now=now
+    )
 
 
 # ---------------------------------------------------------------------------

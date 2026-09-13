@@ -408,6 +408,11 @@ _PLUGIN_CLI_MODULES = (
     "network_crm",
     "rejection_autopsy",
     "streaks",
+    "outcomes",
+    "notify",
+    "provider_health",
+    "reply_radar",
+    "action_inbox",
 )
 
 

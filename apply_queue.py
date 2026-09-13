@@ -182,7 +182,20 @@ def _default_record_fn(job_id: str, result: dict) -> dict:
     preview = preview if isinstance(preview, dict) else {}
     applications = _load_applications()
     if any(e.get("job_id") == job_id for e in applications):
-        return next(e for e in applications if e.get("job_id") == job_id)
+        existing = next(e for e in applications if e.get("job_id") == job_id)
+        # Already recorded: still ensure the outcome event exists (the
+        # original recording may predate capture). Duplicate-safe.
+        try:
+            import outcomes as _outcomes
+
+            _outcomes.record_application_event(existing, source="apply_queue")
+        except Exception:  # noqa: BLE001 - capture must never break recording
+            import logging
+
+            logging.getLogger("job-apply-mcp.apply_queue").exception(
+                "outcome-min-v0 capture failed for %s", job_id
+            )
+        return existing
     submitted_at = _utcnow_iso()
     entry = {
         "job_id": job_id,
@@ -202,6 +215,18 @@ def _default_record_fn(job_id: str, result: dict) -> dict:
     }
     applications.append(entry)
     _save_applications(applications)
+    # outcome-min-v0 capture: append-only `applied` event. Guarded so
+    # capture can never break a confirmed queue submission.
+    try:
+        import outcomes as _outcomes
+
+        _outcomes.record_application_event(entry, source="apply_queue")
+    except Exception:  # noqa: BLE001 - capture must never break recording
+        import logging
+
+        logging.getLogger("job-apply-mcp.apply_queue").exception(
+            "outcome-min-v0 capture failed for %s", job_id
+        )
     return entry
 
 
