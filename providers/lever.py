@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -156,6 +157,21 @@ class LeverProvider:
             for item in (raw.get("lists") or [])
             if isinstance(item, dict)
         ]
+        workplace = (raw.get("workplaceType") or "").lower()
+        # Apply-readiness enrichment (Initiative 09, epic 2). Lever's public
+        # postings API does not expose the application question list, so
+        # application_questions is 0 and the readiness note says so — the
+        # honest declaration is part of the feature.
+        posted_ms = raw.get("createdAt")
+        posted_date = ""
+        try:
+            if posted_ms:
+                posted_date = datetime.fromtimestamp(
+                    int(posted_ms) / 1000, tz=timezone.utc
+                ).strftime("%Y-%m-%d")
+        except (TypeError, ValueError, OSError):
+            posted_date = ""
+        departments = [c for c in (cats.get("department"), cats.get("team")) if c]
         return {
             "url": raw.get("hostedUrl") or "",
             "board": self.name,
@@ -165,4 +181,22 @@ class LeverProvider:
             "description": description,
             "requirements": "\n".join(b for b in req_bits if b),
             "apply_url": raw.get("applyUrl") or raw.get("hostedUrl") or "",
+            # --- Initiative 09 enrichment (additive; official API only) ---
+            "departments": departments,
+            "employment_type": cats.get("commitment") or "",
+            "remote": workplace == "remote",
+            "posted_date": posted_date,
+            "application_questions": 0,
+            "required_questions": 0,
+            "custom_fields": [],
+            "closing_date": "",
+            "readiness_note": (
+                "Details come from Lever's official public postings API "
+                "(read-only). The API does not expose the application "
+                "question list — questions are visible only in the "
+                "browser-assisted apply flow. Direct API submission is not "
+                "permitted to job seekers: POST apply requires a "
+                "Lever-issued API key (see "
+                "ats_apply.endpoint_status('lever'))."
+            ),
         }

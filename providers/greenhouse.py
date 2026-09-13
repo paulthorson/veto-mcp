@@ -150,19 +150,51 @@ class GreenhouseProvider:
             }
         url = data.get("absolute_url") or ""
         departments = data.get("departments") or []
+        offices = data.get("offices") or []
         metadata = data.get("metadata")
+        # Apply-readiness enrichment (Initiative 09, epic 2): the official
+        # Job Board API already answers ?questions=true, so we surface the
+        # application surface honestly without submitting anything.
+        questions = data.get("questions") or []
+        required_questions = sum(
+            1 for q in questions if isinstance(q, dict) and q.get("required")
+        )
+        custom_fields = [
+            m.get("name")
+            for m in (metadata if isinstance(metadata, list) else [])
+            if isinstance(m, dict) and m.get("name")
+        ]
+        location_name = (data.get("location") or {}).get("name") or "Unknown"
         return {
             "url": url,
             "board": self.name,
             "title": data.get("title") or "Unknown",
             "company": data.get("company_name") or prettify_token(token),
-            "location": ((data.get("location") or {}).get("name") or "Unknown"),
+            "location": location_name,
             "description": strip_html(data.get("content")),
             "requirements": self._format_metadata(metadata),
             "departments": [
                 d.get("name") for d in departments if isinstance(d, dict)
             ],
             "apply_url": url,
+            # --- Initiative 09 enrichment (additive; official API only) ---
+            "offices": [
+                o.get("name") for o in offices if isinstance(o, dict)
+            ],
+            "employment_type": "",
+            "remote": "remote" in location_name.lower(),
+            "posted_date": str(data.get("updated_at") or "")[:10],
+            "application_questions": len(questions),
+            "required_questions": required_questions,
+            "custom_fields": custom_fields,
+            "closing_date": "",
+            "readiness_note": (
+                "Details and application questions come from Greenhouse's "
+                "official public Job Board API (read-only). Direct API "
+                "submission is not permitted to job seekers: POST "
+                "applications requires an employer-issued Job Board API key "
+                "(see ats_apply.endpoint_status('greenhouse'))."
+            ),
         }
 
     @staticmethod
