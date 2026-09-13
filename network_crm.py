@@ -15,6 +15,9 @@ record of the people you know and when you last talked to them:
     toward a target company, 1st/2nd degree, via shared companies found in
     notes and interaction history. Company matching reuses
     :mod:`referrals`' normalization where available.
+  - ``log_outreach_draft`` — store an outreach DRAFT on a contact for
+    human review. Drafts are terminal review artifacts: this module never
+    sends anything and has no code path that flips a draft to sent.
 
 Honesty contract: warm paths are derived only from what you recorded.
 The tool never invents relationships, and it says plainly when no path
@@ -213,6 +216,41 @@ def list_contacts() -> list[dict[str, Any]]:
     contacts = list(_load_network().values())
     contacts.sort(key=lambda c: c.get("created_at", ""), reverse=True)
     return contacts
+
+
+def log_outreach_draft(
+    contact_id: str,
+    channel: str,
+    subject: str,
+    body: str,
+    *,
+    target_company: str = "",
+) -> dict[str, Any]:
+    """Store an outreach DRAFT on a contact record for human review.
+
+    The draft is a review artifact with ``status: "draft"`` — a terminal
+    state. This module has no code path that sends anything, and no code
+    path that flips a draft to sent: sending is always the human's
+    explicit act in their own client. Drafts never invent shared history;
+    callers must build bodies only from recorded facts.
+    """
+    if not isinstance(channel, str) or not channel.strip():
+        raise ValueError("channel is required (e.g. 'linkedin', 'email')")
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError("body is required")
+    network = _load_network()
+    contact = _get_contact(network, contact_id)
+    draft = {
+        "channel": channel.strip(),
+        "subject": str(subject or "").strip(),
+        "body": body.strip(),
+        "target_company": str(target_company or "").strip(),
+        "status": "draft",
+        "created_at": _now(),
+    }
+    contact.setdefault("outreach_drafts", []).append(draft)
+    _save_network(network)
+    return draft
 
 
 def log_interaction(
