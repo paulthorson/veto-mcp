@@ -58,20 +58,38 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // third-party: passthrough
 
-  // Mutations: try network; on failure, queue for later replay.
+  // Offline navigation fallback FIRST (exactly one respondWith per request).
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(() => caches.match("/offline.html"))
+    );
+    return;
+  }
+
+  // Mutations: try network; on failure, capture the full request (including
+  // body) and hand it to the deferred queue — nothing is silently dropped.
   if (isMutation(request)) {
     event.respondWith(
-      fetch(request.clone()).catch(async () => {
-        const clients = await self.clients.matchAll();
-        // Hand the request to the deferred queue via the client page.
-        for (const client of clients) {
-          client.postMessage({ type: "veto:queue-mutation", url: url.pathname + url.search, method: request.method });
+      (async () => {
+        try {
+          return await fetch(request.clone());
+        } catch (err) {
+          const body = await request.clone().text().catch(() => null);
+          const clients = await self.clients.matchAll();
+          for (const client of clients) {
+            client.postMessage({
+              type: "veto:queue-mutation",
+              method: request.method,
+              url: url.pathname + url.search,
+              body,
+            });
+          }
+          return new Response(
+            JSON.stringify({ queued: true, reason: "offline" }),
+            { status: 202, headers: { "Content-Type": "application/json" } }
+          );
         }
-        return new Response(
-          JSON.stringify({ queued: true, reason: "offline" }),
-          { status: 202, headers: { "Content-Type": "application/json" } }
-        );
-      })
+      })()
     );
     return;
   }
@@ -102,11 +120,4 @@ self.addEventListener("fetch", (event) => {
         })
     )
   );
-
-  // Offline navigation fallback.
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(() => caches.match("/offline.html"))
-    );
-  }
 });

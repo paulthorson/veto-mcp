@@ -102,14 +102,14 @@
     document.body.classList.toggle("veto-has-queued", pending > 0);
   }
 
-  // Service worker hands us failed mutations via postMessage.
+  // Service worker hands us failed mutations via postMessage, WITH the
+  // request body captured in the worker — enqueue directly so raw fetches
+  // (not routed through VetoQueue.submit) are never silently dropped.
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", (event) => {
       const msg = event.data || {};
       if (msg.type === "veto:queue-mutation" && msg.method && msg.url) {
-        // The page re-issues the original body from its own call site:
-        // call sites should use VetoQueue.submit(method, url, body).
-        console.warn("[veto] mutation queued offline:", msg.method, msg.url);
+        enqueue(msg.method, msg.url, msg.body || null);
       }
     });
   }
