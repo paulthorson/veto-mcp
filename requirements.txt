@@ -15,3 +15,5 @@ reportlab
 # Required by the test suite: tests/test_easy_apply.py imports pytest
 # at module level, so CI must install it (it is not only a dev tool).
 pytest
+# Initiative 10 (packaging/backup/sync): encrypted backup, E2E sync envelopes.
+cryptography>=41
