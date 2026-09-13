@@ -53,6 +53,10 @@ LOCAL_MOTION_OK = {
     "site/src/site.css": {
         "transform 0.08s steps(2), border-color 0.08s steps(2) !important",
     },
+    # Delight entrance: no --motion-* token covers keyframed entrances; the
+    # chunky steps(6) value is documented here and inert under reduced motion.
+    "webui/app.css": {"delight-in 0.24s steps(6)"},
+    "webui/guide.html": {"delight-in 0.24s steps(6)"},
 }
 
 
@@ -102,6 +106,26 @@ def test_reduced_motion_kill_switch_present():
         assert any(_has_kill_switch(t) for t in texts), (
             f"surface {name} has no prefers-reduced-motion kill switch"
         )
+
+
+def test_no_focus_outline_kills():
+    """Web contract: no stylesheet may kill the visible focus indicator.
+
+    ``outline: none`` on :focus rules defeats the shared :focus-visible
+    ring (higher specificity than the global rule). Border-color changes
+    may accompany focus, but the outline must survive.
+    """
+    for rel, path in (("site/src/site.css", SITE_CSS),
+                      ("webui/app.css", APP_CSS),
+                      ("webui/guide.html", GUIDE)):
+        text = re.sub(r"/\*.*?\*/", "", path.read_text(), flags=re.S)
+        for m in re.finditer(r"([^{}]*:focus[^{}]*)\{([^}]*)\}", text):
+            if "focus-visible" in m.group(1):
+                continue
+            declarations = m.group(2).replace(" ", "").replace("\n", "")
+            assert "outline:none" not in declarations, (
+                f"{rel}: `{m.group(1).strip()}` kills the focus outline"
+            )
 
 
 def test_terminal_reduced_motion_flag():
