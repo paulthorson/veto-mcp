@@ -12,6 +12,11 @@ Additive extension of the ``applications.json`` store:
 
 All functions take explicit paths so they are trivially testable against
 temporary directories; ``server.py`` wires them to the real store.
+
+Outcome capture (``outcome-min-v0``): :func:`update_stage` mirrors every
+stage change as a canonical outcome event in the append-only
+``outcomes.jsonl`` store (see :mod:`outcomes`). Capture is best-effort
+and exception-guarded — it can never break a stage update.
 """
 
 from __future__ import annotations
@@ -153,7 +158,43 @@ def update_stage(
         entry["follow_up_due"] = None
     save_entries(path, entries)
     log.info("Application %s -> stage %s", entry.get("job_id"), stage)
+    _capture_stage_event(path, entry, stage, note)
     return entry
+
+
+def _capture_stage_event(
+    applications_path: Path,
+    entry: dict[str, Any],
+    stage: str,
+    note: str,
+) -> None:
+    """Mirror a stage change as an outcome event (best-effort, never raises).
+
+    Maps the legacy lifecycle stage to its canonical outcome event type
+    (see ``outcomes.STAGE_TO_EVENT``) and appends to the ``outcomes.jsonl``
+    store next to the applications file. Any failure is logged, never
+    propagated — outcome capture must not break stage updates.
+    """
+    try:
+        import outcomes as _outcomes
+
+        _outcomes.record_event(
+            _outcomes.default_events_path(applications_path),
+            application_id=str(entry.get("job_id") or ""),
+            event_type=_outcomes.STAGE_TO_EVENT.get(stage, "applied"),
+            occurred_at=_utcnow_iso(),
+            source="lifecycle:update_stage",
+            role=str(entry.get("title") or ""),
+            provenance={
+                "actor": "user",
+                "method": "manual-stage-update",
+                "note": note,
+            },
+        )
+    except Exception:
+        log.exception(
+            "Outcome event capture failed for %s", entry.get("job_id")
+        )
 
 
 def stats(entries: list[dict[str, Any]]) -> dict[str, Any]:
