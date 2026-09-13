@@ -12,6 +12,9 @@ record) are confirm-gated: the first call returns a preview + preview_hash,
 and a second call with {"confirmed": true, "preview_hash": ...} only
 proceeds when the recomputed hash matches.
 
+Every /api/* route requires ``Authorization: Bearer <token>`` (see the
+Token auth section); static files stay open.
+
 Exposes ``cmd_serve(args)`` for cli.py wiring. Stdlib only.
 """
 
@@ -19,11 +22,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import html as _html  # noqa: F401  (kept for potential template use)
 import json
 import math
 import mimetypes
 import os
+import secrets
+import socket
 import sys
 import threading
 import traceback
@@ -1538,6 +1544,117 @@ def get_kpis():
 
 
 # ---------------------------------------------------------------------------
+# Token auth + LAN binding
+# ---------------------------------------------------------------------------
+# Every /api/* route requires ``Authorization: Bearer <token>``. The token
+# lives in ``~/.veto_webui_token`` (override with ``VETO_WEBUI_TOKEN_FILE``),
+# created on first serve with mode 0600. Static files stay open — the
+# frontend JS handles the login gate. The token never appears in URLs or
+# error messages. It is printed to the terminal only when the file is first
+# created, on ``--regenerate-token``, or on ``--show-token`` — never on
+# routine boots. Stdout is a log channel under process supervision, so do
+# not pipe it to logs.
+
+_TOKEN_FILE_ENV = "VETO_WEBUI_TOKEN_FILE"
+DEFAULT_TOKEN_FILE = Path.home() / ".veto_webui_token"
+
+
+def token_file_path() -> Path:
+    """Token file location: ``VETO_WEBUI_TOKEN_FILE`` override or the default."""
+    override = os.environ.get(_TOKEN_FILE_ENV)
+    return Path(override).expanduser() if override else DEFAULT_TOKEN_FILE
+
+
+def load_or_create_token(path: Path | None = None) -> str:
+    """Return the bearer token, creating the file (mode 0600) when missing.
+
+    An existing file with permissions looser than 0600 is tightened to 0600
+    with a stderr warning. Raises RuntimeError for an empty file and OSError
+    for filesystem failures.
+    """
+    path = Path(path) if path is not None else token_file_path()
+    if path.exists():
+        mode = path.stat().st_mode & 0o777
+        if mode & 0o077:
+            os.chmod(path, 0o600)
+            print(f"[webui] warning: token file {path} had permissions "
+                  f"{mode:04o}; tightened to 0600", file=sys.stderr)
+        token = path.read_text(encoding="utf-8").strip()
+        if not token:
+            raise RuntimeError(
+                f"token file {path} is empty; delete it to generate a new token")
+        return token
+    token = secrets.token_urlsafe(32)
+    try:
+        # O_EXCL so the file is never truncated mid-read by a concurrent
+        # serve; mode 0o600 so it never lands world-readable.
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        if not path.exists():
+            # Broken symlink or similar: the path doesn't resolve, yet
+            # creation collides — do not recurse forever.
+            raise OSError(
+                f"token file {path} cannot be created "
+                f"(dangling symlink?)")
+        return load_or_create_token(path)  # lost the race; read the winner
+    try:
+        os.write(fd, (token + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+    # os.open's mode is masked by the umask — re-assert 0600 explicitly.
+    os.chmod(path, 0o600)
+    return token
+
+
+def regenerate_token(path: Path | None = None) -> str:
+    """Atomically replace the token file with a fresh token (mode 0600)."""
+    path = Path(path) if path is not None else token_file_path()
+    token = secrets.token_urlsafe(32)
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}")
+    fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        os.write(fd, (token + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)  # atomic on POSIX
+    return token
+
+
+def resolve_lan_ip() -> str:
+    """Best-effort LAN IPv4 for this machine. Raises OSError when unknown."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # No packets are sent: connect() just picks the source address the
+        # kernel would use for the default route.
+        sock.connect(("8.8.8.8", 53))
+        return sock.getsockname()[0]
+    except OSError:
+        pass
+    finally:
+        sock.close()
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except OSError as exc:
+        raise OSError(
+            "could not determine this machine's LAN IPv4 address "
+            f"(UDP route lookup and hostname resolution both failed: {exc})"
+        ) from exc
+
+
+def resolve_bind_host(host: str) -> str:
+    """Map the --host flag to a bind address; ``lan`` auto-detects the LAN IP."""
+    if host == "lan":
+        try:
+            return resolve_lan_ip()
+        except OSError as exc:
+            raise OSError(
+                f"--host lan: {exc}; pass an explicit IP address instead"
+            ) from exc
+    return host
+
+
+# ---------------------------------------------------------------------------
 # HTTP server
 # ---------------------------------------------------------------------------
 
@@ -1545,12 +1662,14 @@ class _Handler(BaseHTTPRequestHandler):
     server_version = "VetoWebUI/1.0"
 
     # -- helpers ---------------------------------------------------------
-    def _send_json(self, obj, status=200):
+    def _send_json(self, obj, status=200, headers=None):
         body = json.dumps(obj).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -1572,10 +1691,61 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # keep logs tidy
         sys.stderr.write(f"[webui] {self.address_string()} {fmt % args}\n")
 
+    # -- auth ------------------------------------------------------------
+    def _token_from_file(self) -> str | None:
+        """Read-only token lookup for servers that carry no ``auth_token``.
+
+        A bare ``http.server.HTTPServer`` wrapping this handler has no token
+        in memory. Read the token file env-aware, but never create it here:
+        a missing/unreadable/empty file yields None (fail closed).
+        """
+        try:
+            value = token_file_path().read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError):
+            return None
+        return value or None
+
+    def _deny(self) -> bool:
+        self._send_json({"ok": False, "error": "unauthorized"}, status=401,
+                        headers={"WWW-Authenticate": "Bearer"})
+        return False
+
+    def _require_auth(self) -> bool:
+        """Gate /api/* routes on the bearer token.
+
+        ``serve()`` always installs the token on the server instance, so it
+        is never None there. When the handler is mounted on a server with no
+        ``auth_token`` attribute, the token is looked up from the token file
+        (read-only); if that fails the request is denied. The API is never
+        served open. Returns True when the request may proceed, else sends
+        a 401 and returns False. The token value is never written to logs or echoed.
+        """
+        token = getattr(self.server, "auth_token", None)
+        if token is None:
+            token = self._token_from_file()
+        if not token:
+            return self._deny()
+        presented = self.headers.get("Authorization") or ""
+        if presented.startswith("Bearer "):
+            presented = presented[len("Bearer "):].strip()
+        else:
+            presented = ""
+        try:
+            ok = bool(presented) and hmac.compare_digest(presented, token)
+        except TypeError:
+            # compare_digest rejects non-ASCII str: deny with 401, not 500.
+            ok = False
+        if ok:
+            return True
+        return self._deny()
+
     # -- routing ----------------------------------------------------------
     def do_GET(self):
         try:
             path = urlsplit(self.path).path
+            if unquote(path).startswith("/api/"):
+                if not self._require_auth():
+                    return
             if path == "/api/tools":
                 tools = []
                 for t in TOOLS:
@@ -1620,6 +1790,9 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             path = urlsplit(self.path).path
+            if unquote(path).startswith("/api/"):
+                if not self._require_auth():
+                    return
             if path != "/api/run":
                 return self._send_json({"ok": False, "error": "not found"},
                                        status=404)
@@ -1660,8 +1833,17 @@ class _Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
-def serve(port: int) -> _Server:
-    server = _Server(("127.0.0.1", port), _Handler)
+def serve(port: int, host: str = "127.0.0.1", token: str | None = None) -> _Server:
+    """Create (not start) the HTTP server.
+
+    Every /api/* route requires bearer auth. ``token=None`` (the default)
+    loads the token from the token file, creating it when missing — the API
+    is never served open. ``cmd_serve`` always passes an explicit token.
+    """
+    if token is None:
+        token = load_or_create_token()
+    server = _Server((host, port), _Handler)
+    server.auth_token = token
     return server
 
 
@@ -1669,24 +1851,90 @@ def serve(port: int) -> _Server:
 # Entry point for cli.py: cmd_serve(args) -> int
 # ---------------------------------------------------------------------------
 
+def _print_startup(host: str, port: int, token: str, *, show_token: bool = True) -> None:
+    """Print the bind URL (plus LAN URL off-loopback) and the auth token."""
+    # flush=True: this process blocks in serve_forever right after, so when
+    # stdout is a pipe/file the operator must still see these lines.
+    print("Veto web UI is running", flush=True)
+    if host == "0.0.0.0":
+        # 0.0.0.0 is not a connectable URL — lead with the LAN URL instead.
+        try:
+            lan_host = resolve_lan_ip()
+        except OSError:
+            lan_host = "<lan-ip>"
+        print(f"  LAN URL:  http://{lan_host}:{port}", flush=True)
+        print("  (bound to ALL interfaces: 0.0.0.0)", flush=True)
+    else:
+        print(f"  URL:  http://{host}:{port}", flush=True)
+        if host != "127.0.0.1":
+            print(f"  LAN URL:  http://{host}:{port}", flush=True)
+    if host != "127.0.0.1":
+        bind_note = ("--host 0.0.0.0 binds ALL interfaces; " if host == "0.0.0.0"
+                     else "")
+        print(f"  WARNING: {bind_note}this server is plain HTTP (no TLS): the "
+              f"bearer token travels in cleartext on the network. Use only "
+              f"on a trusted LAN; for anything else use Tailscale.", flush=True)
+    if show_token:
+        print("  Token (keep private; send as 'Authorization: Bearer <token>'):",
+              flush=True)
+        print(f"  {token}", flush=True)
+    print(f"  PID:  {os.getpid()}", flush=True)
+    print("  Stop: press Ctrl-C", flush=True)
+
+
 def cmd_serve(args) -> int:
     """Start the web UI server. Blocks until Ctrl-C."""
+    token_path = token_file_path()
+    if getattr(args, "regenerate_token", False):
+        try:
+            token = regenerate_token(token_path)
+        except (OSError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Web UI token regenerated and saved to {token_path} (mode 0600).",
+              flush=True)
+        print("Restart any running server for the new token to take effect "
+              "(the old token stays valid until restart).", flush=True)
+        print(token, flush=True)
+        return 0
+    if getattr(args, "show_token", False):
+        try:
+            print(load_or_create_token(token_path), flush=True)
+        except (OSError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        return 0
     port = getattr(args, "port", None) or os.environ.get("PORT") or DEFAULT_PORT
     try:
         port = int(port)
     except (TypeError, ValueError):
         print(f"error: invalid port {port!r}", file=sys.stderr)
         return 2
-    server = serve(port)
-    url = f"http://127.0.0.1:{server.server_address[1]}"
-    print("Veto web UI is running")
-    print(f"  URL:  {url}")
-    print(f"  Port: {server.server_address[1]}")
-    print(f"  PID:  {os.getpid()}")
-    print("  Stop: press Ctrl-C")
+    try:
+        host = resolve_bind_host(getattr(args, "host", None) or "127.0.0.1")
+    except OSError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    # Print the token only when the file was just created: stdout is a log
+    # channel under process supervision, so routine boots stay quiet.
+    token_created = not token_path.exists()
+    try:
+        token = load_or_create_token(token_path)
+    except (OSError, RuntimeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    try:
+        server = serve(port, host=host, token=token)
+    except OSError as exc:
+        print(f"error: cannot bind {host}:{port}: {exc}", file=sys.stderr)
+        return 2
+    actual_port = server.server_address[1]
+    _print_startup(host, actual_port, token, show_token=token_created)
     if not getattr(args, "no_browser", False):
+        browser_url = (f"http://{host}:{actual_port}" if host != "0.0.0.0"
+                       else f"http://127.0.0.1:{actual_port}")
         try:
-            webbrowser.open(url)
+            webbrowser.open(browser_url)
         except Exception as exc:  # headless environments
             print(f"(could not open browser: {exc})", file=sys.stderr)
     print("Press Ctrl-C to stop.")
@@ -1703,8 +1951,18 @@ def _main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Veto web UI server (stdlib only).")
     parser.add_argument("--port", type=int, default=None,
                         help=f"Port to bind (default {DEFAULT_PORT}; PORT env also works).")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="Address to bind: 127.0.0.1 (default), 'lan' to "
+                             "auto-detect this machine's LAN IP, or an explicit "
+                             "IP/hostname.")
     parser.add_argument("--no-browser", action="store_true",
                         help="Do not open the browser automatically.")
+    parser.add_argument("--regenerate-token", action="store_true",
+                        help="Replace the web UI auth token with a fresh one, "
+                             "print it, and exit without starting the server.")
+    parser.add_argument("--show-token", action="store_true",
+                        help="Print the current web UI auth token and exit "
+                             "without starting the server.")
     args = parser.parse_args(argv)
     return cmd_serve(args)
 

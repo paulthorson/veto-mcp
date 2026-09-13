@@ -551,13 +551,35 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_serve = sub.add_parser(
         "serve",
-        help="Start the local web dashboard (binds 127.0.0.1 only, fully offline).",
+        help="Start the web dashboard (binds 127.0.0.1 by default; --host lan "
+             "exposes it on your LAN; the JSON API is token-authenticated).",
     )
     p_serve.add_argument("--port", type=int, default=8765, help="Port to bind (default: 8765).")
+    p_serve.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Address to bind: 127.0.0.1 (default), 'lan' to auto-detect this "
+             "machine's LAN IP, or an explicit IP/hostname. Binding off "
+             "loopback serves plain HTTP (no TLS): the bearer token travels "
+             "in cleartext, so use only on a trusted LAN.",
+    )
     p_serve.add_argument(
         "--no-browser",
         action="store_true",
         help="Don't auto-open the browser; just print the URL.",
+    )
+    p_serve.add_argument(
+        "--regenerate-token",
+        action="store_true",
+        help="Replace the web UI API token with a fresh one, print it, and "
+             "exit without starting the server. Restart any running server "
+             "for the new token to take effect.",
+    )
+    p_serve.add_argument(
+        "--show-token",
+        action="store_true",
+        help="Print the current web UI API token and exit without starting "
+             "the server.",
     )
 
     parser.set_defaults(
