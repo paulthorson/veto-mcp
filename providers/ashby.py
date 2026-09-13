@@ -171,6 +171,14 @@ class AshbyProvider:
         description = raw.get("descriptionPlain") or strip_html(
             raw.get("descriptionHtml")
         )
+        # Apply-readiness enrichment (Initiative 09, epic 2). Ashby's public
+        # posting API does not expose the application question list, so
+        # application_questions is 0 and the readiness note says so — the
+        # honest declaration is part of the feature.
+        departments = [d for d in (raw.get("department"),) if d]
+        team = raw.get("team")
+        if team and team not in departments:
+            departments.append(team)
         return {
             "url": raw.get("jobUrl") or "",
             "board": self.name,
@@ -183,5 +191,23 @@ class AshbyProvider:
             "note": (
                 "Details served from the public job-board endpoint; "
                 "description is the posting's HTML stripped to text."
+            ),
+            # --- Initiative 09 enrichment (additive; official API only) ---
+            "departments": departments,
+            "employment_type": raw.get("employmentType") or "",
+            "remote": bool(raw.get("isRemote")),
+            "posted_date": str(raw.get("publishedDate") or "")[:10],
+            "application_questions": 0,
+            "required_questions": 0,
+            "custom_fields": [],
+            "closing_date": "",
+            "readiness_note": (
+                "Details come from Ashby's official public posting API "
+                "(read-only). The API does not expose the application "
+                "question list — questions are visible only in the "
+                "browser-assisted apply flow. Direct API submission is "
+                "not usable: applicationForm.submit returned 401 "
+                "Unauthorized on live probes (see "
+                "ats_apply.endpoint_status('ashby'))."
             ),
         }

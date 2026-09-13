@@ -43,6 +43,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from providers import session_rescue
+
 log = logging.getLogger("job-apply-mcp.browser")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -570,8 +572,41 @@ def apply_via_browser(
             except Exception:
                 pass  # some pages never settle; continue anyway
 
+            # --- Session rescue (Initiative 09, epic 5): CAPTCHA / auth loss
+            # check right after page load. CAPTCHA is NEVER bypassed — the
+            # pause-and-hand-off IS the feature.
+            rescue = session_rescue.check(page, board=board)
+            if rescue is not None:
+                shot = _take_screenshot(page, f"rescue-{rescue.reason}")
+                rescue.screenshot_path = str(shot) if shot else None
+                result["paused"] = True
+                result["rescue"] = rescue.to_dict()
+                result["final_url"] = page.url
+                result["error"] = (
+                    f"Paused: {rescue.reason} detected — control handed to "
+                    f"the user. {rescue.what_user_should_do}"
+                )
+                result["ok"] = False
+                return result
+
             fields = extract_form_fields(page)
             result["fields_detected"] = len(fields)
+
+            # --- Session rescue: field-ambiguity check before filling.
+            rescue = session_rescue.check(page, board=board, fields=fields)
+            if rescue is not None:
+                shot = _take_screenshot(page, f"rescue-{rescue.reason}")
+                rescue.screenshot_path = str(shot) if shot else None
+                result["paused"] = True
+                result["rescue"] = rescue.to_dict()
+                result["final_url"] = page.url
+                result["error"] = (
+                    f"Paused: {rescue.reason} — control handed to the user. "
+                    f"{rescue.what_user_should_do}"
+                )
+                result["ok"] = False
+                return result
+
             result["fields_filled"] = fill_application(page, profile, resume_path)
             # Gentle human-like pause before the screenshot/submit.
             time.sleep(1.0)

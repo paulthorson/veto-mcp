@@ -141,6 +141,35 @@ def endpoint_status(board: str) -> dict[str, Any]:
     }
 
 
+def describe_apply_path(board: str) -> dict[str, Any]:
+    """Honest apply-path declaration for UI display (Initiative 09, epic 2).
+
+    This is the "deepening" the official interfaces permit: where direct
+    submission is impossible, the connector declares the limitation and
+    names the supported path. The declaration itself is the feature —
+    the user sees *why* before they hit the wall.
+    """
+    board = (board or "").strip().lower()
+    status = endpoint_status(board)
+    direct = can_apply_direct(board)
+    return {
+        "board": board,
+        "direct_apply_available": direct,
+        "endpoint_status": status["status"],
+        "reason": status["reason"],
+        "sources": status["sources"],
+        "recommended_path": (
+            "direct ATS submit (apply_via_ats)"
+            if direct
+            else "browser-assisted apply (apply_to_job): the ATS vendor's "
+                 "official interfaces do not permit anonymous direct "
+                 "submission, so Veto fills the employer's form in a "
+                 "browser you control and you confirm every submit."
+        ),
+        "official_interface_only": True,
+    }
+
+
 def _truncate(text: object, limit: int = _ERROR_BODY_LIMIT) -> str:
     text = "" if text is None else str(text)
     return text if len(text) <= limit else text[:limit] + "…"
