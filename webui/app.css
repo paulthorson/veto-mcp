@@ -205,7 +205,13 @@ input[type="text"], input[type="number"], textarea, select {
   font-family: var(--mono); font-size: 14px;
   padding: 10px;
 }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--green-neon); }
+input:focus, textarea:focus, select:focus { border-color: var(--green-neon); }
+/* Visible keyboard focus: the shared :focus-visible ring must survive here.
+   (An earlier `outline: none` killed it — a web-contract violation.) */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: var(--border-width-thick) solid var(--green-neon);
+  outline-offset: 2px;
+}
 textarea { min-height: 90px; resize: vertical; }
 input[type="checkbox"].big { width: 22px; height: 22px; accent-color: var(--green); }
 
@@ -425,4 +431,32 @@ pre.diff .dhunk { color: var(--amber); }
   }
   .login-overlay { padding: 12px; align-items: flex-start; }
   .login-card { padding: 20px; margin-top: 8vh; }
+}
+
+/* ---------- delight toast (context-gated; see delight.js gate contract) ---------- */
+.delight-toast {
+  position: fixed; right: 16px; bottom: 16px; z-index: 700;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--panel); color: var(--ink);
+  border: var(--border-width-thick) solid var(--green);
+  box-shadow: var(--shadow-hard-md);
+  padding: 12px 12px 12px 16px;
+  font-family: var(--mono); font-size: 14px;
+  max-width: min(420px, calc(100vw - 32px));
+  animation: delight-in 0.24s steps(6);
+}
+@keyframes delight-in { from { transform: translateY(12px); opacity: 0; } }
+.delight-toast.delight-static { animation: none; }
+.delight-mark { color: var(--green-neon); font-weight: 800; }
+.delight-text { flex: 1; }
+.delight-close {
+  width: 44px; height: 44px; flex: 0 0 44px;
+  background: transparent; color: var(--muted);
+  border: var(--border-width-medium) solid var(--border);
+  font-size: 20px; line-height: 1; cursor: pointer;
+}
+.delight-close:hover { color: var(--ink); border-color: var(--green); }
+.delight-close:focus-visible {
+  outline: var(--border-width-thick) solid var(--green-neon);
+  outline-offset: 2px;
 }
