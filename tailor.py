@@ -262,6 +262,112 @@ def tailor_resume(
 
 
 # ----------------------------------------------------------------------
+# Provenance (Initiative 05 — application studio)
+# ----------------------------------------------------------------------
+
+def _norm_text(text: str) -> str:
+    return re.sub(r"\s+", " ", str(text or "")).strip().lower()
+
+
+def tailor_with_provenance(
+    profile: dict[str, Any],
+    job_details: dict[str, Any],
+    evidence_links: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Tailor a resume and record per-statement provenance.
+
+    Returns the same keys as :func:`tailor_with_diff` plus
+    ``provenance``::
+
+        {"job_id", "matched_skills", "missing_skills", "statement_map",
+         "tailor_version"}
+
+    ``statement_map`` holds one entry per rendered resume line:
+    ``{"statement", "evidence_ids", "link_ids"}``. Every line is mapped
+    back to a profile source (``profile:experience[i].bullets[j]``,
+    ``profile:skills``, ``profile:summary``, ...) and, when
+    ``evidence_links`` (Initiative 04 requirement→evidence links) are
+    supplied, to the link/evidence ids whose requirement text mentions
+    the same skill. Malformed links are ignored, never trusted.
+
+    The honesty contract applies unchanged: provenance records *which*
+    evidence justified each statement; it never invents new facts.
+    """
+    result = tailor_with_diff(profile, job_details)
+    matched = result["matched_skills"]
+    resume_md = result["resume_md"]
+
+    # Index profile bullets -> source references for exact trace-back.
+    bullet_sources: dict[str, str] = {}
+    for i, exp in enumerate(profile.get("experience", []) or []):
+        if not isinstance(exp, dict):
+            continue
+        for j, bullet in enumerate(exp.get("bullets", []) or []):
+            key = _norm_text(bullet)
+            if key:
+                bullet_sources.setdefault(
+                    key, f"profile:experience[{i}].bullets[{j}]")
+
+    links = evidence_links or []
+    statement_map: list[dict[str, Any]] = []
+    for line in resume_md.splitlines():
+        stripped = line.strip()
+        if (not stripped or stripped.startswith("#") or "|" in stripped
+                or (stripped.startswith("*") and stripped.endswith("*"))):
+            continue
+        norm = _norm_text(stripped)
+        evidence_ids: list[str] = []
+        link_ids: list[str] = []
+        if norm in bullet_sources:
+            evidence_ids.append(bullet_sources[norm])
+        for skill in matched:
+            # Word-boundary match (same discipline as keyword
+            # extraction) so "go" never matches "good".
+            if not re.search(
+                r"(?<![a-z0-9+#])" + re.escape(skill.lower())
+                + r"(?![a-z0-9+#])",
+                norm,
+            ):
+                continue
+            if "profile:skills" not in evidence_ids:
+                evidence_ids.append("profile:skills")
+            for link in links:
+                if not isinstance(link, dict):
+                    continue
+                lid = str(link.get("link_id") or "")
+                blob = (
+                    str(link.get("requirement_id") or "") + " "
+                    + str(link.get("quote") or "")
+                ).lower()
+                if lid and skill.lower() in blob:
+                    if lid not in link_ids:
+                        link_ids.append(lid)
+                    eid = link.get("evidence_id")
+                    if eid and str(eid) not in evidence_ids:
+                        evidence_ids.append(str(eid))
+        if not evidence_ids:
+            # Summary / education / contact-adjacent lines: profile-sourced.
+            evidence_ids.append("profile:base")
+        statement_map.append(
+            {
+                "statement": stripped,
+                "evidence_ids": evidence_ids,
+                "link_ids": link_ids,
+            }
+        )
+
+    result["provenance"] = {
+        "job_id": str(
+            job_details.get("id") or job_details.get("job_id") or ""),
+        "matched_skills": matched,
+        "missing_skills": result["missing_skills"],
+        "statement_map": statement_map,
+        "tailor_version": "tailor_with_provenance/1",
+    }
+    return result
+
+
+# ----------------------------------------------------------------------
 # Diff + approval workflow
 # ----------------------------------------------------------------------
 
