@@ -265,6 +265,33 @@ input[type="checkbox"].big { width: 22px; height: 22px; accent-color: var(--gree
 }
 .empty .big { display: block; font-size: 18px; color: var(--ink); font-weight: 800; letter-spacing: 0.14em; margin-bottom: 10px; }
 
+/* ---------- login gate ---------- */
+.hidden { display: none !important; }
+.login-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(6, 9, 12, 0.94);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto;
+}
+.login-card {
+  width: 100%; max-width: 440px;
+  background: var(--panel);
+  border: 3px solid var(--green-neon);
+  box-shadow: 8px 8px 0 var(--shadow);
+  padding: 26px;
+}
+.login-card h2 {
+  margin: 0 0 10px 0; font-size: 22px; letter-spacing: 0.16em;
+  color: var(--green-neon); text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+}
+.login-hint { color: var(--muted); font-size: 13px; margin: 0 0 12px 0; line-height: 1.6; }
+.login-hint b { color: var(--ink); }
+.login-guide { color: var(--muted); font-size: 13px; margin: 0 0 12px 0; line-height: 1.6; }
+.login-guide a { color: var(--green-neon); font-weight: 700; }
+#signin-token { min-height: 48px; }
+#login-form .btn { width: 100%; margin-top: 8px; min-height: 48px; }
+
 /* ---------- modal ---------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 1000;
@@ -311,7 +338,8 @@ input[type="checkbox"].big { width: 22px; height: 22px; accent-color: var(--gree
 .action-pick .adesc { color: var(--muted); font-size: 12px; display: block; margin-top: 4px; }
 
 /* ---------- results ---------- */
-.result-block { margin-top: 14px; }
+.result-block { margin-top: 14px; min-width: 0; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.data {
   width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0;
 }
@@ -347,16 +375,61 @@ pre.diff .dhunk { color: var(--amber); }
 /* ---------- responsive ---------- */
 @media (max-width: 760px) {
   .layout { flex-direction: column; }
+
+  /* sidebar becomes a sticky, horizontally-scrollable top nav bar */
   .sidebar {
     width: 100%; flex: 0 0 auto;
-    flex-direction: row; flex-wrap: wrap;
+    flex-direction: row; flex-wrap: nowrap;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
     border-right: none; border-bottom: 3px solid var(--line);
-    padding: 10px;
+    padding: 8px; gap: 8px;
+    position: sticky; top: 0; z-index: 60;
   }
-  .nav-link { padding: 8px 10px; font-size: 12px; }
+  .nav-link {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center;
+    min-height: 44px; padding: 8px 14px; font-size: 13px;
+    white-space: nowrap;
+  }
   .nav-foot { display: none; }
-  .view { padding: 16px; }
-  h1.page-title { font-size: 22px; }
+
+  .topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .brand-glyph, .brand-name { font-size: 19px; }
+
+  .view { padding: 16px 12px; }
+  h1.page-title { font-size: 22px; letter-spacing: 0.14em; }
+  h2.sec-title { font-size: 14px; }
+
+  /* tap targets >= 44px; 16px inputs stop iOS auto-zoom */
+  .btn { min-height: 44px; }
+  .modal-foot .btn { flex: 1 1 140px; }
+  .action-pick { min-height: 44px; }
+  .banner button { min-height: 44px; }
+  input[type="text"], input[type="number"], input[type="password"],
+  textarea, select { font-size: 16px; min-height: 44px; }
+  input[type="checkbox"].big { width: 28px; height: 28px; }
+
+  /* single-column layouts */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .kpi { padding: 12px; }
+  .kpi-value { font-size: 28px; }
+  .tool-grid { grid-template-columns: 1fr; }
+
+  /* wide content scrolls instead of overflowing */
+  .table-wrap { margin: 10px -12px; padding: 0 12px; }
   .bar-label { width: 90px; flex-basis: 90px; }
+  .bar-num { width: 48px; flex-basis: 48px; }
   .kv { grid-template-columns: 1fr; }
+  .heatmap, .heat-months { max-width: 100%; }
+
+  /* modals become near-full-screen sheets */
+  .modal-overlay { padding: 8px; align-items: flex-start; }
+  .modal {
+    max-width: none; width: 100%;
+    min-height: calc(100vh - 16px);
+    min-height: calc(100dvh - 16px);
+    padding: 18px;
+  }
+  .login-overlay { padding: 12px; align-items: flex-start; }
+  .login-card { padding: 20px; margin-top: 8vh; }
 }
