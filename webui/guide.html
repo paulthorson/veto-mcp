@@ -4,22 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Veto — Tailscale phone-access guide</title>
+<link rel="stylesheet" href="vendor/veto-tokens.css">
 <style>
   :root {
-    --bg: #0b0f0c;
-    --panel: #10160f;
-    --ink: #d7e3d7;
-    --dim: #8ba086;
-    --green: #39d353;
+    /* Canonical tokens load first (see the <link> above). Local aliases below:
+       --dim is the guide's secondary-text name for --muted;
+       --line is the guide's hairline name for --border;
+       --green-dim is a translucent tint of --green with no token equivalent. */
+    --dim: var(--muted);
+    --line: var(--border);
     --green-dim: rgba(57, 211, 83, .14);
-    --amber: #e3b341;
-    --line: #1e2b1d;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--bg);
-    background-image: radial-gradient(rgba(57,211,83,.05) 1px, transparent 1px);
+    background-image: radial-gradient(var(--veto-dotgrid) 1px, transparent 1px);
     background-size: 8px 8px;
     color: var(--ink);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -58,12 +58,12 @@
   .step p { margin: .7rem 0 .4rem; }
   .step .donebtn {
     background: transparent; border: 1px solid var(--green); color: var(--green);
-    font: inherit; font-size: 13px; border-radius: 6px; padding: .35rem .8rem;
+    font: inherit; font-size: 13px; border-radius: var(--radius); /* square corners per token */ padding: .35rem .8rem;
     cursor: pointer; margin-top: .6rem;
   }
   .step.done .donebtn { background: var(--green); color: #000; }
   code, pre {
-    background: #000; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--veto-deep); border: var(--border-width-thin) solid var(--line); border-radius: var(--radius); /* square corners per token */
     padding: .15rem .45rem; color: var(--green); font: inherit;
   }
   pre {
@@ -82,7 +82,16 @@
     color: var(--dim); font-size: 13px;
   }
   #bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: .4rem; }
-  #bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 3px; transition: width .3s; }
+  #bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: var(--radius); transition: var(--motion-progress); }
+</style>
+<style>
+  /* Motion contract (P0 craft sprint): all animation inert under reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: var(--motion-reduced) !important;
+      transition: var(--motion-reduced) !important;
+    }
+  }
 </style>
 </head>
 <body>
