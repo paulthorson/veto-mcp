@@ -27,6 +27,7 @@ import http.server
 import importlib
 import io
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -384,9 +385,23 @@ class WebuiClient:
         self.base_url = None
         self._server = None
         self._thread = None
+        self._token = None
+        self._token_dir = None
+        self._token_env_was_set = False
+        self._token_env_old = None
         if self.dispatch_fn is None and webui is not None:
             handler = _find_handler_class(webui)
             if handler is not None:
+                # _Handler gates every /api/* route on bearer auth; point
+                # the token file at a temp path and send the token header.
+                self._token_dir = tempfile.TemporaryDirectory()
+                self._token_env_was_set = (
+                    "VETO_WEBUI_TOKEN_FILE" in os.environ
+                )
+                self._token_env_old = os.environ.get("VETO_WEBUI_TOKEN_FILE")
+                tok_path = Path(self._token_dir.name) / "token"
+                os.environ["VETO_WEBUI_TOKEN_FILE"] = str(tok_path)
+                self._token = webui.load_or_create_token()
                 server = http.server.HTTPServer(("127.0.0.1", 0), handler)
                 thread = threading.Thread(
                     target=server.serve_forever,
@@ -409,6 +424,13 @@ class WebuiClient:
             self._server.shutdown()
             self._server.server_close()
             self._thread.join(timeout=5)
+        if self._token_dir is not None:
+            if self._token_env_was_set:
+                os.environ["VETO_WEBUI_TOKEN_FILE"] = self._token_env_old
+            else:
+                os.environ.pop("VETO_WEBUI_TOKEN_FILE", None)
+            self._token_dir.cleanup()
+            self._token_dir = None
 
     def run(self, tool, action, params):
         body = {"tool": tool, "action": action, "params": params}
@@ -419,6 +441,8 @@ class WebuiClient:
             self.base_url + "/api/run", data=data, method="POST"
         )
         req.add_header("Content-Type", "application/json")
+        if self._token is not None:
+            req.add_header("Authorization", f"Bearer {self._token}")
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 payload = resp.read().decode("utf-8")
@@ -429,9 +453,10 @@ class WebuiClient:
     def get(self, path):
         if self.dispatch_fn is not None:
             raise AssertionError("GET endpoints need the HTTP path")
-        with urllib.request.urlopen(
-            self.base_url + path, timeout=10
-        ) as resp:
+        req = urllib.request.Request(self.base_url + path)
+        if self._token is not None:
+            req.add_header("Authorization", f"Bearer {self._token}")
+        with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
 

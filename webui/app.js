@@ -16,6 +16,66 @@ var ROUTES = [
   { hash: "govern",    label: "GOVERN", group: "GOVERN" }
 ];
 
+/* ================= auth ================= */
+
+var TOKEN_KEY = "veto_token";
+
+function getToken() {
+  try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; }
+}
+function setToken(t) {
+  try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) { /* storage unavailable */ }
+}
+function clearToken() {
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* ignore */ }
+}
+
+function authHeaders(extra) {
+  var h = {};
+  if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) h[k] = extra[k];
+  var t = getToken();
+  if (t) h["Authorization"] = "Bearer " + t;
+  return h;
+}
+
+function isUnauthorized(err) {
+  return !!(err && err.status === 401);
+}
+
+function showLogin(msg) {
+  var errBox = document.getElementById("login-err");
+  errBox.classList.add("hidden");
+  errBox.textContent = "";
+  if (msg) {
+    errBox.textContent = msg;
+    errBox.classList.remove("hidden");
+  }
+  var input = document.getElementById("signin-token");
+  input.value = "";
+  document.getElementById("login-overlay").classList.remove("hidden");
+  setTimeout(function () { input.focus(); }, 60);
+}
+function hideLogin() {
+  document.getElementById("login-overlay").classList.add("hidden");
+}
+
+/* 401 from the API: the stored token is bad or expired — drop it and gate again */
+function handleUnauthorized(msg) {
+  /* A 401 can land mid-wizard: the open modal would sit behind the login gate
+     as a dead spinner after re-login — close it first */
+  var modalOpen = !document.getElementById("modal-overlay").classList.contains("hidden");
+  if (modalOpen) closeModal();
+  clearToken();
+  var pill = document.getElementById("status-pill");
+  var txt = document.getElementById("status-text");
+  pill.classList.remove("status-online", "status-offline", "status-unknown");
+  pill.classList.add("status-offline");
+  txt.textContent = "LOCKED";
+  var loginMsg = msg || "Invalid or expired token. Paste the token printed in the terminal where you ran serve.";
+  if (modalOpen) loginMsg = "Session expired \u2014 an open step was interrupted; please re-run it after unlocking. " + loginMsg;
+  showLogin(loginMsg);
+}
+
 /* ================= utils ================= */
 
 function esc(s) {
@@ -69,15 +129,22 @@ function hideBanner() {
 }
 
 async function apiGet(url) {
-  var res = await fetch(url, { headers: { "Accept": "application/json" } });
-  if (!res.ok) throw new Error("HTTP " + res.status + " from " + url);
-  return res.json();
+  var res = await fetch(url, { headers: authHeaders({ "Accept": "application/json" }) });
+  var data = null;
+  try { data = await res.json(); } catch (e) { /* non-JSON */ }
+  if (!res.ok) {
+    var err = new Error("HTTP " + res.status + " from " + url);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
 }
 
 async function apiPost(url, body) {
   var res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json", "Accept": "application/json" }),
     body: JSON.stringify(body)
   });
   var data = null;
@@ -113,9 +180,60 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("modal-overlay").addEventListener("click", function (e) {
     if (e.target.id === "modal-overlay") closeModal();
   });
+
+  /* login gate: no token, no API calls */
+  document.getElementById("login-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = document.getElementById("login-unlock");
+    if (btn && btn.disabled) return; /* boot already in flight — ignore double submit */
+    var t = document.getElementById("signin-token").value.trim();
+    if (!t) {
+      var eb = document.getElementById("login-err");
+      /* clear-then-set so the role="alert" region re-announces on repeated submits */
+      eb.textContent = "";
+      eb.textContent = "Paste the token printed in the terminal where you ran serve.";
+      eb.classList.remove("hidden");
+      return;
+    }
+    setToken(t);
+    hideLogin();
+    /* double-submit guard: keep UNLOCK disabled while boot is in flight */
+    if (btn) btn.disabled = true;
+    var done = function () { if (btn) btn.disabled = false; };
+    try {
+      var p = boot(true); /* retry the initial API calls with the new token */
+      if (p && typeof p.then === "function") p.then(done, done);
+      else done();
+    } catch (err) { done(); }
+  });
+
+  if (!getToken()) {
+    var pill = document.getElementById("status-pill");
+    pill.classList.remove("status-unknown");
+    pill.classList.add("status-offline");
+    document.getElementById("status-text").textContent = "LOCKED";
+    showLogin(null);
+  } else {
+    boot(false);
+  }
 });
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape") closeModal();
+  if (e.key !== "Tab") return;
+  /* lightweight focus trap: while the login gate is visible, keep Tab cycling
+     inside the dialog instead of leaking to the unreachable page behind it */
+  var ov = document.getElementById("login-overlay");
+  if (!ov || ov.classList.contains("hidden")) return;
+  var focusables = ov.querySelectorAll(
+    'a[href], button:not([disabled]), input:not([disabled]), textarea, select, [tabindex]:not([tabindex="-1"])');
+  if (!focusables.length) { e.preventDefault(); return; }
+  var first = focusables[0];
+  var last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault(); last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault(); first.focus();
+  }
 });
 
 /* ================= catalog helpers ================= */
@@ -343,6 +461,7 @@ function renderDashboard(view) {
     if (ob) ob.addEventListener("click", function () { launchOnboarding(); });
     loadSkillGaps(document.getElementById("skillgaps"));
   }).catch(function (err) {
+    if (isUnauthorized(err)) { handleUnauthorized(); return; }
     setServerStatus(false);
     wrap.innerHTML = '<div class="empty"><span class="big">KPI FEED DOWN</span>Could not load /api/kpis.</div>';
   });
@@ -381,6 +500,7 @@ function loadSkillGaps(slot) {
       }).join("");
     })
     .catch(function (err) {
+      if (isUnauthorized(err)) { handleUnauthorized(); return; }
       var serverMsg = serverError(err);
       slot.innerHTML = '<div class="empty"><span class="big">GAP ANALYSIS UNAVAILABLE</span>' +
         esc(serverMsg || "Could not reach the server.") + "</div>";
@@ -564,7 +684,7 @@ function renderWizard() {
       return "<tr><td><b>" + esc(p.name) + "</b>" + (p.required ? ' <span class="req">*</span>' : "") +
         "</td><td>" + esc(typeof v === "object" ? JSON.stringify(v) : String(v)) + "</td></tr>";
     }).join("");
-    var table = rows ? '<table class="data"><tr><th>PARAM</th><th>VALUE</th></tr>' + rows + "</table>"
+    var table = rows ? '<div class="table-wrap"><table class="data"><tr><th>PARAM</th><th>VALUE</th></tr>' + rows + "</table></div>"
                      : '<div class="empty">No parameters.</div>';
     openModal(head + stepBar(["ACTION", "PARAMS", "REVIEW", "RESULT"], 2) +
       '<div class="mdesc">ACTION: <b>' + esc(a.id) + "</b> — confirm the exact params sent to the server.</div>" +
@@ -628,6 +748,7 @@ function runWizardAction(confirmed, previewHash) {
     WIZ.step = 2;
     renderWizard();
   }).catch(function (err) {
+    if (isUnauthorized(err)) { handleUnauthorized(); return; }
     var serverMsg = serverError(err);
     if (serverMsg) {
       /* server answered 4xx with a JSON error — show its own message */
@@ -696,6 +817,7 @@ function openConfirm() {
         renderWizard();
       }
     }).catch(function (err) {
+      if (isUnauthorized(err)) { handleUnauthorized(); return; }
       var serverMsg = serverError(err);
       WIZ.error = serverMsg || "Network error during confirmed execution.";
       if (!serverMsg) setServerStatus(false);
@@ -800,7 +922,9 @@ function renderArrayOfObjects(container, rows) {
     }).join("") + "</tr>";
   }).join("");
   t.innerHTML = thead + tb;
-  container.appendChild(t);
+  var tw = el("div", "table-wrap", "");
+  tw.appendChild(t);
+  container.appendChild(tw);
 }
 
 function renderResult(container, data) {
@@ -903,11 +1027,15 @@ function boot(retry) {
   pill.classList.add("status-unknown");
   document.getElementById("status-text").textContent = "PROBING";
 
-  Promise.all([
+  return Promise.all([
     apiGet(API.tools).catch(function (e) { return { _err: e }; }),
     apiGet(API.kpis).catch(function (e) { return { _err: e }; })
   ]).then(function (pair) {
     var tools = pair[0], kpis = pair[1];
+    if (isUnauthorized(tools._err) || isUnauthorized(kpis._err)) {
+      handleUnauthorized();
+      return;
+    }
     if (tools._err || kpis._err || !tools.tools) {
       setServerStatus(false);
       render();
@@ -919,5 +1047,3 @@ function boot(retry) {
     render();
   });
 }
-
-document.addEventListener("DOMContentLoaded", function () { boot(false); });

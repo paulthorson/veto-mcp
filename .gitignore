@@ -34,3 +34,7 @@ network.json
 cover_letters/
 contributions/
 tailored/
+
+# Belt-and-suspenders: the token file lives at ~/.veto_webui_token, outside
+# the repo — this entry only guards against an accidental copy landing here.
+.veto_webui_token
