@@ -1,0 +1,14 @@
+{
+  "veto_theme": {
+    "version": "0.1.0",
+    "source_path": "packages/terminal/python/veto_theme.py",
+    "copied_at": "2026-09-13T10:17:06+00:00",
+    "git_sha": "8d564770d8dd98214f28b8e0eeb1f4db91a88be1"
+  },
+  "theme.json": {
+    "version": "0.1.0",
+    "source_path": "packages/terminal/theme.json",
+    "copied_at": "2026-09-13T10:17:06+00:00",
+    "git_sha": "8d564770d8dd98214f28b8e0eeb1f4db91a88be1"
+  }
+}
