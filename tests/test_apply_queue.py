@@ -9,6 +9,7 @@ Run:  cd ~/workspace/job-apply-mcp && python3 -m unittest discover -s tests -v
 """
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -217,6 +218,43 @@ class TestRunQueue(unittest.TestCase):
 
 class TestDefaultRecordFn(unittest.TestCase):
     """_default_record_fn dedupes against the applications store."""
+
+    def setUp(self):
+        # The outcome-capture hook must never touch the real
+        # outcomes.jsonl: point it at a temp store.
+        self._tmp = tempfile.TemporaryDirectory()
+        self._env_patch = mock.patch.dict(
+            "os.environ",
+            {"VETO_OUTCOMES_FILE": str(Path(self._tmp.name) / "outcomes.jsonl")},
+        )
+        self._env_patch.start()
+
+    def tearDown(self):
+        self._env_patch.stop()
+        self._tmp.cleanup()
+
+    def test_dedupe_path_still_emits_outcome_event(self):
+        # Even when the application was already recorded (e.g. before
+        # capture was enabled), the dedupe early-return must ensure the
+        # outcome event exists. Duplicate-safe: a second call adds nothing.
+        existing = [{
+            "job_id": "job-1",
+            "title": "Existing",
+            "submitted_at": "2026-09-13T12:00:00+00:00",
+        }]
+        fake_server = mock.MagicMock()
+        fake_server._load_applications.side_effect = lambda: list(existing)
+        with mock.patch.dict(sys.modules, {"server": fake_server}):
+            apply_queue._default_record_fn("job-1", {"status": "confirmed"})
+            apply_queue._default_record_fn("job-1", {"status": "confirmed"})
+        import outcomes as _outcomes
+
+        events = _outcomes.load_events(
+            Path(self._tmp.name) / "outcomes.jsonl"
+        )
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["application_id"], "job-1")
+        self.assertEqual(events[0]["event_type"], "applied")
 
     def test_dedupe_on_job_id(self):
         existing = [{"job_id": "job-1", "title": "Existing"}]
