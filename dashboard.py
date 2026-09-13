@@ -52,6 +52,7 @@ import rejection_autopsy  # noqa: E402
 import streaks  # noqa: E402
 import crew  # noqa: E402
 import doctor  # noqa: E402
+import veto_theme as vt  # noqa: E402
 import grill  # noqa: E402
 import apply_queue  # noqa: E402
 import email_sync  # noqa: E402
@@ -198,7 +199,7 @@ def _job_details() -> tuple[dict, dict]:
 
 
 def _divider(label: str = "") -> None:
-    print("\n" + ("— " + label + " ").ljust(60, "—") if label else "")
+    print("\n" + vt.divider(label) if label else "")
 
 
 # ---------------------------------------------------------------------------
@@ -211,9 +212,12 @@ def print_kpis() -> None:
     k = dashboard_data.compute_kpis(REPO_DIR)
     avg = f"{k['avg_fit']:.0f}" if k["avg_fit"] is not None else "—"
     print(
-        f"Applications: {k['applications']}  |  Avg fit: {avg}  |  "
-        f"Day streak: {k['streak_days']}  |  Interviews: {k['interviews']}  |  "
-        f"Follow-ups due: {k['followups_due']}  |  Offers: {k['offers']}"
+        f"Applications: {vt.paint('display', str(k['applications']))}  |  "
+        f"Avg fit: {vt.paint('display', avg)}  |  "
+        f"Day streak: {vt.paint('display', str(k['streak_days']))}  |  "
+        f"Interviews: {vt.paint('display', str(k['interviews']))}  |  "
+        f"Follow-ups due: {vt.paint('display', str(k['followups_due']))}  |  "
+        f"Offers: {vt.paint('display', str(k['offers']))}"
     )
 
 
@@ -1234,9 +1238,11 @@ def wf_doctor() -> None:
     _divider("DOCTOR")
     report = doctor.run_doctor()
     for check in report.get("checks", []):
-        mark = "OK  " if check.get("ok") else "FAIL"
+        ok = bool(check.get("ok"))
+        mark = "OK  " if ok else "FAIL"
         sev = "" if check.get("severity") == "error" else " [warning]"
-        print(f"  [{mark}]{sev} {check.get('name')}: {check.get('detail')}")
+        print(f"  [{vt.paint('success' if ok else 'danger', mark)}]{sev} "
+              f"{check.get('name')}: {check.get('detail')}")
     print(f"\n  Doctor: {'PASS' if report.get('ok') else 'FAIL'}")
 
 
@@ -1290,7 +1296,7 @@ def print_menu() -> None:
     ]
     print()
     for name, keys in groups:
-        print(f"  {name}")
+        print(f"  {vt.paint('display', name)}")
         for key in keys:
             label, _ = MENU[key]
             print(f"    {key:>3}  {label}")
@@ -1300,7 +1306,8 @@ def print_menu() -> None:
 def run_dashboard() -> int:
     """Main menu loop; Ctrl-C / EOF exits cleanly."""
     while True:
-        print("\n  ══ JOB-APPLY DASHBOARD ══")
+        print()
+        print(vt.banner("JOB-APPLY DASHBOARD"))
         print()
         print_kpis()
         print_menu()
@@ -1323,7 +1330,7 @@ def run_dashboard() -> int:
             print("\n  Goodbye — good hunting.")
             return 0
         except Exception as exc:  # never traceback on bad input
-            print(f"  Oops — {exc}. Nothing was sent anywhere.")
+            print("  " + vt.paint("danger", f"Oops — {exc}. Nothing was sent anywhere."))
         _read("\n  [Enter to continue]")
 
 
