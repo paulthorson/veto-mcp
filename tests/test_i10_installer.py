@@ -111,6 +111,39 @@ class TestUninstallSafety(unittest.TestCase):
             self.assertEqual(result["purged_data"], [])
             self.assertTrue(data.exists())
 
+    def test_installer_never_clobbers_foreign_veto_shim(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_home = Path(tmp) / "home"
+            (fake_home / ".local" / "bin").mkdir(parents=True)
+            foreign = fake_home / ".local" / "bin" / "veto"
+            foreign.write_text("#!/usr/bin/env bash\necho user-tool\n", encoding="utf-8")
+            with mock.patch.object(Path, "home", return_value=fake_home):
+                shim = installer.install_shim(install_root=Path(tmp) / "iroot")
+            # Untouched: still the user's file.
+            self.assertEqual(
+                foreign.read_text(encoding="utf-8"), "#!/usr/bin/env bash\necho user-tool\n"
+            )
+            self.assertEqual(shim, foreign)
+
+    def test_uninstall_leaves_foreign_veto_shim_alone(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_home = Path(tmp) / "home"
+            (fake_home / ".local" / "bin").mkdir(parents=True)
+            foreign = fake_home / ".local" / "bin" / "veto"
+            foreign.write_text("#!/usr/bin/env bash\necho user-tool\n", encoding="utf-8")
+            root = Path(tmp) / "iroot"
+            root.mkdir()
+            (root / "install.json").write_text(json.dumps({"data_dir": str(Path(tmp)/"d")}), encoding="utf-8")
+            with mock.patch.object(Path, "home", return_value=fake_home):
+                with mock.patch.object(installer, "INSTALL_RECORD", root / "install.json"):
+                    result = installer.uninstall(root)
+            self.assertTrue(foreign.exists())
+            self.assertNotIn(str(foreign), result["removed"])
+
 
 if __name__ == "__main__":
     unittest.main()
