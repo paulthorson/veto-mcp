@@ -360,16 +360,20 @@ def _find_application(
 
 
 def scan_recruiter_emails(
-    days: int = 14, apply_updates: bool = False
+    days: int = 14, apply_updates: bool = False, confirmed: bool = False
 ) -> dict[str, Any]:
     """Scan Gmail for recruiter mail and reconcile with applications.
 
     Default (``apply_updates=False``) only *proposes* stage updates.
-    With ``apply_updates=True``, updates are applied via
-    ``lifecycle.update_stage`` — but only when the application match is
-    unambiguous, the classification confidence is high (>= 0.8), and the
-    classification maps to a pipeline stage. Outreach and follow-up mail
-    never change stages. Raw email bodies are never logged.
+    Governance contract (roadmap Q4 exit gate): reply classification is
+    proposal-only until the user confirms the action. ``apply_updates=True``
+    therefore ALSO requires ``confirmed=True`` — without it the scan
+    degrades to propose-only and says so on each affected proposal. With
+    both flags, updates are applied via ``lifecycle.update_stage`` — but
+    only when the application match is unambiguous, the classification
+    confidence is high (>= 0.8), and the classification maps to a pipeline
+    stage. Outreach and follow-up mail never change stages. Raw email
+    bodies are never logged.
     """
     result: dict[str, Any] = {
         "scanned": 0,
@@ -452,6 +456,7 @@ def scan_recruiter_emails(
             proposal["action"] = "already_at_stage"
         elif (
             apply_updates
+            and confirmed
             and confidence >= AUTO_APPLY_MIN_CONFIDENCE
         ):
             try:
@@ -475,7 +480,13 @@ def scan_recruiter_emails(
                 proposal["note"] = str(exc)
         else:
             proposal["action"] = "proposed"
-            if apply_updates:
+            if apply_updates and not confirmed:
+                proposal["note"] = (
+                    "Not auto-applied: applying a stage update requires "
+                    "explicit user confirmation (confirmed=True); "
+                    "propose-only per the Q4 governance contract."
+                )
+            elif apply_updates:
                 proposal["note"] = (
                     "Not auto-applied: confidence below threshold "
                     f"({confidence} < {AUTO_APPLY_MIN_CONFIDENCE})."
