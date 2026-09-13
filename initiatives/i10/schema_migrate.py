@@ -18,6 +18,12 @@ records. Rollback never deletes history — it appends a rollback record
 and runs the migration's ``backward`` step, so any migration can be
 re-run after rollback.
 
+Migration authors MUST write idempotent ``forward`` steps: ``migrate``
+is not atomic (a ``verify`` failure after a partial ``forward`` leaves
+side effects in place), and the safe recovery is always re-running the
+migration. ``backward`` should likewise tolerate being run when its
+effects are partially absent.
+
 Compatibility tests (``verify``) are first-class: ``migrate`` refuses to
 mark a migration applied unless ``verify`` passes, and
 ``check_all`` re-runs every applied migration's ``verify`` to prove the

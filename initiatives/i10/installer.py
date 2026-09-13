@@ -286,6 +286,11 @@ def install_shim(install_root: Path = INSTALL_ROOT) -> Path:
     bin_dir = Path.home() / ".local" / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     shim = bin_dir / "veto"
+    if shim.exists():
+        existing = shim.read_text(encoding="utf-8", errors="replace")
+        if "written by the installer" not in existing:
+            # A pre-existing user file named `veto` — never clobber it.
+            return shim
     venv_py = install_root / "venv" / "bin" / "python"
     shim.write_text(
         f"""#!/usr/bin/env bash
@@ -325,6 +330,10 @@ def uninstall(
 
     for path in (install_root / "venv", Path.home() / ".local" / "bin" / "veto"):
         if path.is_symlink() or path.is_file():
+            if path.name == "veto" and path.is_file():
+                content = path.read_text(encoding="utf-8", errors="replace")
+                if "written by the installer" not in content:
+                    continue  # not our shim — leave the user's file alone
             path.unlink()
             removed.append(str(path))
         elif path.is_dir():
