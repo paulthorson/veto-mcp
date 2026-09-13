@@ -46,6 +46,7 @@ from typing import Any
 
 import browser_apply
 import compliance
+from providers import session_rescue
 
 log = logging.getLogger("job-apply-mcp.easy_apply")
 
@@ -370,6 +371,24 @@ def fill_easy_apply(
             except Exception:
                 pass
 
+            # --- Session rescue (Initiative 09, epic 5): pause on CAPTCHA
+            # or auth loss before touching the Easy Apply flow. CAPTCHA is
+            # NEVER bypassed — the pause-and-hand-off IS the feature.
+            rescue = session_rescue.check(page, board="linkedin")
+            if rescue is not None:
+                shot = browser_apply._take_screenshot(
+                    page, f"easy-apply-rescue-{rescue.reason}"
+                )
+                rescue.screenshot_path = str(shot) if shot else None
+                result["screenshots"].append(rescue.screenshot_path or "")
+                result["status"] = "rescue_paused"
+                result["rescue"] = rescue.to_dict()
+                result["error"] = (
+                    f"Paused: {rescue.reason} detected — control handed to "
+                    f"the user. {rescue.what_user_should_do}"
+                )
+                return result
+
             if _already_applied(page):
                 result["status"] = "already_applied"
                 result["note"] = (
@@ -403,6 +422,23 @@ def fill_easy_apply(
                     result["screenshots"].append(str(shot))
 
                 if _is_review_step(page):
+                    # Rescue re-check at the review step: a CAPTCHA or auth
+                    # wall may have appeared mid-flow. Still never bypassed.
+                    rescue = session_rescue.check(page, board="linkedin")
+                    if rescue is not None:
+                        shot = browser_apply._take_screenshot(
+                            page, f"easy-apply-rescue-{rescue.reason}"
+                        )
+                        rescue.screenshot_path = str(shot) if shot else None
+                        result["screenshots"].append(rescue.screenshot_path or "")
+                        result["status"] = "rescue_paused"
+                        result["rescue"] = rescue.to_dict()
+                        result["steps_taken"] = step
+                        result["error"] = (
+                            f"Paused: {rescue.reason} detected — control "
+                            f"handed to the user. {rescue.what_user_should_do}"
+                        )
+                        break
                     # REVIEW STEP: stop. Never click Submit — hand over.
                     result["status"] = "awaiting_user_submit"
                     result["steps_taken"] = step
