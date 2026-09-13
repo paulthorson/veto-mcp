@@ -95,19 +95,31 @@ def _search_kwargs(watch: dict[str, Any]) -> dict[str, Any]:
     return kwargs
 
 
-def check_watch(watch: dict[str, Any], search_fn: SearchFn) -> dict[str, Any]:
+def check_watch(
+    watch: dict[str, Any],
+    search_fn: SearchFn,
+    record_health: bool = False,
+) -> dict[str, Any]:
     """Run one watch's search and diff against previously seen ids.
 
     First run: records the baseline and returns ``new_jobs == []``.
     Later runs: returns only postings whose ids were not seen before.
     The watch dict is updated in place (``last_seen_ids``,
     ``initialized``, ``last_checked_at``).
+
+    With ``record_health=True``, the attempt is also recorded on the
+    provider health board (see :mod:`provider_health`) under the watch's
+    ``board`` name — the only coupling between watches and the board.
     """
     try:
         jobs = search_fn(**_search_kwargs(watch))
     except Exception as exc:  # a failing provider must not kill the sweep
         log.warning("Watch %r search failed: %s", watch.get("name"), exc)
+        if record_health:
+            _record_watch_health(watch, ok=False, note=str(exc)[:140])
         return {"new_jobs": [], "total_seen": 0, "error": str(exc)}
+    if record_health:
+        _record_watch_health(watch, ok=True)
     jobs = jobs or []
     seen = set(watch.get("last_seen_ids") or [])
     current_ids = [str(j.get("id")) for j in jobs if j.get("id")]
@@ -130,11 +142,27 @@ def check_watch(watch: dict[str, Any], search_fn: SearchFn) -> dict[str, Any]:
     return {"new_jobs": new_jobs, "total_seen": len(current_ids)}
 
 
+def _record_watch_health(watch: dict[str, Any], ok: bool, note: str = "") -> None:
+    """Best-effort health recording for a watch run. Never raises."""
+    try:
+        import provider_health
+
+        board_name = str(watch.get("board") or "all")
+        provider_health.record_fetch(board_name, ok, note=note)
+    except Exception:  # noqa: BLE001 - health must never break a watch run
+        log.debug("health recording failed for watch %r", watch.get("name"))
+
+
 def check_all(
-    watches: dict[str, dict[str, Any]], search_fn: SearchFn
+    watches: dict[str, dict[str, Any]],
+    search_fn: SearchFn,
+    record_health: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Check every watch; returns ``{name: {new_jobs, total_seen}}``."""
-    return {name: check_watch(watch, search_fn) for name, watch in watches.items()}
+    return {
+        name: check_watch(watch, search_fn, record_health=record_health)
+        for name, watch in watches.items()
+    }
 
 
 if __name__ == "__main__":

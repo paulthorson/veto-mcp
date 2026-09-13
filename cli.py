@@ -413,6 +413,12 @@ _PLUGIN_CLI_MODULES = (
     "provider_health",
     "reply_radar",
     "action_inbox",
+    "calibration",
+    "model_card",
+    "near_miss",
+    "funnels",
+    "experiment_ledger",
+    "outcome_nudges",
 )
 
 
