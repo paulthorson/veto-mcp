@@ -1,1 +1,13 @@
-{"mcpServers":{"job-apply":{"args":["/home/hatch/workspace/job-apply-mcp/server.py"],"command":"/home/hatch/workspace/job-apply-mcp/.venv/bin/python","env":{}}}}
+{
+  "mcpServers": {
+    "job-apply": {
+      "args": [
+        "/home/hatch/workspace/job-apply-mcp/server.py"
+      ],
+      "command": "/home/hatch/workspace/job-apply-mcp/.venv/bin/python",
+      "env": {
+        "VETO_EXTENSIONS_DIR": "/home/hatch/workspace/job-apply-mcp/extensions"
+      }
+    }
+  }
+}
