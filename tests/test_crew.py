@@ -323,11 +323,15 @@ class WiringTests(unittest.TestCase):
         parser = argparse.ArgumentParser()
         sub = parser.add_subparsers()
         mapping = crew.register_cli(sub)
-        self.assertEqual(mapping, {"crew": crew.cmd_crew})
+        self.assertEqual(mapping,
+                         {"crew": crew.cmd_crew,
+                          "extension": crew.cmd_extension})
         args = parser.parse_args(["crew", "plan", "--goal", "find jobs"])
         self.assertEqual(args.action, "plan")
         args = parser.parse_args(["crew", "specialists"])
         self.assertEqual(args.action, "specialists")
+        args = parser.parse_args(["extension", "list"])
+        self.assertEqual(args.action, "list")
 
     def test_crew_status_shape(self):
         status = crew.crew_status()

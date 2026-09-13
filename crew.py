@@ -30,6 +30,7 @@ human confirm gate.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -893,6 +894,79 @@ def register_tools(mcp: Any) -> None:
         delegate deep checks to."""
         return {"specialists": _impl_specialists()}
 
+    # -- Governed extension platform (Initiative 11) -----------------------
+    # Human gate: confirmation tokens are minted ONLY on human surfaces
+    # (terminal `extension confirm`, web UI). These MCP tools can request
+    # and run, never mint.
+
+    @mcp.tool()
+    def extensions_list() -> dict:
+        """List loaded extensions with their declared capabilities."""
+        return ext_list()
+
+    @mcp.tool()
+    def extensions_verify(ext_dir: str) -> dict:
+        """Verify an extension directory (manifest + import scan). Fail closed.
+
+        Args:
+            ext_dir: path to the extension directory.
+        """
+        return ext_verify(ext_dir)
+
+    @mcp.tool()
+    def extensions_run(ext_id: str, action_id: str,
+                       params: dict | None = None,
+                       confirmation_token: str | None = None) -> dict:
+        """Run an extension action through the broker.
+
+        Args:
+            ext_id: extension id.
+            action_id: declared action id.
+            params: action params.
+            confirmation_token: host-minted token for confirm-required
+                actions (minted by a human via `extension confirm`).
+        """
+        return ext_run(ext_id, action_id, params, confirmation_token)
+
+    @mcp.tool()
+    def extensions_request_confirmation(ext_id: str, action_id: str,
+                                        params: dict | None = None) -> dict:
+        """Create a pending confirmation request for a confirm-required
+        action. A human approves it on the terminal or web UI.
+
+        Args:
+            ext_id: extension id.
+            action_id: declared action id.
+            params: action params.
+        """
+        return ext_request(ext_id, action_id, params)
+
+    @mcp.tool()
+    def extensions_pending_confirmations() -> dict:
+        """List confirmation requests awaiting human approval."""
+        return ext_pending()
+
+    @mcp.tool()
+    def extensions_policy_test(ext_dir: str) -> dict:
+        """Run the reusable policy test kit against an extension.
+
+        Args:
+            ext_dir: path to the extension directory.
+        """
+        return ext_policy_test(ext_dir)
+
+    @mcp.tool()
+    def extensions_scaffold(name: str, description: str = "",
+                            author: str = "") -> dict:
+        """Generate a new extension project from the template.
+
+        Args:
+            name: extension name.
+            description: what it does.
+            author: author name.
+        """
+        return ext_scaffold(name, description=description, author=author)
+
 
 def cmd_crew(args: Any) -> int:
     """CLI handler for `crew`."""
@@ -938,4 +1012,267 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     p.add_argument("--context", help="JSON context dict (run).")
     p.add_argument("--text", help="Draft text to red-team scan (scan).")
     p.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
-    return {"crew": cmd_crew}
+    commands = {"crew": cmd_crew}
+    # Governed extension platform (Initiative 11): separate command group so
+    # existing core commands are never overwritten.
+    commands.update(register_extension_cli(subparsers))
+    return commands
+
+
+# ---------------------------------------------------------------------------
+# Extension platform (Initiative 11 — governed extension platform)
+# ---------------------------------------------------------------------------
+# Terminal + MCP surface for the extension host in initiatives/i11/.
+# Every sensitive operation is brokered by initiatives.i11.sandbox.host.Host:
+# the extension can never self-confirm, bypass policy, or weaken audit.
+#
+# Deliberate v1 constraint: confirmation tokens are minted ONLY on human
+# surfaces (terminal `extension confirm`, local web UI). The MCP/agent
+# surface can request and run, never mint — the human gate stays human.
+
+_EXT_HOST = None
+
+
+def _ext_host():
+    """Lazy singleton extension Host for this process."""
+    global _EXT_HOST
+    if _EXT_HOST is None:
+        from initiatives.i11.sandbox.host import Host
+        _EXT_HOST = Host()
+    return _EXT_HOST
+
+
+def ext_list() -> dict:
+    """List loaded extensions with their declared capabilities."""
+    return {"extensions": _ext_host().list_loaded()}
+
+
+def ext_verify(ext_dir: str) -> dict:
+    """Verify an extension directory (manifest + import scan). Fail closed."""
+    return _ext_host().verify_extension(ext_dir)
+
+
+def ext_install(ext_dir: str) -> dict:
+    """Verify, signature-check, revocation-check, load, and pin an extension."""
+    from initiatives.i11.signing.sign import (
+        InstallRecord, InstallStore, RevocationList, package_hash,
+        verify_package,
+    )
+    from initiatives.i11.manifest.schema import load_manifest
+    import time as _time
+
+    host = _ext_host()
+    verdict = host.verify_extension(ext_dir)
+    if not verdict["ok"]:
+        return {"ok": False, "stage": verdict["stage"],
+                "error": verdict.get("error")}
+    manifest = load_manifest(ext_dir)
+    sig = verify_package(ext_dir)
+    base = str(Path(__file__).resolve().parent)
+    revocations = RevocationList(Path(base) / "extensions_revocations.json")
+    if revocations.is_revoked(manifest["id"], manifest["version"]):
+        return {"ok": False, "error": "this version was revoked; refusing install"}
+    loaded = host.load_extension(ext_dir, trust=(
+        "signed" if sig["ok"] else "local-unsigned"))
+    store = InstallStore(Path(base) / "extensions_installed.json")
+    store.record_install(InstallRecord(
+        ext_id=manifest["id"], version=manifest["version"],
+        package_sha256=sig.get("package_sha256") or package_hash(ext_dir),
+        publisher=sig.get("publisher") or "local",
+        installed_at=int(_time.time()),
+    ))
+    return {"ok": True, "extension": manifest["id"],
+            "version": manifest["version"],
+            "trust": loaded.trust,
+            "signature": {"ok": sig["ok"],
+                          "error": sig.get("error")},
+            "capabilities": verdict["manifest"]}
+
+
+def ext_run(ext_id: str, action_id: str,
+            params: dict | None = None,
+            confirmation_token: str | None = None) -> dict:
+    """Run an extension action through the broker.
+
+    confirm-required actions need a host-minted token (see `extension
+    confirm` on the terminal or the web UI). Without one the run is
+    refused — the extension can never self-confirm.
+    """
+    host = _ext_host()
+    if ext_id not in [e["id"] for e in host.list_loaded()]:
+        return {"ok": False,
+                "error": f"extension {ext_id!r} is not loaded; "
+                         f"use `extension install <dir>` first"}
+    try:
+        return host.run_extension_action(
+            ext_id, action_id,
+            confirmation_token=confirmation_token, **(params or {}))
+    except (PermissionError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def ext_request(ext_id: str, action_id: str,
+                params: dict | None = None) -> dict:
+    """Create a pending confirmation request for a confirm-required action.
+
+    Returns the pending id for the human to review (`extension pending`,
+    then `extension confirm <pending-id>` on the terminal).
+    """
+    host = _ext_host()
+    loaded = host._loaded.get(ext_id)  # noqa: SLF001
+    if loaded is None:
+        return {"ok": False, "error": f"extension {ext_id!r} is not loaded"}
+    try:
+        pending = host._request_confirmation(  # noqa: SLF001
+            ext_id, action_id, {"action": action_id,
+                                "params": params or {}})
+    except (PermissionError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "pending_id": pending.pending_id,
+            "action": action_id,
+            "note": "Human approval required: run "
+                    f"`extension confirm {pending.pending_id}` on the terminal "
+                    "or approve in the web UI."}
+
+
+def ext_pending() -> dict:
+    """List pending confirmation requests awaiting human approval."""
+    return {"pending": _ext_host().confirmations.pending_requests()}
+
+
+def ext_confirm(pending_id: str) -> dict:
+    """Mint a confirmation token for a pending request. HUMAN SURFACE ONLY.
+
+    Call this on the terminal / web UI after the human explicitly approves
+    the pending request. The token is single-use and bound to the exact
+    action + params. Never expose this to extension code or autonomous
+    agent flows without human approval in the loop.
+    """
+    try:
+        token = _ext_host().confirmations.mint(pending_id)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "confirmation_token": token,
+            "note": "Single-use, expires in 15 minutes, bound to the exact "
+                    "action and params. Pass to `extension run --token`."}
+
+
+def ext_policy_test(ext_dir: str) -> dict:
+    """Run the reusable policy test kit against an extension directory."""
+    from initiatives.i11.policy_kit.checks import run_policy_suite
+    return run_policy_suite(ext_dir)
+
+
+def ext_adversarial() -> dict:
+    """Run the adversarial suite: 8 attacks that must ALL be blocked."""
+    from initiatives.i11.policy_kit.attacks import run_adversarial_suite
+    return run_adversarial_suite()
+
+
+def ext_audit_verify() -> dict:
+    """Verify the hash-chained extension audit log."""
+    return _ext_host().audit.verify()
+
+
+def ext_scaffold(name: str, description: str = "", author: str = "",
+                 out_dir: str = "extensions",
+                 data_scopes: list | None = None,
+                 action_kinds: list | None = None) -> dict:
+    """Generate a new extension project from the template."""
+    from initiatives.i11.scaffold.template import scaffold_extension
+    base = Path(__file__).resolve().parent
+    try:
+        return scaffold_extension(
+            name, description=description, author=author,
+            out_dir=base / out_dir,
+            data_scopes=data_scopes, action_kinds=action_kinds)
+    except (ValueError, FileExistsError) as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def cmd_extension(args: Any) -> int:
+    """CLI handler for `extension`."""
+    import json as _json
+
+    action = args.action
+
+    def emit(payload: Any) -> int:
+        print(_json.dumps(payload, indent=2, default=str))
+        return 0
+
+    def params() -> dict:
+        out: dict[str, str] = {}
+        for item in getattr(args, "param", None) or []:
+            if "=" not in item:
+                print(f"ignoring malformed --param {item!r} (want KEY=VALUE)")
+                continue
+            key, value = item.split("=", 1)
+            out[key] = value
+        return out
+
+    if action == "list":
+        return emit(ext_list())
+    if action == "verify":
+        return emit(ext_verify(args.dir))
+    if action == "install":
+        return emit(ext_install(args.dir))
+    if action == "run":
+        return emit(ext_run(args.ext_id, args.action_id, params(),
+                            getattr(args, "token", None)))
+    if action == "request":
+        return emit(ext_request(args.ext_id, args.action_id, params()))
+    if action == "pending":
+        return emit(ext_pending())
+    if action == "confirm":
+        return emit(ext_confirm(args.pending_id))
+    if action == "policy-test":
+        return emit(ext_policy_test(args.dir))
+    if action == "adversarial":
+        return emit(ext_adversarial())
+    if action == "audit-verify":
+        return emit(ext_audit_verify())
+    if action == "scaffold":
+        scopes = (args.scopes.split(",") if getattr(args, "scopes", None)
+                  else None)
+        kinds = (args.kinds.split(",") if getattr(args, "kinds", None)
+                 else None)
+        return emit(ext_scaffold(args.name,
+                                 description=getattr(args, "description", "") or "",
+                                 author=getattr(args, "author", "") or "",
+                                 out_dir=getattr(args, "out_dir", None) or "extensions",
+                                 data_scopes=scopes, action_kinds=kinds))
+    print(f"unknown action: {action}")
+    return 2
+
+
+def register_extension_cli(subparsers: Any) -> dict[str, Any]:
+    """Add `extension` to an argparse subparsers (cli.py-style)."""
+    p = subparsers.add_parser(
+        "extension", help="Governed extension platform (Initiative 11).")
+    p.add_argument(
+        "action",
+        choices=["list", "verify", "install", "run", "request", "pending",
+                 "confirm", "policy-test", "adversarial", "scaffold",
+                 "audit-verify"],
+        help="list|verify|install|run|request|pending|confirm|policy-test|"
+             "adversarial|scaffold|audit-verify",
+    )
+    p.add_argument("--dir", help="Extension directory (verify/install/policy-test).")
+    p.add_argument("--ext-id", help="Extension id (run/request).")
+    p.add_argument("--action-id", help="Declared action id (run/request).")
+    p.add_argument("--param", action="append", default=[],
+                   help="Action param as KEY=VALUE (repeatable).")
+    p.add_argument("--token", help="Host-minted confirmation token (run).")
+    p.add_argument("--pending-id", help="Pending confirmation id (confirm).")
+    p.add_argument("--name", help="Extension name (scaffold).")
+    p.add_argument("--description", default="", help="Description (scaffold).")
+    p.add_argument("--author", default="", help="Author (scaffold).")
+    p.add_argument("--out-dir", default="extensions",
+                   help="Output dir for scaffolded project.")
+    p.add_argument("--scopes",
+                   help="Comma-separated data scopes (scaffold).")
+    p.add_argument("--kinds",
+                   help="Comma-separated action kinds (scaffold).")
+    p.add_argument("--json", action="store_true",
+                   help="Machine-readable JSON output.")
+    return {"extension": cmd_extension}
