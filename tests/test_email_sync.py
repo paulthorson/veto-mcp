@@ -270,13 +270,29 @@ class TestScan(EmailSyncTestBase):
         # Store untouched.
         self.assertEqual(self.read_apps()[0]["stage"], "applied")
 
-    def test_scan_applies_confident_unambiguous_update(self) -> None:
+    def test_scan_apply_updates_requires_explicit_confirmation(self) -> None:
+        # Q4 governance contract: proposal-only until the user confirms.
+        # apply_updates=True WITHOUT confirmed=True degrades to propose-only.
         self.write_apps([_app("job-1", "Acme Corp", "Senior Engineer")])
         with mock.patch.object(
             email_sync, "_run_gmail_cli", side_effect=_connected_gmail_fake
         ):
             result = email_sync.scan_recruiter_emails(
                 days=14, apply_updates=True
+            )
+        self.assertEqual(result["applied_updates"], [])
+        proposal = result["proposed_updates"][0]
+        self.assertEqual(proposal["action"], "proposed")
+        self.assertIn("confirmation", proposal["note"])
+        self.assertEqual(self.read_apps()[0]["stage"], "applied")
+
+    def test_scan_applies_confident_unambiguous_update(self) -> None:
+        self.write_apps([_app("job-1", "Acme Corp", "Senior Engineer")])
+        with mock.patch.object(
+            email_sync, "_run_gmail_cli", side_effect=_connected_gmail_fake
+        ):
+            result = email_sync.scan_recruiter_emails(
+                days=14, apply_updates=True, confirmed=True
             )
         self.assertEqual(len(result["applied_updates"]), 1)
         applied = result["applied_updates"][0]
