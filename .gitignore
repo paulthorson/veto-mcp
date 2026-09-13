@@ -12,6 +12,14 @@ compliance.json
 apply_queue.json
 .DS_Store
 .env
+
+# Initiative 05 application studio: user data stores (resume text is PII —
+# never commit).
+resume_variants/
+packets/
+initiatives/i05/resume_variants/
+initiatives/i05/evidence_library/
+initiatives/i05/packets/
 playwright-report/
 test-results/
 
