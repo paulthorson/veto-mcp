@@ -239,16 +239,12 @@ class DraftOutreachTest(unittest.TestCase):
         self.assertNotIn("we worked together", draft["body"].lower())
         self.assertNotIn("mutual", draft["body"].lower())
 
-    def test_cold_draft_is_short(self):
-        contact = {"name": "Alan Turing", "company": "Acme", "position": "Staff"}
-        draft = referrals.draft_outreach(contact, {}, _profile(), kind="cold")
-        self.assertEqual(draft["kind"], "cold")
-        self.assertLessEqual(len(draft["body"]), 300)
-        self.assertIn("connect", draft["body"].lower())
-
     def test_bad_kind_raises(self):
         with self.assertRaises(ValueError):
             referrals.draft_outreach({"name": "X"}, {}, {}, kind="lukewarm")
+        # The cold LinkedIn variant was deleted (directive §6.2).
+        with self.assertRaises(ValueError):
+            referrals.draft_outreach({"name": "X"}, {}, {}, kind="cold")
 
 
 if __name__ == "__main__":
