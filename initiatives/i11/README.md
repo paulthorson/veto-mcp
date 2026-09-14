@@ -7,10 +7,13 @@ makes Veto distinct.
 
 **A new extension can prove what it accesses and cannot bypass the core
 confirmation or governance gates.** Proven adversarially, not by
-assertion: `policy_kit/attacks.py` runs 8 hostile extensions through the
+assertion: `policy_kit/attacks.py` runs 14 hostile extensions through the
 real host — self-confirm, forged token, exfiltration to undeclared host,
-filesystem escape, banned core import, audit tamper, post-load manifest
-mutation, undeclared action — and every one is blocked
+filesystem escape, banned core import, platform-internals import,
+stdlib fs bypass, bare open(), ctx-host traversal self-mint (the
+reviewer's demonstrated introspection vectors), scope escalation, kind
+downgrade, audit tamper, post-load manifest mutation, undeclared action —
+and every one is blocked
 (`tests/test_ext_adversarial.py`; `crew.py extension adversarial`).
 
 ## Epics
@@ -19,7 +22,7 @@ mutation, undeclared action — and every one is blocked
 |---|------|--------|--------|
 | 1 | Plugin manifest | `manifest/` — `schema.py`, `MANIFEST_SCHEMA.json` (published contract) | done |
 | 2 | Capability sandbox | `sandbox/` — `host.py` (broker + confirmation tokens), `fs.py`, `net.py`, `audit.py` | done |
-| 3 | Policy test kit | `policy_kit/` — `checks.py` (10 reusable checks), `attacks.py` (8 attacks) | done |
+| 3 | Policy test kit | `policy_kit/` — `checks.py` (10 reusable checks), `attacks.py` (14 attacks) | done |
 | 4 | Developer scaffold | `scaffold/template.py` — generates MCP tool, CLI command, wizard step, web card, tests, docs, retro entry | done |
 | 5 | Signed packages | `signing/sign.py` — provenance, version pinning, upgrade review, revocation | done |
 | 6 | Curated registry | `registry/registry.py` — compatibility, security, UX, governance gates | done |
