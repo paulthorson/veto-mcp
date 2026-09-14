@@ -56,7 +56,9 @@ class _IsoMixin:
 class TestPrefs(_IsoMixin, unittest.TestCase):
     def test_defaults(self):
         prefs = notify.load_prefs()
-        self.assertEqual(prefs["channels"], ["log", "ntfy", "webhook"])
+        # Remote sinks default OFF (§3.1).
+        self.assertEqual(prefs["channels"], ["log"])
+        self.assertIsNone(prefs["ntfy_topic"])
         self.assertIsNone(prefs["quiet_hours"])
         self.assertEqual(prefs["digest_cadence"], "immediate")
         self.assertTrue(all(prefs["events"].values()))
@@ -139,9 +141,13 @@ class TestSendControls(_IsoMixin, unittest.TestCase):
         self.assertEqual(result["suppressed"], "event_opted_out")
         self.assertEqual(len(self._log_entries()), 1)
 
-    def test_unknown_event_still_delivered(self):
+    def test_unknown_event_disabled(self):
+        # Unknown events are disabled (fail-closed, §3.2): logged only.
+        self.assertFalse(notify.event_enabled("not-a-real-event"))
+        self.assertFalse(notify.event_enabled(None))
         result = notify.send("Hi", "body", event="not-a-real-event")
         self.assertEqual(result["delivered_via"], ["log"])
+        self.assertEqual(result["suppressed"], "event_opted_out")
 
     def test_quiet_hours_queues(self):
         notify.set_pref("quiet_hours", "22:00-07:00")
@@ -222,6 +228,35 @@ class TestCliRegistration(unittest.TestCase):
         self.assertIn("notify", handlers)
         args = parser.parse_args(["notify", "prefs", "--json"])
         self.assertEqual(args.func.__name__, "_cli_prefs")
+
+    def test_setup_ntfy_cli_rejects_user_topic(self):
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers()
+        notify.register_cli(sub)
+        args = parser.parse_args(["notify", "setup-ntfy", "--topic",
+                                  "myjobsearch"])
+        self.assertEqual(args.func(args), 2)
+
+    def test_setup_ntfy_cli_prints_privacy_warning(self):
+        import argparse
+        import io
+        from contextlib import redirect_stdout
+
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers()
+        notify.register_cli(sub)
+        args = parser.parse_args(["notify", "setup-ntfy"])
+        fake = {"ok": True, "topic": "t" * 43,
+                "warning": "Privacy warning: topics are PUBLIC"}
+        buf = io.StringIO()
+        with mock.patch.object(notify, "setup_ntfy", return_value=fake), \
+                redirect_stdout(buf):
+            rc = args.func(args)
+        self.assertEqual(rc, 0)
+        self.assertIn("PUBLIC", buf.getvalue())
+        self.assertIn("t" * 43, buf.getvalue())
 
 
 if __name__ == "__main__":
