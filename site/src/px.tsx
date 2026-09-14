@@ -1,7 +1,7 @@
 /* Shared pixel-brand primitives for all site pages. */
 
 export const GITHUB_URL = 'https://github.com/paulthorson/job-apply-mcp';
-export const SITE_URL = 'https://job-apply-mcp.vercel.app';
+export const SITE_URL = 'https://www.vetomcp.com';
 
 export function PixelX({ size = 30 }: { size?: number }) {
   return (
