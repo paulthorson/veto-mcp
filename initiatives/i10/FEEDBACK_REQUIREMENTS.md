@@ -22,14 +22,20 @@ the git repo as an auto-generated issue, so the team can see it and fix it.
    job applications — a raw traceback can contain all of it. Every report goes
    through the Initiative 08 scrub/quarantine pipeline; anything that can't be
    proven clean is withheld, and the report says what was withheld.
-4. **Automatic GitHub issue filing.** Scrubbed reports are filed as issues on the
-   Veto repo automatically: title from the crash signature, body with version,
-   platform, scrubbed traceback, and reproduction context.
+4. **Automatic private issue filing.** Scrubbed reports are filed automatically into a
+   **private** issue tracker visible only to the Veto team — never posted publicly,
+   never attributed to the user (filed under Veto's own identity). Per Paul's
+   2026-09-14 decision and the terms review: public GitHub issues are NOT the intake
+   mechanism (adversarial legal review found public intake + anonymity promises
+   deceptive — Rule 1 veto). Title from the crash signature; body with version,
+   platform, scrubbed traceback, reproduction context.
 5. **Dedup.** Same crash signature → comment on the existing open issue, not a new
    issue. Closed issues with a new occurrence get reopened with a fresh report.
-6. **Rate limits & user control.** Cap on reports per day; a settings toggle for
-   automatic filing (default: on for crashes, with the scrub guarantee); every
-   auto-filed issue links back to the local report the user can inspect.
+6. **Rate limits & user control.** Cap on reports per day. In the terms (TERMS.md
+   v2026-09-14): crash/problem reports are a **required** condition of the free
+   license; usage analytics are a **separate opt-in toggle** (off by default) per
+   GDPR. Every auto-filed issue links back to the local report the user can inspect
+   in Settings → "Data sent."
 
 ## Open questions for Paul (at build time, not now)
 
