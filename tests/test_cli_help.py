@@ -178,17 +178,17 @@ class TestStderrChatter(unittest.TestCase):
 
     def test_info_chatter_suppressed_by_default(self):
         rc, records, _err = self._run_with_emit(
-            ["boards"], lambda: _LOG.info("Indeed: 3 jobs for 'x' in ''")
+            ["boards"], lambda: _LOG.info("Greenhouse: 3 jobs for 'x' in ''")
         )
         self.assertEqual(rc, 0)
-        self.assertNotIn("Indeed: 3 jobs", records)
+        self.assertNotIn("Greenhouse: 3 jobs", records)
 
     def test_verbose_restores_info_chatter(self):
         rc, records, _err = self._run_with_emit(
-            ["--verbose", "boards"], lambda: _LOG.info("Indeed: 3 jobs for 'x' in ''")
+            ["--verbose", "boards"], lambda: _LOG.info("Greenhouse: 3 jobs for 'x' in ''")
         )
         self.assertEqual(rc, 0)
-        self.assertIn("Indeed: 3 jobs", records)
+        self.assertIn("Greenhouse: 3 jobs", records)
 
     def test_warning_still_passes_by_default(self):
         rc, records, _err = self._run_with_emit(

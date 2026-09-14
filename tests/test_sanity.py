@@ -114,7 +114,10 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         out = result.stdout.lower()
         self.assertIn("greenhouse", out)
-        self.assertIn("indeed", out)
+        self.assertIn("adzuna", out)
+        # Deleted scrapers must not appear as supported boards.
+        self.assertNotIn("indeed", out)
+        self.assertNotIn("ziprecruiter", out)
 
     def test_search_help(self):
         result = self._run("search", "--help")
