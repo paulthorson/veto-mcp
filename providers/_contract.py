@@ -21,7 +21,7 @@ This module is the single place that defines what a Veto connector *is*:
   unknown statuses fail validation, ``submitted`` requires confirmation
   evidence, and ``failed`` requires an error. ``submission_result_from``
   adapts the real modules' native result dicts (``ats_apply``,
-  ``browser_apply``, ``easy_apply``) into this vocabulary.
+  ``browser_apply``) into this vocabulary.
 * ``ConnectorManifest`` — the proof-of-value declaration every connector
   carries: what it can do, why it may be blocked, what data it sends, and
   which actions require confirmation. The Q2 gate requires every connector
@@ -79,11 +79,11 @@ class TermsClass(str, Enum):
 #
 # Note on removed entries: ``linkedin`` / ``indeed`` used to be classified
 # here as HTML_SCRAPING, but Veto has no search interface for either — no
-# provider module, no manifest, no evidence. LinkedIn Easy Apply is a
-# fill-only *submission* path (see easy_apply.py and the SubmissionStatus
-# contract below), not a search provider, so keeping scraping-tier search
-# classifications for them was aspirational, not evidential. They were
-# removed; their risk posture is still enforced in compliance.py.
+# provider module, no manifest, no evidence. The LinkedIn Easy Apply
+# fill-only submission path was deleted (legal-hardening commit 3), so
+# keeping scraping-tier search classifications for them was aspirational,
+# not evidential. They were removed; their risk posture is still enforced
+# in compliance.py.
 TERMS_CLASSIFICATION: dict[str, tuple[TermsClass, str, str]] = {
     "greenhouse": (
         TermsClass.OFFICIAL_API,
@@ -243,8 +243,8 @@ def budget_for(provider_name: str) -> tuple[int, int]:
 #    ``failed`` requires an error, ``draft`` must not claim submission.
 # 3. ``SubmissionConnector`` — the ``apply()`` interface signature for
 #    connectors that submit. Connectors keep their native entry points
-#    (``ats_apply.apply_direct``, ``browser_apply.apply_via_browser``,
-#    ``easy_apply.fill_easy_apply``); ``submission_result_from`` is the
+#    (``ats_apply.apply_direct``, ``browser_apply.apply_via_browser``);
+#    ``submission_result_from`` is the
 #    adapter that maps their native result dicts into the vocabulary.
 #
 # The Q2 gate (``conformance_suite``) only ever dry-runs apply paths
@@ -263,29 +263,25 @@ class SubmissionStatus(str, Enum):
     """
 
     DRAFT = "draft"  # dry-run preview; no submission attempted
-    #   (ats_apply ``mode: preview``; browser_apply confirm=False fill-only;
-    #    easy_apply ``status: preview``)
+    #   (ats_apply ``mode: preview``; browser_apply confirm=False fill-only)
     SUBMITTED = "submitted"  # the endpoint confirmed receipt
     #   (ats_apply ``ok: True``; browser_apply ``submitted: True``)
     FAILED = "failed"  # attempted; the attempt failed — error is required
-    #   (ats_apply ``ok: False``; browser_apply ``ok: False``;
-    #    easy_apply ``error`` / ``stuck`` / ``step_limit_reached``)
+    #   (ats_apply ``ok: False``; browser_apply ``ok: False``)
     PAUSED = "paused"  # paused by session rescue; control handed to the user
-    #   (browser_apply ``paused: True``; easy_apply ``rescue_paused`` with a
-    #    non-captcha reason). Pause-and-hand-off is the only path — Veto
+    #   (browser_apply ``paused: True`` with a non-captcha reason).
+    #    Pause-and-hand-off is the only path — Veto
     #    never bypasses the thing that paused it.
     CAPTCHA_BLOCKED = "captcha_blocked"  # CAPTCHA/bot-check stopped the flow
     #   (browser_apply rescue ``reason: captcha``). Never bypassed, never
     #    auto-retried around: the user completes it or the run stays blocked.
     RATE_LIMITED = "rate_limited"  # compliance cap / HTTP 429 / block
-    #   (ats_apply daily-cap refusal; easy_apply ``status: blocked``)
+    #   (ats_apply daily-cap refusal)
     NEEDS_CONFIRMATION = "needs_confirmation"  # staged/filled; the human's
     #   explicit submit click is still required
-    #   (easy_apply ``awaiting_user_submit`` — fill-only, browser handed to
-    #    the user; the final Submit click is ALWAYS the user's)
+    #   (fill-only result — the final Submit click is ALWAYS the user's)
     UNAVAILABLE = "unavailable"  # no usable submit interface for this board
-    #   (ats_apply ``direct_apply_available: False``; easy_apply
-    #    ``already_applied`` / ``no_easy_apply``)
+    #   (ats_apply ``direct_apply_available: False``)
 
 
 @dataclass
@@ -396,29 +392,9 @@ def validate_submission_result(result: Any) -> list[str]:
     return problems
 
 
-# Native ``status`` strings emitted by easy_apply.fill_easy_apply /
-# preview_easy_apply, mapped into the contract vocabulary. easy_apply is
-# fill-only: it never reports SUBMITTED (``submitted_by_automation`` is
-# always False there); the human's click is NEEDS_CONFIRMATION.
-_EASY_STATUS_MAP: dict[str, SubmissionStatus] = {
-    "preview": SubmissionStatus.DRAFT,
-    "awaiting_user_submit": SubmissionStatus.NEEDS_CONFIRMATION,
-    "rescue_paused": SubmissionStatus.PAUSED,  # refined by rescue reason
-    "blocked": SubmissionStatus.RATE_LIMITED,
-    "already_applied": SubmissionStatus.UNAVAILABLE,
-    "no_easy_apply": SubmissionStatus.UNAVAILABLE,
-    "stuck": SubmissionStatus.FAILED,
-    "step_limit_reached": SubmissionStatus.FAILED,
-    "error": SubmissionStatus.FAILED,
-}
-
-
 def _detect_source(raw: dict[str, Any]) -> str:
     """Guess which module produced a native result dict ('ats' | 'browser'
-    | 'easy' | ''). Callers may pass ``source=`` explicitly instead."""
-    status = raw.get("status")
-    if isinstance(status, str) and status in _EASY_STATUS_MAP:
-        return "easy"
+    | ''). Callers may pass ``source=`` explicitly instead."""
     if "submitted" in raw or "paused" in raw:
         return "browser"
     if "mode" in raw or "direct_apply_available" in raw or "ok" in raw:
@@ -515,33 +491,8 @@ def _from_browser(raw: dict[str, Any], connector: str) -> SubmissionResult:
     )
 
 
-def _from_easy(raw: dict[str, Any], connector: str) -> SubmissionResult:
-    """Adapt an ``easy_apply`` result dict (``status`` vocabulary)."""
-    native = str(raw.get("status") or "")
-    if native not in _EASY_STATUS_MAP:
-        raise ValueError(
-            f"easy_apply reported unknown status {native!r}; refusing to "
-            "guess — the contract vocabulary is closed"
-        )
-    status = _EASY_STATUS_MAP[native]
-    if native == "rescue_paused":
-        status = _rescue_status(raw)
-    return SubmissionResult(
-        status=status,
-        connector=connector or str(raw.get("board") or ""),
-        job_id=str(raw.get("job_url") or ""),
-        confirmation="",
-        error=str(raw.get("error") or ""),
-        detail={
-            k: raw[k]
-            for k in ("filled_fields", "steps_taken", "screenshots")
-            if k in raw
-        },
-    )
-
-
 #: The documented ``source`` vocabulary for ``submission_result_from``.
-_SUBMISSION_SOURCES = ("ats", "browser", "easy")
+_SUBMISSION_SOURCES = ("ats", "browser")
 
 
 def submission_result_from(
@@ -549,10 +500,9 @@ def submission_result_from(
 ) -> SubmissionResult:
     """Adapt a module-native submission result dict into a SubmissionResult.
 
-    ``source`` is one of ``"ats"`` (``ats_apply.apply_direct``),
-    ``"browser"`` (``browser_apply.apply_via_browser``), ``"easy"``
-    (``easy_apply``). When omitted, the source is detected from the dict's
-    shape. An EXPLICIT ``source`` is validated against the vocabulary: an
+    ``source`` is one of ``"ats"`` (``ats_apply.apply_direct``) or
+    ``"browser"`` (``browser_apply.apply_via_browser``). When omitted,
+    the source is detected from the dict's shape. An EXPLICIT ``source`` is validated against the vocabulary: an
     invalid explicit source raises ``ValueError`` rather than being
     silently re-detected — the caller's stated contract wins, so a wrong
     explicit source can never be quietly reinterpreted into a different
@@ -579,8 +529,6 @@ def submission_result_from(
         return _from_ats(raw, connector)
     if src == "browser":
         return _from_browser(raw, connector)
-    if src == "easy":
-        return _from_easy(raw, connector)
     raise ValueError(
         f"unrecognized submission result shape (keys: {sorted(raw)}); "
         "refusing to guess — report in a known module shape"

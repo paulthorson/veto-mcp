@@ -269,29 +269,6 @@ class WfApplyTests(unittest.TestCase):
             out = _run(dashboard.wf_apply)
         self.assertIn("needs httpx", out)
 
-    def test_easy_apply_path_shows_fill_plan(self):
-        self._base_patches({"total": 0})
-        with mock.patch.object(
-            dashboard, "ask_choice",
-            return_value="LinkedIn Easy Apply (fill-only)"
-        ), mock.patch.object(
-            dashboard, "ask", side_effect=["linkedin:abc123", "", ""]
-        ), mock.patch.object(
-            dashboard, "ask_yes_no", return_value=False
-        ), mock.patch.object(
-            dashboard.easy_apply, "preview_easy_apply",
-            return_value={
-                "status": "preview",
-                "steps": ["Open the posting.", "STOP at the review step."],
-                "fields_would_fill": ["full_name"],
-                "guarantee": "Fill-only guarantee.",
-            },
-        ):
-            out = _run(dashboard.wf_apply)
-        self.assertIn("no browser launched", out)
-        self.assertIn("STOP at the review step.", out)
-        self.assertIn("Fill-only guarantee.", out)
-
     def test_browser_path_shows_session_state(self):
         self._base_patches({"total": 0})
         with mock.patch.object(
@@ -312,15 +289,13 @@ class WfApplyTests(unittest.TestCase):
         self._base_patches({"total": 2, "answered": 1, "complete": False})
         with mock.patch.object(
             dashboard, "ask_choice",
-            return_value="LinkedIn Easy Apply (fill-only)"
+            return_value="browser fill (your logged-in session)"
         ), mock.patch.object(
             dashboard, "ask", side_effect=["linkedin:abc123", "", ""]
         ), mock.patch.object(
             dashboard, "ask_yes_no", side_effect=[False, False]
         ), mock.patch.object(
-            dashboard.easy_apply, "preview_easy_apply",
-            return_value={"status": "preview", "steps": [],
-                          "fields_would_fill": [], "guarantee": "g"},
+            dashboard.browser_apply, "has_saved_session", return_value=False
         ), mock.patch("dashboard.wf_grill") as grill_wf:
             out = _run(dashboard.wf_apply)
         self.assertIn("1/2 answered", out)
