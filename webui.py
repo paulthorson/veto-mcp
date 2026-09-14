@@ -1153,7 +1153,7 @@ TOOLS = [
             _h_referrals_outreach, [_p("contact", "object", True),
                                                    _p("job", "object"),
                                                    _profile_param(),
-                                                   _p("kind", "string", default="warm", help="'warm' or 'cold'.")]),
+                                                   _p("kind", "string", default="warm", help="Outreach tone (warm only).")]),
          _a("targets", "Target companies derived from watches + applications.",
             _h_referrals_targets, []),
      ]},
