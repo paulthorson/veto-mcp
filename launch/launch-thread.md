@@ -17,7 +17,8 @@ reputation.
 **3/**
 So I built the one that says no.
 
-It's an open-source MCP server: searches 8 job boards, grills you on the
+It's an open-source MCP server: searches 4 job boards (public and official
+APIs only), grills you on the
 gaps in your background, tailors your resume, fills the forms — and runs
 every application through a governance screen first.
 
@@ -26,13 +27,13 @@ Three things it has refused to do, in testing:
 
 ❌ Invent "5 years of Kubernetes" because the job listing mentioned it
 ❌ Apply to a staff role I wasn't qualified for (score: 0.31, blocked)
-❌ Click "submit" on a scraped application form — fill-only, always.
+❌ Click "submit" on any application form — fill-only, always.
    The human clicks submit.
 
 **5/**
 The part I'm proudest of: the grill.
 
-Before it applies anywhere, it messages you — chat, WhatsApp, or Gmail —
+Before it applies anywhere, it messages you — chat or WhatsApp —
 with questions built from the actual gaps between your profile and the job.
 No answers, no application. It's the conversation a good career coach would
 force you to have.
@@ -40,24 +41,24 @@ force you to have.
 **6/**
 The boring machinery that makes it safe:
 
-• ToS-risk acknowledgment before any scraping-tier search
-• Circuit breakers on 403/429/CAPTCHA — it backs off, never bypasses
-• Max 5 applications/day, human-paced
+• Public and official APIs only — no scraping, no logged-in sessions
+• Honest User-Agent, robots.txt obeyed fail-closed
+• Max 5 applications/day, with a polite delay between requests
 • Every block written to an audit ledger
 
 **7/**
 What it won't do, stated plainly:
 
 No CAPTCHA bypass. No credential storage. No LinkedIn automation behind a
-login. Glassdoor isn't even implemented — the stub says so honestly instead
-of pretending.
+login — LinkedIn isn't in the product. Glassdoor isn't implemented either
+— the stub says so honestly instead of pretending.
 
 Constraints are the feature.
 
 **8/**
 It's open source. MCP-native, so it plugs into any agent that speaks the
-protocol. Queue your applications, sync your recruiter email, prep for
-interviews from your real achievements — and let it say no when it should.
+protocol. Queue your applications, prep for interviews from your real
+achievements — and let it say no when it should.
 
 Repo: [link in bio]
 
@@ -81,14 +82,14 @@ spots the pattern — and then it's your name on the burned account, not the
 bot's.
 
 So I built an open-source MCP server that treats your reputation as the
-constraint, not the throughput. It searches eight job boards, then grills
-you — over chat, WhatsApp, or Gmail — on the gaps between your background
+constraint, not the throughput. It searches four job boards, then grills
+you — over chat or WhatsApp — on the gaps between your background
 and the role before anything moves forward. Every application passes a
 governance screen: a cover-letter honesty check that blocks invented skills,
 qualification scoring that blocks roles you're not ready for, and a strict
-fill-only policy on scraping-tier sites, meaning automation fills the form
-and a human always clicks submit. Five applications a day, maximum, at human
-pace, with every decision written to an audit ledger.
+fill-only policy — automation fills the form, a human always clicks submit.
+Five applications a day, maximum, with a polite delay between requests,
+with every decision written to an audit ledger.
 
 In testing it has refused to invent experience, refused an unqualified
 application I explicitly requested, and refused to auto-submit a form. I
