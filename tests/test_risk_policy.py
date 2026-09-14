@@ -116,15 +116,6 @@ class RiskPolicyTest(unittest.TestCase):
         self.assertFalse(out["allowed"])
         self.assertIn("fill-only", out["reason"])
 
-    def test_apply_scraping_easy_apply_allowed_fill_only(self):
-        st = self._fresh()
-        compliance.acknowledge_risks(st, self.cpath)
-        out = risk_policy.adjudicate_apply(
-            "linkedin", "Engineer", "Acme", via="easy-apply"
-        )
-        self.assertTrue(out["allowed"])
-        self.assertTrue(out["fill_only"])
-
     def test_apply_official_ats_allowed(self):
         out = risk_policy.adjudicate_apply(
             "lever", "Engineer", "Acme", via="ats"

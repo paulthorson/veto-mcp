@@ -172,7 +172,7 @@ def adjudicate_apply(
 ) -> dict[str, Any]:
     """Adjudicate one application submission through policy.
 
-    ``via`` is "browser", "ats" (official API), or "easy-apply" (fill-only).
+    ``via`` is "browser" or "ats" (official API).
     Scraping-tier boards may only proceed fill-only: the automation must
     never perform the final submit click.
     """
@@ -194,7 +194,8 @@ def adjudicate_apply(
     if tier == "scraping" and via == "browser":
         # Extra mitigation for the riskiest path: full browser submission
         # on a scraping-tier board is disallowed by policy; use the
-        # fill-only easy-apply flow or an official ATS endpoint instead.
+        # fill-only browser flow (the human clicks submit) or an official
+        # ATS endpoint instead.
         reason = (
             f"Policy blocks full browser submission on scraping-tier board "
             f"'{board}'. Use the fill-only flow (the human clicks submit) "
