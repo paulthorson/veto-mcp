@@ -113,7 +113,7 @@ class TestCLI(unittest.TestCase):
         result = self._run("boards")
         self.assertEqual(result.returncode, 0, result.stderr)
         out = result.stdout.lower()
-        self.assertIn("linkedin", out)
+        self.assertIn("greenhouse", out)
         self.assertIn("indeed", out)
 
     def test_search_help(self):

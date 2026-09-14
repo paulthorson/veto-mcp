@@ -329,7 +329,7 @@ def _provider_for(board: str) -> Any | None:
     """Return a provider instance for ``board``.
 
     Official-API providers come from the ``providers`` package. Boards
-    whose provider classes live in ``server.py`` (linkedin, indeed, …)
+    whose provider classes live in ``server.py`` (indeed, …)
     are resolved with a lazy server import — safe because server never
     imports this module.
     """

@@ -11,11 +11,11 @@ Run interactively::
 
 Answers can also be piped via stdin for scripted runs, e.g.::
 
-    printf 'Jane Doe\\n...\\n3\\n' | python3 wizard.py
+    printf 'Jane Doe\\n...\\n2\\n' | python3 wizard.py
 
 The wizard collects contact info, job-search preferences, and skills,
-optionally ingests a LinkedIn data-export ZIP (or tries a public profile
-URL), and writes the merged result to ``profiles/profile.json``.
+optionally ingests a LinkedIn data-export ZIP, and writes the merged
+result to ``profiles/profile.json``.
 
 Beyond the basics it also collects targeting (industries, company size,
 role track, seniority), compensation expectations, logistics (notice
@@ -224,67 +224,6 @@ def parse_linkedin_export_zip(zip_path: str | Path) -> dict:
     return data
 
 
-def fetch_linkedin_public_profile(url: str) -> dict:
-    """Best-effort fetch of a public LinkedIn profile URL.
-
-    LinkedIn blocks most unauthenticated scraping, so this typically
-    returns little. It is kept as a convenience fallback; the
-    data-export ZIP (option 1) is far more reliable.
-    """
-    try:
-        import httpx
-        from bs4 import BeautifulSoup
-    except ImportError as exc:  # pragma: no cover - dependency issue
-        raise RuntimeError(
-            "httpx and beautifulsoup4 are required for this option"
-        ) from exc
-
-    result: dict = {
-        "full_name": "", "first_name": "", "last_name": "", "headline": "",
-        "summary": "", "location": "", "linkedin_url": url,
-        "experience": [], "education": [], "skills": [],
-    }
-    resp = httpx.get(
-        url,
-        headers={
-            "User-Agent": (
-                "VETO-REDACTED-UA"
-                ""
-                ""
-            )
-        },
-        timeout=20,
-        follow_redirects=True,
-    )
-    resp.raise_for_status()
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    title = soup.title.get_text(" ", strip=True) if soup.title else ""
-    # Public pages often embed "Name | LinkedIn" or similar in <title>.
-    if title:
-        name = title.split("|")[0].strip()
-        if name:
-            result["full_name"] = name
-            parts = name.split()
-            result["first_name"] = parts[0]
-            result["last_name"] = parts[-1] if len(parts) > 1 else ""
-
-    headline_el = soup.select_one("h2, .text-body-medium")
-    if headline_el:
-        result["headline"] = headline_el.get_text(" ", strip=True)
-
-    for h in soup.select("h3, h4"):
-        text = h.get_text(" ", strip=True)
-        if text and len(text) > 8:
-            result["experience"].append({
-                "title": text, "company": "", "location": "",
-                "start": "", "end": "", "description": "",
-            })
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Merging
 # ---------------------------------------------------------------------------
 
 
@@ -604,7 +543,7 @@ def collect_compliance() -> str:
     print("Job boards fall into two risk tiers:")
     print("  official   Greenhouse, Lever, Ashby, Adzuna — public/official")
     print("             APIs. ToS-friendly; always preferred.")
-    print("  scraping   LinkedIn, Indeed, Glassdoor, ZipRecruiter — HTML or")
+    print("  scraping   Indeed, Glassdoor, ZipRecruiter — HTML or")
     print("             guest-endpoint scraping. May violate the site's Terms")
     print("             of Service and can trigger HTTP 403/429, CAPTCHAs,")
     print("             IP rate-limiting, or account restrictions.")
@@ -677,14 +616,12 @@ def collect_grill_channel() -> dict:
 
 
 def linkedin_ingestion() -> dict | None:
-    """Offer the three LinkedIn ingestion options; return fragments or None."""
+    """Offer the LinkedIn ingestion options; return fragments or None."""
     print("\n--- LinkedIn ingestion ---")
     print("  1. Path to LinkedIn data-export ZIP")
     print("     (Settings & Privacy > Data Privacy > Get a copy of your data)")
-    print("  2. Public LinkedIn profile URL (best-effort; LinkedIn usually")
-    print("     blocks unauthenticated scraping — option 1 is recommended)")
-    print("  3. Skip")
-    choice = ask("Choose an option", "3").strip()
+    print("  2. Skip")
+    choice = ask("Choose an option", "2").strip()
 
     if choice == "1":
         zip_path = ask("Path to the LinkedIn export ZIP")
@@ -700,22 +637,6 @@ def linkedin_ingestion() -> dict | None:
         print(f"  Parsed: {len(data['experience'])} position(s), "
               f"{len(data['education'])} education entr(y/ies), "
               f"{len(data['skills'])} skill(s).")
-        return data
-
-    if choice == "2":
-        url = ask("Public LinkedIn profile URL")
-        if not url:
-            print("  No URL given — skipping.")
-            return None
-        try:
-            data = fetch_linkedin_public_profile(url)
-        except Exception as exc:  # LinkedIn usually blocks this
-            print(f"  !! Could not fetch the profile ({exc}).")
-            print("  Tip: use option 1 (data-export ZIP) instead.")
-            return None
-        print("  Best-effort fetch done. Check the parsed values below —")
-        print("  LinkedIn usually blocks unauthenticated scraping, so")
-        print("  expect limited results.")
         return data
 
     print("  Skipping LinkedIn ingestion.")

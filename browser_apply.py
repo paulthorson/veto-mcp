@@ -93,13 +93,6 @@ Safety contract:
     page JS overriding ``innerText`` can otherwise forge "Reject all"
     over an "Accept all" button. Without an unforged channel no
     consent button is clicked at all.
-  * ``login_session`` saves bearer-equivalent session secrets
-    (``storage_state``) protected ONLY by 0o600 file permissions — not
-    encrypted. Permission-hardening failures fail LOUDLY (the captured
-    file is DELETED and the session is not reported as saved), and the
-    limitation is disclosed, not hidden. See
-    ``docs/i09/decisions/communication-connectors.md`` for the residual
-    risk record (encryption at rest is a human-accepted risk).
   * Chromium is launched with ``--no-sandbox`` (m6, disclosed here, not
     hidden in the launch args): this tool commonly runs in
     containers/VMs (Docker, headless CI/dev VMs) where the kernel user
@@ -108,8 +101,8 @@ Safety contract:
     the browser's own process isolation, so a compromised renderer has
     fewer containment boundaries. Accepted because the browser only
     ever visits the user's chosen apply URL, runs with no stored
-    credentials except explicitly-saved login sessions, and never
-    types passwords; the sandbox would add little while breaking the
+    credentials, and never types passwords or loads a saved login
+    session; the sandbox would add little while breaking the
     tool in its normal environments.
   * Chromium is launched with ``--disable-blink-features=AutomationControlled``
     (s5, disclosed here, not hidden in the launch args): this disables the
@@ -128,9 +121,9 @@ Safety contract:
     (``apply_via_browser`` with ``browser_kind="chromium"`` and the
     headed ``login_session`` browser); Firefox launches take
     ``--no-sandbox`` only.
-  * No credentials are stored or used here. For boards that require login
-    (LinkedIn Easy Apply, Workday, etc.), the user logs in manually in a
-    headed session; this module never types passwords.
+  * No credentials are stored or used here. Saved login sessions are not
+    supported: this module never types passwords and never loads a saved
+    session.
   * Automated applying may violate a job board's Terms of Service and can
     trigger anti-bot measures (CAPTCHAs, IP throttles, account limits).
     Use at a human pace and keep a person in the loop.
@@ -184,7 +177,6 @@ log = logging.getLogger("job-apply-mcp.browser")
 
 BASE_DIR = Path(__file__).resolve().parent
 SCREENSHOTS_DIR = BASE_DIR / "screenshots"  # gitignored: filled-form PII
-SESSIONS_DIR = BASE_DIR / "sessions"  # gitignored: saved login sessions
 
 #: Screenshot retention policy (m2): screenshots of filled application
 #: forms contain PII (name, email, phone, address). Keep at most this
@@ -247,32 +239,15 @@ def cleanup_screenshots(
             errors.append(f"{path.name}: {exc}")
     return {"deleted": deleted, "kept": len(survivors), "errors": errors}
 
-# Where a human logs in manually per board. Boards without a generic
-# login page (Greenhouse/Lever/Ashby are per-company) have None.
+# Boards with a generic login page would be listed here with their URL.
+# None remain: saved-login support was removed, so every entry is None.
+# Greenhouse/Lever/Ashby are per-company (no generic login page).
 BOARD_LOGIN_URLS: dict[str, str | None] = {
-    "linkedin": "https://www.linkedin.com/login",
-    "indeed": "https://secure.indeed.com/account/login",
-    "glassdoor": "https://www.glassdoor.com/profile/login_input.htm",
-    "ziprecruiter": "https://www.ziprecruiter.com/login",
     "greenhouse": None,
     "lever": None,
     "ashby": None,
     "adzuna": None,
 }
-
-# URL fragments that indicate the browser is still on a login page.
-_LOGIN_PATH_HINTS = ("login", "signin", "sign-in", "auth", "signup")
-
-
-def session_path(board: str) -> Path:
-    """Filesystem path of the saved login session for ``board``."""
-    safe = re.sub(r"[^a-z0-9_-]", "_", board.lower())
-    return SESSIONS_DIR / f"{safe}.json"
-
-
-def has_saved_session(board: str) -> bool:
-    """True when a login session was previously saved for ``board``."""
-    return session_path(board).is_file()
 
 # ---------------------------------------------------------------------------
 # Field detection
@@ -1133,8 +1108,8 @@ def _take_screenshot(page: Any, suffix: str = "preview") -> Path | None:
         # owner, and NIT 7 (round 6) the file was pre-created 0o600
         # BEFORE the screenshot bytes landed. This post-write chmod is
         # defense-in-depth (e.g. if the writer ever recreated the
-        # inode). N3 (round 4): match the login_session hardening path —
-        # a chmod failure is an ERROR, never a warning-only event: the
+        # inode). N3 (round 4): a chmod failure is an ERROR, never a
+        # warning-only event: the
         # file is DELETED (fallback chmod 0) rather than left on disk at
         # umask permissions, and the failure is reported loudly. Returns
         # None so callers never treat the shot as usable.
@@ -1169,194 +1144,6 @@ def _take_screenshot(page: Any, suffix: str = "preview") -> Path | None:
     except Exception as exc:
         log.warning("Screenshot failed: %s", exc)
         return None
-
-
-# ---------------------------------------------------------------------------
-# Persistent login sessions
-# ---------------------------------------------------------------------------
-
-
-def _looks_logged_in(page: Any, board: str) -> bool:
-    """Best-effort check that the user completed a manual login.
-
-    True when the URL has left any login path AND the page shows either
-    no password field or an account-ish indicator (avatar, profile menu,
-    logout link). Never conclusive — the caller treats it as a hint.
-    """
-    try:
-        url = (page.url or "").lower()
-        if any(h in url for h in _LOGIN_PATH_HINTS):
-            return False
-        has_password = page.locator("input[type='password']").count() > 0
-        indicators = [
-            "[aria-label*='profile' i]", "[aria-label*='account' i]",
-            "img[class*='avatar' i]", "[data-testid*='avatar' i]",
-            "a[href*='logout' i]", "button:has-text('Sign out')",
-            ".global-nav__me",  # LinkedIn
-        ]
-        has_indicator = any(
-            page.locator(sel).count() > 0 for sel in indicators
-        )
-        return has_indicator or not has_password
-    except Exception:
-        return False
-
-
-def login_session(board: str, timeout_s: int = 300) -> dict[str, Any]:
-    """Interactively save a login session for ``board``.
-
-    Launches a HEADED browser on the board's login page. The user logs in
-    manually (including any MFA/CAPTCHA); this function only watches for
-    the login to complete, then saves ``storage_state`` to
-    ``sessions/{board}.json``. Passwords are never typed or stored by this
-    tool — only the resulting session cookies/localStorage.
-
-    Security limitation (disclosed honestly): the saved ``storage_state``
-    holds bearer-equivalent secrets (cookies / localStorage) protected
-    ONLY by file permissions (0o600) — it is NOT encrypted. Anyone with
-    read access to the file (or root) can impersonate these sessions.
-    The file is created 0o600 BEFORE any secret bytes are written (NIT
-    7, round 6 — never briefly world-readable at umask). Keep the
-    ``sessions/`` directory private and delete sessions you no longer
-    need. If permission hardening fails, the captured file is DELETED
-    and the session is NOT reported as saved — the failure is loud,
-    never silent.
-
-    Args:
-        board: Board key, e.g. "linkedin" or "indeed".
-        timeout_s: How long to wait for the manual login (default 5 min).
-
-    Returns:
-        {"ok", "board", "session_path", "warning", "error"}. Never raises
-        for automation failures. "warning" discloses the
-        permission-only protection on success.
-    """
-    result: dict[str, Any] = {
-        "ok": False,
-        "board": board,
-        "session_path": None,
-        "warning": None,
-        "error": None,
-    }
-    login_url = BOARD_LOGIN_URLS.get(board.lower())
-    if not login_url:
-        result["error"] = (
-            f"No generic login page known for board {board!r}. "
-            "Log in on the employer's own site instead."
-        )
-        return result
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        result["error"] = "Playwright is not installed."
-        return result
-
-    browser = None
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=False,  # the human must see and use this window
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
-            )
-            context = browser.new_context(
-                viewport={"width": 1366, "height": 900},
-            )
-            page = context.new_page()
-            page.goto(login_url, wait_until="domcontentloaded", timeout=60000)
-            print(
-                f"[login_session] Please log in to {board} in the opened "
-                f"browser window (timeout {timeout_s}s). This window will "
-                "close automatically once login is detected."
-            )
-            deadline = time.time() + timeout_s
-            while time.time() < deadline:
-                time.sleep(3)
-                if _looks_logged_in(page, board):
-                    break
-            else:
-                result["error"] = (
-                    "Timed out waiting for manual login. No session saved."
-                )
-                return result
-            SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-            path = session_path(board)
-            # NIT 7 (round 6): owner-only FROM CREATION — pre-create the
-            # target at 0o600 before storage_state() writes the
-            # bearer-equivalent secrets. Refuse to save at all when the
-            # path cannot be secured.
-            if not _precreate_owner_only(path):
-                result["error"] = (
-                    "Login session was captured but the session file "
-                    "could not be secured owner-only before writing — "
-                    "nothing was saved."
-                )
-                log.error("login_session: %s", result["error"])
-                return result
-            context.storage_state(path=str(path))
-            result["session_path"] = str(path)
-            try:
-                os.chmod(path, 0o600)
-            except OSError as exc:
-                # FAIL LOUDLY and REMOVE the secret (m4): the file holds
-                # bearer-equivalent secrets (cookies / localStorage). A
-                # silent `except: pass` — or leaving the file on disk at
-                # umask permissions with a "delete it manually" note —
-                # trusts cleanup that may never happen. Delete the file;
-                # if deletion itself fails, chmod 0 as a last resort so
-                # nobody can read it; if THAT fails too, say so loudly.
-                # The session is NOT reported as saved in any case.
-                removal_note: str
-                try:
-                    os.unlink(path)
-                    removal_note = (
-                        "the captured file was DELETED so the secrets are "
-                        "not left on disk"
-                    )
-                except OSError as unlink_exc:
-                    try:
-                        os.chmod(path, 0)
-                        removal_note = (
-                            f"deletion failed ({unlink_exc}); the file was "
-                            "chmodded to 0 (no permissions for anyone) as "
-                            "a last resort — remove it manually"
-                        )
-                    except OSError as chmod0_exc:
-                        removal_note = (
-                            "CRITICAL: the file could neither be deleted "
-                            f"({unlink_exc}) nor chmodded to 0 "
-                            f"({chmod0_exc}) — it may still be readable; "
-                            "remove it manually IMMEDIATELY"
-                        )
-                result["error"] = (
-                    "Login session was captured but permission hardening "
-                    f"FAILED ({exc}): {removal_note}. Nothing was reported "
-                    "as saved."
-                )
-                log.error("login_session: %s", result["error"])
-                return result
-            log.warning(
-                "login_session: saved bearer-equivalent session secrets to "
-                "%s. They are protected ONLY by file permissions (0o600) "
-                "— not encrypted. Anyone with read access to this file "
-                "(or root) can impersonate these sessions.",
-                path,
-            )
-            result["ok"] = True
-            result["warning"] = (
-                "The saved storage_state holds bearer-equivalent secrets "
-                "(cookies/localStorage) protected ONLY by file permissions "
-                "(0o600); it is not encrypted. Keep the sessions/ "
-                "directory private and delete sessions you no longer need."
-            )
-    except Exception as exc:
-        result["error"] = f"Login session failed: {exc}"
-    finally:
-        try:
-            if browser is not None:
-                browser.close()
-        except Exception:
-            pass
-    return result
 
 
 # ---------------------------------------------------------------------------
@@ -3705,10 +3492,9 @@ def apply_via_browser(
             prompts interactively on a TTY, or refuses the submit (no
             TTY) and returns the preview.
         timeout_ms: Navigation timeout.
-        board: Optional board key (e.g. "linkedin"). When a saved login
-            session exists for the board (see ``login_session``), it is
-            loaded into the browser context so logged-in flows
-            (e.g. LinkedIn Easy Apply) work.
+        board: Optional board key (e.g. "greenhouse"). The browser runs
+            unauthenticated; saved login sessions are not supported and
+            are never loaded.
         browser_kind: Playwright browser to launch: "chromium" (default)
             or "firefox". The chosen browser must be installed
             (``python -m playwright install chromium firefox``).
@@ -3815,11 +3601,31 @@ def apply_via_browser(
         )
         return result
 
-    # Load a previously saved login session when one exists for the board.
-    storage_state = None
-    if board and has_saved_session(board):
-        storage_state = str(session_path(board))
-        log.info("Using saved login session for board %r", board)
+    # Saved login sessions were removed: no code path may load a saved
+    # Playwright storage_state. If pre-existing sessions/*.json files are
+    # still on disk, refuse to run and tell the user to delete them by
+    # hand — they may hold live credentials, so this tool will not
+    # delete them itself.
+    _stale_sessions_dir = BASE_DIR / "sessions"
+    _stale = (
+        sorted(_stale_sessions_dir.glob("*.json"))
+        if _stale_sessions_dir.is_dir()
+        else []
+    )
+    if _stale:
+        _names = ", ".join(p.name for p in _stale)
+        result["error"] = (
+            "Saved login sessions are no longer supported and are never "
+            "loaded. Found stale session file(s) in "
+            f"{_stale_sessions_dir}: {_names}. Delete them by hand "
+            "(they may contain live credentials, so this tool will not "
+            "delete them for you), then re-run."
+        )
+        log.error(
+            "Refusing to run with stale saved login sessions present: %s",
+            _names,
+        )
+        return result
 
     browser = None
     try:
@@ -3835,8 +3641,6 @@ def apply_via_browser(
                 "viewport": {"width": 1366, "height": 900},
                 "user_agent": VETO_USER_AGENT,
             }
-            if storage_state:
-                context_kwargs["storage_state"] = storage_state
             context = browser.new_context(**context_kwargs)
             page = context.new_page()
             try:

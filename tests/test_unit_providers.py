@@ -21,7 +21,6 @@ from tests.fixtures import (  # noqa: E402
     ASHBY_POSTING,
     GREENHOUSE_JOB,
     LEVER_POSTING,
-    LINKEDIN_CARD_HTML,
     REQUIRED_JOB_KEYS,
 )
 
@@ -63,39 +62,6 @@ def _assert_job_shape(testcase: unittest.TestCase, job: dict, board: str) -> Non
     testcase.assertEqual(decoded_url, job["url"])
 
 
-class TestLinkedInParser(unittest.TestCase):
-    """LinkedIn provider lives in server.py — always testable."""
-
-    def test_parse_card_shape(self):
-        from bs4 import BeautifulSoup
-
-        soup = BeautifulSoup(LINKEDIN_CARD_HTML, "lxml")
-        card = soup.select_one("li div.base-card")
-        self.assertIsNotNone(card)
-        provider = server.LinkedInProvider()
-        job = provider._parse_card(card)
-        self.assertIsNotNone(job)
-        _assert_job_shape(self, job, "linkedin")
-        self.assertEqual(job["title"], "Senior Software Engineer")
-        self.assertEqual(job["company"], "Acme Corp")
-        self.assertEqual(job["location"], "New York, NY")
-        self.assertIn("4242424242", job["url"])
-
-    def test_job_id_numeric_extraction(self):
-        url = "https://www.linkedin.com/jobs/view/x-at-y-4242424242?refId=abc"
-        self.assertEqual(
-            server.LinkedInProvider._job_id_from_url(url), "4242424242"
-        )
-        self.assertIsNone(
-            server.LinkedInProvider._job_id_from_url("https://example.com/jobs/1")
-        )
-
-    def test_malformed_card_returns_none(self):
-        from bs4 import BeautifulSoup
-
-        soup = BeautifulSoup("<div class='base-card'></div>", "lxml")
-        card = soup.select_one("div.base-card")
-        self.assertIsNone(server.LinkedInProvider()._parse_card(card))
 
 
 class TestIndeedParser(unittest.TestCase):

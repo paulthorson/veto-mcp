@@ -4,7 +4,7 @@
 Exposes job-board search and assisted-application tools over the Model
 Context Protocol (MCP) so an AI agent can:
 
-  * search jobs across major boards (Indeed, LinkedIn, ZipRecruiter;
+  * search jobs across major boards (Indeed, ZipRecruiter;
     stub for Glassdoor),
   * fetch full job descriptions,
   * prepare (and, only with explicit user confirmation, record)
@@ -431,125 +431,6 @@ class IndeedProvider(JobProvider):
             return {"url": url, "board": self.name, "error": str(exc)}
 
 
-class LinkedInProvider(JobProvider):
-    """LinkedIn guest jobs API (no auth required).
-
-    Uses the public ``jobs-guest`` endpoints. If LinkedIn blocks the guest
-    API (HTTP 403/429), search returns an empty list and logs the fallback.
-    """
-
-    name = "linkedin"
-    SEARCH_URL = (
-        "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-    )
-    DETAILS_URL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}"
-    # Guest posting URLs look like /jobs/view/<slug>-<numeric-id>[?...]
-    JOB_ID_RE = re.compile(r"-(\d{6,})(?:[/?#]|$)")
-
-    @classmethod
-    def _job_id_from_url(cls, url: str) -> str | None:
-        """Extract the numeric LinkedIn job id from a posting URL."""
-        m = cls.JOB_ID_RE.search(url)
-        return m.group(1) if m else None
-
-    def search(
-        self, query: str, location: str, limit: int, remote_only: bool
-    ) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {"keywords": query, "location": location, "start": 0}
-        if remote_only:
-            params["f_WT"] = "2"  # LinkedIn "Remote" workplace-type filter
-        jobs: list[dict[str, Any]] = []
-        try:
-            with httpx.Client(
-                headers=_headers(), timeout=20.0, follow_redirects=True
-            ) as client:
-                start = 0
-                while len(jobs) < limit:
-                    params["start"] = start
-                    _polite_delay()
-                    resp = client.get(self.SEARCH_URL, params=params)
-                    if resp.status_code != 200:
-                        log.warning(
-                            "LinkedIn guest API returned HTTP %s; "
-                            "it may be blocking automated access.",
-                            resp.status_code,
-                        )
-                        break
-                    soup = BeautifulSoup(resp.text, "lxml")
-                    cards = soup.select("li div.base-card")
-                    if not cards:
-                        break
-                    for card in cards:
-                        job = self._parse_card(card)
-                        if job:
-                            jobs.append(job)
-                            if len(jobs) >= limit:
-                                break
-                    start += len(cards)
-        except Exception as exc:
-            log.warning("LinkedIn search failed: %s", exc)
-        log.info("LinkedIn: %d jobs for %r in %r", len(jobs), query, location)
-        return jobs
-
-    def _parse_card(self, card: Any) -> dict[str, Any] | None:
-        link = card.select_one("a.base-card__full-link")
-        if link is None or not link.get("href"):
-            return None
-        href = urljoin("https://www.linkedin.com", link["href"])
-        job_key = self._job_id_from_url(href) or href
-        title_el = card.select_one("h3.base-search-card__title")
-        company_el = card.select_one("h4.base-search-card__subtitle")
-        location_el = card.select_one("span.job-search-card__location")
-        time_el = card.select_one("time")
-        job = {
-            "id": _encode_job_id(self.name, href),
-            "title": title_el.get_text(strip=True) if title_el else "Unknown",
-            "company": company_el.get_text(strip=True) if company_el else "Unknown",
-            "location": location_el.get_text(strip=True) if location_el else "Unknown",
-            "url": href,
-            "board": self.name,
-            "snippet": (
-                f"Posted {time_el.get_text(strip=True)}" if time_el else ""
-            ),
-            "linkedin_job_key": job_key,
-        }
-        _JOB_REGISTRY[job["id"]] = job
-        return job
-
-    def get_details(self, url: str) -> dict[str, Any]:
-        job_key = self._job_id_from_url(url)
-        try:
-            with httpx.Client(
-                headers=_headers(), timeout=20.0, follow_redirects=True
-            ) as client:
-                _polite_delay()
-                target = self.DETAILS_URL.format(job_key) if job_key else url
-                resp = client.get(target)
-                resp.raise_for_status()
-                soup = BeautifulSoup(resp.text, "lxml")
-                title_el = soup.select_one("h2.top-card-layout__title")
-                company_el = soup.select_one("a.topcard__org-name-link")
-                desc_el = soup.select_one("div.description__text")
-                criteria = [
-                    li.get_text(" ", strip=True)
-                    for li in soup.select("ul.description__job-criteria-list li")
-                ]
-                return {
-                    "url": url,
-                    "board": self.name,
-                    "title": title_el.get_text(strip=True) if title_el else "Unknown",
-                    "company": (
-                        company_el.get_text(strip=True) if company_el else "Unknown"
-                    ),
-                    "description": (
-                        desc_el.get_text("\n", strip=True) if desc_el else ""
-                    ),
-                    "requirements": "\n".join(criteria),
-                    "apply_url": url,
-                }
-        except Exception as exc:
-            log.warning("LinkedIn details failed for %s: %s", url, exc)
-            return {"url": url, "board": self.name, "error": str(exc)}
 
 
 class GlassdoorProvider(JobProvider):
@@ -592,7 +473,6 @@ class _ZipRecruiterStub(JobProvider):
 
 PROVIDERS: dict[str, JobProvider] = {
     "indeed": IndeedProvider(),
-    "linkedin": LinkedInProvider(),
     "glassdoor": GlassdoorProvider(),
     "ziprecruiter": (
         _ZipRecruiterReal() if _ZipRecruiterReal is not None
@@ -602,7 +482,6 @@ PROVIDERS: dict[str, JobProvider] = {
 }
 ACTIVE_BOARDS = {
     "indeed",
-    "linkedin",
     "greenhouse",
     "lever",
     "ashby",
@@ -687,7 +566,7 @@ def search_jobs(
     Args:
         query: Job title / keywords, e.g. "software engineer".
         location: e.g. "New York, NY" or "Remote".
-        board: One of "all", "indeed", "linkedin", "greenhouse", "lever",
+        board: One of "all", "indeed", "greenhouse", "lever",
             "ashby", "adzuna", "glassdoor", "ziprecruiter". Stub boards and
             boards missing required credentials raise an error.
         limit: Max jobs to return per board (default 10).
