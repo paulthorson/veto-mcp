@@ -7,8 +7,8 @@ plus a JSON API over the real job-apply modules:
   GET  /api/kpis         -> dashboard_data.compute_kpis(repo_root)
   POST /api/run          -> {"tool","action","params"} dispatch
 
-Destructive actions (follow-up send, contribution submit, application
-record) are confirm-gated: the first call returns a preview + preview_hash,
+Destructive actions (follow-up send, application record) are
+confirm-gated: the first call returns a preview + preview_hash,
 and a second call with {"confirmed": true, "preview_hash": ...} only
 proceeds when the recomputed hash matches.
 
@@ -1266,14 +1266,14 @@ TOOLS = [
      ]},
     # ---------------- WIN ----------------
     {"id": "followup", "group": "WIN", "name": "Follow-up emails",
-     "description": "Drafts follow-up emails from application history. Sending requires a genuine interactive user approval at the send boundary (the user is shown the exact draft at a terminal and types 'send'); a confirmed=true flag alone never authorizes a send.",
+     "description": "Drafts follow-up emails from application history. Sending requires a genuine interactive user approval at the send boundary: the user is shown the exact draft at a terminal and types the per-send varying value (by default the recipient address exactly as shown); a fixed string like 'send' FAILS. A confirmed=true flag alone never authorizes a send.",
      "actions": [
          _a("draft", "Draft a follow-up for one application entry.",
             _h_followup_draft, [_p("entry", "object", True, help="Application entry dict."),
                                                _profile_param()]),
          _a("drafts", "All due follow-ups with drafts.",
             _h_followup_drafts, [_profile_param()]),
-         _a("send", "Send a follow-up email. INTERACTIVE-APPROVAL GATED: the exact draft must have been approved by the user at a terminal send prompt (they type 'send'); without that approval the send is refused. confirmed=true alone authorizes nothing.",
+         _a("send", "Send a follow-up email. INTERACTIVE-APPROVAL GATED: the exact draft must have been approved by the user at a terminal send prompt — they must type the per-send varying value shown with the draft (by default the recipient address exactly as shown); a hardcoded 'send'/'yes' fails. Without that approval the send is refused. confirmed=true alone authorizes nothing.",
             _h_followup_draft,  # placeholder; dispatch uses GATED entry
             [_p("entry_id", "string", True), _p("to", "string", True),
              _p("subject", "string", True), _p("body", "string", True),

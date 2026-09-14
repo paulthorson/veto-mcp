@@ -42,7 +42,6 @@ import specAutopsy from './pages/specs/autopsy';
 import specSkillGaps from './pages/specs/skill-gaps';
 import specStreaks from './pages/specs/streaks';
 import specCrew from './pages/specs/crew';
-import specContribute from './pages/specs/contribute';
 import { RadarDemo } from './demos';
 
 const SPECS: Record<string, PageSpec> = {
@@ -75,7 +74,6 @@ const SPECS: Record<string, PageSpec> = {
   [specSkillGaps.slug]: specSkillGaps,
   [specStreaks.slug]: specStreaks,
   [specCrew.slug]: specCrew,
-  [specContribute.slug]: specContribute,
 };
 
 /* Pixel primitives live in ./px and are shared across pages. */
@@ -88,11 +86,11 @@ type DemoLine = { text: string; kind: 'cmd' | 'ok' | 'info' | 'warn' | 'veto' };
 
 const DEMO_LINES: DemoLine[] = [
   { text: 'cli.py search "software engineer" --location "New York, NY"', kind: 'cmd' },
-  { text: '+ 24 jobs: LinkedIn · Greenhouse · Lever · Ashby · ZipRecruiter', kind: 'ok' },
-  { text: '  senior backend eng · fintech · NYC · linkedin', kind: 'info' },
+  { text: '+ 24 jobs: Greenhouse · Lever · Ashby · Adzuna', kind: 'ok' },
+  { text: '  senior backend eng · fintech · NYC · greenhouse', kind: 'info' },
   { text: '  platform eng · devtools · remote · greenhouse', kind: 'info' },
   { text: '  staff sre · infra · NYC · lever', kind: 'info' },
-  { text: 'cli.py apply job:linkedin:9f2c --resume ~/resume.pdf --confirm', kind: 'cmd' },
+  { text: 'cli.py apply job:greenhouse:9f2c --resume ~/resume.pdf --confirm', kind: 'cmd' },
   { text: '> grill: 3 questions > WhatsApp ... 3/3 answered +', kind: 'info' },
   { text: '> honesty check: no invented skills +', kind: 'ok' },
   { text: '> qualification 0.87 · veto check passed +', kind: 'ok' },
@@ -192,9 +190,6 @@ const PROVIDERS = [
   { name: 'Lever', note: 'public API', tier: 'go' as const },
   { name: 'Ashby', note: 'public API', tier: 'go' as const },
   { name: 'Adzuna', note: 'needs API key', tier: 'amber' as const },
-  { name: 'LinkedIn', note: 'guest API', tier: 'amber' as const },
-  { name: 'Indeed', note: 'public search', tier: 'amber' as const },
-  { name: 'ZipRecruiter', note: 'paced + budgeted', tier: 'amber' as const },
   { name: 'Glassdoor', note: 'boss level: locked', tier: 'red' as const },
 ];
 
@@ -204,7 +199,7 @@ const FEATURES = [
     icon: 'search',
     tone: '',
     title: 'Multi-board search',
-    body: 'One query across 8 boards. Official APIs where they exist; polite, budgeted, circuit-broken scraping where they don\u2019t. Deduped and ranked.',
+    body: 'One query across the official-API boards (Greenhouse, Lever, Ashby, Adzuna) plus your saved listings. Deduped, tier-tagged, and ranked.',
   },
   {
     slug: 'the-grill',
@@ -225,7 +220,7 @@ const FEATURES = [
     icon: 'clipboard',
     tone: 'amber',
     title: 'Fill-only applying',
-    body: 'The agent fills the form and stops at the review screen. You click submit. On scraping-tier boards it never touches submit. Policy, not preference.',
+    body: 'The agent fills the form and stops at the review screen. You click submit — the software never touches the submit button. Policy, not preference.',
   },
   {
     slug: 'drip-queue',
@@ -466,7 +461,7 @@ const GROUPS = [
     tag: 'GOVERN',
     tagVariant: 'red' as const,
     title: 'Governed, all the way down',
-    sub: 'A crew of AI personas under a real governance framework, plus an opt-in data pipeline that never takes without asking.',
+    sub: 'A crew of AI personas under a real governance framework. Every plan reviewed, every veto logged.',
     demo: false,
     features: [
       {
@@ -476,13 +471,6 @@ const GROUPS = [
         title: 'Governed AI crew',
         body: 'Eleven personas (CEO, PM, eng, UX, QA, researcher, coach, Red) run spawn > work > review > merge.',
       },
-      {
-        slug: 'contribute',
-        icon: 'box',
-        tone: '',
-        title: 'Contribute + impact',
-        body: 'Opt-in training data: scrubbed, preview-mandatory, per-bundle confirmed. See your impact when it lands.',
-      },
     ],
   },
 ];
@@ -490,23 +478,23 @@ const GROUPS = [
 const FAQS = [
   {
     q: 'What are the playbooks?',
-    a: 'Eighteen modules grouped by job-hunt phase. FIND scores postings, decodes JDs, and traces referral paths. TAILOR does resume diffs, cover letters, and LinkedIn. TRAIN runs mock interviews, negotiation sims, AI proficiency, and mentors. WIN compares offers, drafts follow-ups, runs the network CRM, autopsies rejections, plans skill gaps, and tracks streaks. GOVERN is the AI crew and opt-in contributions. The engine searches and applies; the playbooks cover everything around it.',
+    a: 'Eighteen modules grouped by job-hunt phase. FIND scores postings, decodes JDs, and traces referral paths. TAILOR does resume diffs, cover letters, and LinkedIn. TRAIN runs mock interviews, negotiation sims, AI proficiency, and mentors. WIN compares offers, drafts follow-ups, runs the network CRM, autopsies rejections, plans skill gaps, and tracks streaks. GOVERN is the AI crew: every plan reviewed, every veto logged. The engine searches and fills; the playbooks cover everything around it.',
   },
   {
     q: 'Does it submit applications by itself?',
-    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application, and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. LinkedIn Easy Apply is fill-only: the agent completes the modal and stops at the review screen. The final click is always yours.',
+    a: 'No. apply_to_job returns a dry-run preview by default and records nothing. Only an explicit confirm records an application, and even then, Phase 1 just logs it locally and hands you the apply link to finish in your browser. With the browser hook enabled, Phase 2 fills the form and stops at the review screen. The final click is always yours.',
   },
   {
     q: 'What is the grill?',
     a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. They arrive over chat, WhatsApp, or Gmail (your choice in the wizard). Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
   },
   {
-    q: 'Will I get banned from LinkedIn or Indeed?',
-    a: 'Scraping can violate their Terms of Service, and automated applying carries real risk: CAPTCHAs, throttles, account limits. Veto stores no credentials, asks you to acknowledge the ToS risk before touching scraping-tier boards, budgets those searches tightly, backs off exponentially on 403/429/CAPTCHA, and caps applications at 5 a day. Use it as an assistant, not a bulk blaster.',
+    q: 'Will I get banned from a job board?',
+    a: 'The four active providers (Greenhouse, Lever, Ashby, Adzuna) use public or official APIs, so there is no scraping to get banned for. Veto stores no credentials, performs no logged-in automation, and caps recorded applications at 5 a day, paced like a human. Phase 2 browser form-filling can still trip a site\u2019s anti-bot measures, so the filled form is screenshotted for your review and you click submit yourself. Use it as an assistant, not a bulk blaster.',
   },
   {
     q: 'Which boards work best?',
-    a: 'Greenhouse, Lever and Ashby: they expose public JSON APIs with no login, so they are fast and reliable. LinkedIn\u2019s guest API and ZipRecruiter work but rate-limit occasionally. Indeed is heavily bot-protected from datacenter IPs; the browser hook with a logged-in session is the fallback there. Glassdoor is still a stub.',
+    a: 'Greenhouse, Lever and Ashby: they expose public JSON APIs with no login, so they are fast and reliable. Adzuna needs a free API key from developer.adzuna.com. Glassdoor is a locked stub that performs no scraping, and the LinkedIn, Indeed, and ZipRecruiter providers were removed in the post-hardening pass. You can also paste any posting as a saved listing.',
   },
   {
     q: 'Do I need any API keys?',
