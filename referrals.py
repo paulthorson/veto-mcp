@@ -18,8 +18,7 @@ Honesty rules (hard):
     overrides it, plus an ``evidence`` list containing only labels backed
     by data: ``"same company"`` and/or ``"title overlap"``.
   * Outreach drafts never invent shared history, shared employers, or
-    mutual acquaintances. Warm drafts say "I see you're at X"; cold
-    drafts are plain connection-request notes.
+    mutual acquaintances. Warm drafts say "I see you're at X".
 
 Stdlib only.
 """
@@ -502,7 +501,7 @@ def rank_referrals(
 # Outreach drafts
 # ---------------------------------------------------------------------------
 
-_VALID_KINDS = ("warm", "cold")
+_VALID_KINDS = ("warm",)
 
 
 def draft_outreach(
@@ -514,9 +513,8 @@ def draft_outreach(
     """Draft a short, human outreach message to a contact.
 
     * ``warm`` — asks for a referral or a brief intro call. Appropriate
-      for existing connections.
-    * ``cold`` — a LinkedIn connection-request note (kept under ~300
-      characters). Appropriate for people you have not met.
+      for existing connections. (The ``cold`` LinkedIn connection-note
+      variant was removed; only ``warm`` is supported.)
 
     The drafts never claim shared history, shared employers, or mutual
     acquaintances — only facts present in ``contact``/``job``/``profile``.
@@ -525,13 +523,13 @@ def draft_outreach(
         contact: Contact dict (name, company, position).
         job: Optional job dict (title, company).
         profile: Optional user profile (full_name, target_titles).
-        kind: "warm" or "cold".
+        kind: "warm" (the only supported kind).
 
     Returns:
         Dict with keys: kind, to, subject, body.
 
     Raises:
-        ValueError: If ``kind`` is not "warm" or "cold".
+        ValueError: If ``kind`` is not "warm".
     """
     if kind not in _VALID_KINDS:
         raise ValueError(f"kind must be one of {_VALID_KINDS}, got {kind!r}")
@@ -552,40 +550,28 @@ def draft_outreach(
     if not job_title:
         job_title = my_title
 
-    if kind == "warm":
-        subject = f"Quick question about {job_company}" if job_company else "Quick question"
-        lines = [f"Hi {first}," if first else "Hi,", ""]
-        if job_company:
-            lines.append(
-                f"I see you're at {job_company} — I'm exploring {job_title} "
-                f"roles and {job_company} is high on my list."
-            )
-        else:
-            lines.append(
-                f"I'm exploring {job_title} roles and would value your "
-                "perspective."
-            )
-        lines += [
-            "",
-            "Would you be open to a brief chat about your experience there? "
-            "If it seems like a fit, I'd be grateful for a referral — happy "
-            "to share my resume and a short blurb to make it easy.",
-            "",
-            "Thanks so much,",
-            my_name or "—",
-        ]
-        body = "\n".join(lines)
-    else:  # cold connection-request note
-        company_bit = f" at {job_company}" if job_company else ""
-        body = (
-            f"Hi {first} — " if first else "Hi — "
-        ) + (
-            f"I'm a {my_title} exploring opportunities{company_bit}. "
-            "Would love to connect and hear about your experience there."
+    subject = f"Quick question about {job_company}" if job_company else "Quick question"
+    lines = [f"Hi {first}," if first else "Hi,", ""]
+    if job_company:
+        lines.append(
+            f"I see you're at {job_company} — I'm exploring {job_title} "
+            f"roles and {job_company} is high on my list."
         )
-        if len(body) > 300:
-            body = body[:297] + "…"
-        subject = "Connection request note"
+    else:
+        lines.append(
+            f"I'm exploring {job_title} roles and would value your "
+            "perspective."
+        )
+    lines += [
+        "",
+        "Would you be open to a brief chat about your experience there? "
+        "If it seems like a fit, I'd be grateful for a referral — happy "
+        "to share my resume and a short blurb to make it easy.",
+        "",
+        "Thanks so much,",
+        my_name or "—",
+    ]
+    body = "\n".join(lines)
 
     return {
         "kind": kind,
@@ -703,15 +689,15 @@ def register_tools(mcp: Any) -> dict[str, Any]:
         """Draft a short outreach message to a referral prospect.
 
         ``warm`` drafts ask an existing connection for a referral or a
-        brief intro call; ``cold`` drafts a LinkedIn connection-request
-        note. Drafts never invent shared history or shared employers.
+        brief intro call. Drafts never invent shared history or shared
+        employers.
 
         Args:
             name: Contact's full name (matched against your network;
                 falls back to the name/company given).
             company: Contact's company (used when not found in network).
             job_title: Role you're pursuing (defaults to your target title).
-            kind: "warm" or "cold".
+            kind: "warm" (the only supported kind).
 
         Returns:
             Dict with kind, to, subject and body.
@@ -813,8 +799,8 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     p_ref.add_argument(
         "--kind",
         default="warm",
-        choices=["warm", "cold"],
-        help="Outreach tone for --draft.",
+        choices=["warm"],
+        help="Outreach tone for --draft (warm only).",
     )
     p_ref.add_argument(
         "--job-title", default="", help="Role you are pursuing (for --draft)."
