@@ -305,14 +305,15 @@ until you confirm that exact preview — the same semantics as the CLI's
 ## Connect
 
 A ready-to-paste stdio config lives at
-[`mcp-config.json`](sandbox://workspace/job-apply-mcp/mcp-config.json):
+[`mcp-config.json`](mcp-config.json) — edit the paths to match your
+checkout:
 
 ```json
 {
   "mcpServers": {
     "job-apply": {
-      "command": "/home/hatch/workspace/job-apply-mcp/.venv/bin/python",
-      "args": ["/home/hatch/workspace/job-apply-mcp/server.py"],
+      "command": "/path/to/job-apply-mcp/.venv/bin/python",
+      "args": ["/path/to/job-apply-mcp/server.py"],
       "env": {}
     }
   }
@@ -335,18 +336,6 @@ Restart Claude Desktop afterwards.
 Muse CLI and most MCP clients accept the same `mcpServers` shape — point
 them at the command/args above. For clients that take a single server
 entry, drop the `mcpServers` wrapper and use just the `job-apply` object.
-
-### Note: this Muse environment
-
-This sandbox *is* the machine at `/home/hatch`. If an MCP-capable client
-is running here, the config above works verbatim — the venv interpreter
-is at `/home/hatch/workspace/job-apply-mcp/.venv/bin/python` and the
-server speaks stdio, so no network ports or extra setup are needed. There
-is currently no system-level MCP client config on this machine
-(`~/.config/Claude/claude_desktop_config.json`, `~/.claude.json`, and
-`~/.config/mcp*` were checked and do not exist), so copy
-`mcp-config.json` into whichever client you use rather than relying on an
-auto-discovered location.
 
 ## How applying works
 
@@ -391,13 +380,11 @@ headless Chromium. It never submits:
 export JOB_MCP_BROWSER_APPLY=1
 ```
 
-> **Sandbox note (2026-09-09):** the Chromium binary download failed from
-> this sandbox's network — both `playwright install chromium` and
-> `playwright install chromium --only-shell` ended in a download error —
-> so browser mode could not be live-tested here. The `playwright` Python
-> package itself installs fine, and `browser_apply` degrades gracefully
-> (returns an error dict) when the browser binary is missing. Install
-> Chromium on your own machine with the command above.
+> **Note:** if the Chromium binary download fails on your network, browser
+> mode degrades gracefully — `browser_apply` returns an error dict when the
+> browser binary is missing. The `playwright` Python package itself installs
+> fine; retry the install where you have working access to the Playwright
+> CDN.
 
 Then call:
 
@@ -547,7 +534,7 @@ git tag v0.1.0 && git push origin v0.1.0
 ### Docker
 
 The image runs the MCP server on stdio (no ports — see
-[`Dockerfile`](sandbox://workspace/job-apply-mcp/Dockerfile)):
+[`Dockerfile`](Dockerfile)):
 
 ```bash
 docker run -i ghcr.io/paulthorson/job-apply-mcp:latest
@@ -733,11 +720,11 @@ The suite lives in `tests/` and uses only the standard library
 On Debian/Ubuntu the browsers may also need system libraries:
 `sudo .venv/bin/python -m playwright install-deps`.
 
-### Sandbox caveat
+### If the browser download fails
 
-In this sandbox the Playwright CDN (`cdn.playwright.dev`) accepts the
+On some networks the Playwright CDN (`cdn.playwright.dev`) accepts the
 connection but the file transfer stalls, so neither Chromium nor Firefox
-could be downloaded here. The browser E2E tests detect this at runtime
+can be downloaded. The browser E2E tests detect this at runtime
 (`tests/browsers.py` probes each browser with a real launch) and **skip
 gracefully** instead of failing. On any machine where the browsers install
 cleanly, the same tests run for real — no code changes needed.
