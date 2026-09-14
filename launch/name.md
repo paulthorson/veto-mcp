@@ -23,7 +23,7 @@ hiring-tech names.
    Minor collision: an unrelated delivery app used the name years ago.
 
 5. **Goodfaith** — It applies in good faith: real experience, honest letters,
-   human-paced. Descriptive and ownable as one word. Slightly softer and
+   a measured pace. Descriptive and ownable as one word. Slightly softer and
    longer than the others.
 
 ## Recommendation: Veto
