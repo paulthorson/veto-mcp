@@ -31,9 +31,8 @@ listing. One code path, no duplication.
 Compliance posture of the ``"user"`` board (see ``compliance.RISK_TIER``):
 the listing was supplied by the user, so it is neither "official"
 (documented public API) nor "scraping". The single URL fetch in (2) uses
-the existing ``robots_allows`` hygiene; the fail-closed robots change is
-commit 9's work (spec section 7.2) and applies here automatically once it
-lands.
+the existing ``robots_allows`` hygiene; robots.txt is fail-closed (spec §7.2),
+so when robots.txt cannot be fetched or parsed the URL is never requested.
 
 HTML parsing prefers ``<script type="application/ld+json">`` JobPosting
 blocks (title, hiringOrganization, jobLocation, description) — the shape
