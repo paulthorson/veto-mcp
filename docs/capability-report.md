@@ -16,7 +16,7 @@ to log every connection attempt and every outgoing request's method, URL,
 headers, and query params. Raw harness logs are archived at
 `~/workspace/capability-report-logs/` (`s1_idle.log`, `s1b_client.log`,
 `s2_greenhouse.log`, `s3*.log`, `s4_notify.log`, `s6*.log`, `s7_mcp.log`,
-`s8_ddg.log`, `s9_bind.log`).
+`s8_ddg.log`, `s9_bind.log`, `s10_wizard.log`).
 
 Every finding below is labeled **runtime-observed** (seen in a harness log)
 or **static-only** (read from source / built artifacts, not executed).
@@ -71,6 +71,25 @@ harness for 10 s. Harness log `s7_mcp.log`: **zero non-loopback connections.**
 
 **Finding: starting the MCP server opens no outbound connections.** All
 network activity is on-demand, per user-invoked tool call.
+
+### 1d. Onboarding wizard, full default run — **runtime-observed**
+
+Ran `wizard.py` to completion in a clean worktree under the socket
+harness, feeding empty stdin so every prompt took its default (LinkedIn
+ingestion defaulted to Skip; grill channel defaulted to chat). The wizard
+saved `profiles/profile.json` inside the worktree and exited 0. Harness
+log `s10_wizard.log` contains exactly one line — the harness-arm marker —
+and **zero connection attempts**:
+
+```json
+{"t": 1789402753.973982, "kind": "harness", "info": {"event": "harness_armed", "argv": ["-c"]}}
+```
+
+**Finding: the onboarding wizard opens no outbound connections**, even
+with LinkedIn ingestion in the flow — the only LinkedIn path is parsing a
+local data-export ZIP the user supplies. This is the runtime confirmation
+of the §8 result: no `linkedin.com` destination exists anywhere in the
+software.
 
 ### Third-party domains contacted at runtime — **runtime-observed**
 
@@ -262,19 +281,24 @@ user copies — it is never sent to any server by the page.
   tracking SDK is bundled or referenced.**
 - `DecoderPage.tsx` / `DecoderSharePage.tsx`: zero `fetch`/`axios`/
   `XMLHttpRequest`/`sendBeacon` calls; the pages decode locally and render.
-- No third-party `<script>` tags in `dist/index.html`; the only external
-  `<link>`s are Google Fonts (see caveat below).
+- No third-party `<script>` tags in `dist/index.html` and no external
+  `<link>`s at all — the Google Fonts `<link rel="preconnect">` tags and
+  stylesheet were removed when the two font families were self-hosted
+  (see below).
 
 ### What the site loads and stores — static-only
 
 - Loads: same-origin `index.html`, `./assets/index-*.js`, `./assets/index-*.css`,
-  `./favicon.svg`, `./icons.svg`; **plus Google Fonts**
-  (`https://fonts.googleapis.com/css2?...` stylesheet and
-  `https://fonts.gstatic.com` font files, via `<link rel="preconnect">` +
-  stylesheet in `dist/index.html`). Fonts are the only third-party network
-  requests the site makes — no scripts, no analytics. (A privacy-conscious
-  deploy could self-host the two font families and drop these; noted, not
-  changed.)
+  `./favicon.svg`, `./icons.svg`, plus self-hosted woff2 font files under
+  `./assets/` (Press Start 2P and VT323, 400 normal, `@font-face` with
+  `font-display: swap`; previously fetched from `fonts.googleapis.com` /
+  `fonts.gstatic.com`, removed 2026-09-14). The site now makes **zero
+  third-party network requests** — no scripts, no analytics, no external
+  fonts. Verified static-only (`grep` over `dist/` finds no
+  `fonts.googleapis.com` / `fonts.gstatic.com` reference; the built CSS
+  references only relative local `./assets/*.woff2` URLs) and
+  runtime-observed (local serve of `dist/` — access log shows only
+  same-origin `GET /`, `GET /assets/...` requests).
 - Stores: `#/dashboard` reads `localStorage["veto.dashboard.v1"]` when present
   (see §6), else seeded demo data (`site/src/pages/DashboardPage.tsx:16-29`).
   The decoder pages store nothing. No cookies, no IndexedDB.
@@ -379,9 +403,9 @@ to contact) that is not purely documentary. Role notes whether it is a
   (`providers/_common.py:34`) — an identifier string in a header, not a
   destination.
 - `site/dist/index.html` — canonical/og URLs
-  `https://job-apply-mcp.vercel.app/` (metadata only) and Google Fonts
-  (`https://fonts.googleapis.com`, `https://fonts.gstatic.com` — the site's
-  only third-party requests, §5).
+  `https://job-apply-mcp.vercel.app/` (metadata only). (Google Fonts were
+  the site's only third-party requests until 2026-09-14; the two families
+  are now self-hosted woff2 — §5.)
 - `initiatives/i11/policy_kit/*` and `reference/apply-pilot/extension.py`
   contain `https://evil.example/...`, `https://api.example.com/...` —
   adversarial test fixtures for the sandbox policy kit, never contacted.
@@ -430,7 +454,7 @@ Claims a reader might reasonably assume, verified against the tree at HEAD:
 
 ---
 
-## 10. Coverage checklist (the 11 required items)
+## 10. Coverage checklist (the 12 required items)
 
 1. Web UI + MCP idle connections — §1a/§1c — **runtime-observed** ✔
 2. Provider search vs. live API, destinations + egress — §2 — **runtime-observed** ✔
@@ -443,6 +467,7 @@ Claims a reader might reasonably assume, verified against the tree at HEAD:
 9. "What the software does NOT do" — §9 — **static-only** ✔
 10. Every finding labeled runtime-observed / static-only — throughout ✔
 11. Report committed at `docs/capability-report.md` — this file ✔
+12. Onboarding wizard full default run, zero connections — §1d — **runtime-observed** ✔
 
 ## Surprises vs. static evidence
 
@@ -459,9 +484,11 @@ Claims a reader might reasonably assume, verified against the tree at HEAD:
 - **i12 has a consent-gated, default-off, local-only telemetry module.**
   It does not contradict Rule 2 (no network sink), but its name alone could
   alarm a reader — worth one sentence in user-facing docs.
-- **The site loads Google Fonts** — the only third-party request in the whole
-  frontend. Not analytics, but it is a third-party request on every page load,
-  decoder included.
+- **The site used to load Google Fonts** — the only third-party request in
+  the whole frontend. Not analytics, but it was a third-party request on
+  every page load, decoder included. Self-hosted 2026-09-14
+  (readme-hardening §9): both families are now local woff2, and the site
+  makes zero third-party requests.
 - **Sandbox proxy:** all outbound TCP in these logs terminates at the
   environment's egress proxy; the software's chosen destinations are the API
   hosts in the `httpx.request` lines. Report readers reproducing this outside
