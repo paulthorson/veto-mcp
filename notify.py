@@ -3,18 +3,27 @@
 
 ``send(title, body, channel="auto")`` always appends the notification
 to a local JSONL log (``notifications.jsonl`` next to this project, one
-JSON object per line) and additionally delivers through whichever
-sinks are configured via the environment:
+JSON object per line). Remote delivery is **off by default** and must be
+enabled explicitly by the user — with no configuration, this module
+never POSTs anywhere:
 
-* ``NTFY_TOPIC`` — POSTs to ``https://ntfy.sh/<topic>`` (free push
+* ``ntfy`` — POSTs to ``https://ntfy.sh/<topic>`` (free push
   notifications to your phone via the ntfy app), title in the
-  ``Title`` header.
-* ``JOB_MCP_WEBHOOK`` — POSTs ``{"title", "body", "ts"}`` as JSON to
-  the given URL (Discord/Slack/custom webhooks).
+  ``Title`` header. Enabled only via ``setup_ntfy()`` (or the
+  ``notify setup-ntfy`` CLI / ``notification_setup_ntfy`` MCP tool),
+  which generates a high-entropy random topic. Topics are never
+  user-chosen: a guessable topic exposes the user's job search to
+  anyone who guesses it, because ntfy.sh topics are public URLs with
+  no access control. A ``NTFY_TOPIC`` env var is honored only as a
+  migration path, and only if it passes the entropy gate.
+* ``webhook`` — POSTs ``{"title", "body", "ts"}`` as JSON to the URL in
+  ``JOB_MCP_WEBHOOK``. Enabled only when ``"webhook"`` is in the
+  user's ``channels`` preference.
 
 Delivery is stdlib-only (``urllib``), best-effort with a 5s timeout,
-and ``send`` never raises: a failing sink is simply left out of
-``delivered_via``.
+and ``send`` never raises: a failing or rejected sink is simply left
+out of ``delivered_via`` (rejections are reported in
+``sink_warnings``).
 
 NOTE on .gitignore: this module deliberately does not edit it. The
 notification log can contain job titles and company names, so add
@@ -26,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import urllib.request
 from datetime import datetime, time as _time, timezone
 from pathlib import Path
@@ -68,15 +78,18 @@ _DIGEST_CADENCES = ("immediate", "daily", "weekly")
 def default_prefs() -> dict[str, Any]:
     """Factory defaults.
 
-    Quiet hours default to *off* (``None``): the control ships, the user
-    enables it. This also keeps ``send()`` time-deterministic for callers
+    Remote sinks default OFF: ``channels`` is ``["log"]`` only, so with
+    no user configuration nothing is ever POSTed anywhere. Quiet hours
+    default to *off* (``None``): the control ships, the user enables
+    it. This also keeps ``send()`` time-deterministic for callers
     that do not pass prefs.
     """
     return {
-        "channels": ["log", "ntfy", "webhook"],
+        "channels": ["log"],
         "quiet_hours": None,  # or {"start": "22:00", "end": "07:00"}
         "digest_cadence": "immediate",
         "events": {name: True for name in EVENT_CATALOG},
+        "ntfy_topic": None,  # set by setup_ntfy(); never user-chosen
     }
 
 
@@ -196,12 +209,125 @@ def in_quiet_hours(
 
 
 def event_enabled(event: str | None, prefs: dict[str, Any] | None = None) -> bool:
-    """Per-event opt-in. Unknown/None events are treated as enabled (the
-    local log always records them); known events follow the prefs."""
-    if event is None:
-        return True
+    """Per-event opt-in, fail-closed.
+
+    Only catalogued events the user has explicitly enabled may be
+    delivered. Unknown/None events are DISABLED: an event key a
+    producer invented (or a typo of a real one) must never reach a
+    remote sink. The local log always records everything regardless.
+    """
+    if event not in EVENT_CATALOG:
+        return False
     events = (prefs or load_prefs()).get("events", {})
-    return bool(events.get(event, True))
+    return bool(events.get(event, False))
+
+
+# ---------------------------------------------------------------------------
+# ntfy sink setup — explicit opt-in, generated topics only
+# ---------------------------------------------------------------------------
+
+#: Plain-language privacy warning shown every time ntfy is enabled.
+_NTFY_SETUP_WARNING = (
+    "Privacy warning: ntfy.sh topics are PUBLIC. Anyone who knows or "
+    "guesses your topic name can read every notification sent to it - "
+    "no account, no password, no access control. Your topic name was "
+    "randomly generated (43 characters), which makes guessing it "
+    "practically impossible, but it is still readable by anyone you "
+    "share it with. Do not rename it to something memorable: a "
+    "guessable topic exposes your job search to anyone who guesses it."
+)
+
+#: Bytes of entropy for generated topics (secrets.token_urlsafe(32)
+#: yields 43 characters from a 64-symbol alphabet).
+_NTFY_TOPIC_BYTES = 32
+
+
+def generate_ntfy_topic() -> str:
+    """High-entropy random ntfy topic (``secrets.token_urlsafe(32)``)."""
+    return secrets.token_urlsafe(_NTFY_TOPIC_BYTES)
+
+
+def _topic_looks_generated(topic: str) -> bool:
+    """Entropy gate for any topic this module did not generate.
+
+    A generated topic is >= 32 characters drawn from a mixed alphabet.
+    Anything shorter or single-alphabet (e.g. "myjobsearch") is
+    guessable and fails closed.
+    """
+    t = (topic or "").strip()
+    if len(t) < 32:
+        return False
+    classes = sum(
+        [
+            any(c.islower() for c in t),
+            any(c.isupper() for c in t),
+            any(c.isdigit() for c in t),
+            any(c in "-_" for c in t),
+        ]
+    )
+    return classes >= 2
+
+
+def setup_ntfy(topic: str | None = None, path: Path | None = None) -> dict:
+    """Enable the ntfy push sink with a generated high-entropy topic.
+
+    The topic is always generated (never chosen): user-supplied topics
+    are REJECTED with ``ValueError``. Rationale: any topic a human
+    picks risks being guessable, and ntfy.sh topics are publicly
+    readable by anyone who knows the name — there is no access
+    control, so a guessable topic silently exposes the user's job
+    search. Replacing the value silently would be worse: the user's
+    ntfy app would stay subscribed to the name they typed while
+    notifications go elsewhere. Rejection fails loud and forces the
+    secure path.
+
+    Returns ``{"ok": True, "topic": ..., "warning": ...}``; the caller
+    must surface ``warning`` to the user verbatim (the CLI does).
+    """
+    if topic is not None:
+        raise ValueError(
+            "ntfy topics are generated, not chosen: a human-picked topic "
+            "risks being guessable, and ntfy.sh topics are publicly "
+            "readable by anyone who knows the name. Call setup_ntfy() "
+            "without a topic."
+        )
+    new_topic = generate_ntfy_topic()
+    prefs = load_prefs(path)
+    prefs["ntfy_topic"] = new_topic
+    channels = list(prefs.get("channels", ["log"]))
+    if "ntfy" not in channels:
+        channels.append("ntfy")
+    prefs["channels"] = channels
+    save_prefs(prefs, path)
+    return {"ok": True, "topic": new_topic, "warning": _NTFY_SETUP_WARNING}
+
+
+def _ntfy_topic(prefs: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Resolve the ntfy topic for delivery.
+
+    Preference order: the generated topic stored by ``setup_ntfy()``;
+    then the ``NTFY_TOPIC`` env var (migration path) *only if it passes
+    the entropy gate*. Returns ``(topic, warning)``; a non-None warning
+    means the sink is disabled and the user must run setup.
+    """
+    stored = (prefs.get("ntfy_topic") or "").strip()
+    if stored:
+        if _topic_looks_generated(stored):
+            return stored, None
+        return None, (
+            "the stored ntfy topic failed the entropy check; run "
+            "'notify setup-ntfy' to generate a new one"
+        )
+    env_topic = os.environ.get("NTFY_TOPIC", "").strip()
+    if not env_topic:
+        return None, None
+    if _topic_looks_generated(env_topic):
+        return env_topic, None
+    return None, (
+        "NTFY_TOPIC is set but looks guessable; ntfy delivery is disabled "
+        "until you run 'notify setup-ntfy' (topics are generated, never "
+        "chosen)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -304,18 +430,30 @@ def _append_log(title: str, body: str, channel: str, event: str | None) -> bool:
 def _deliver(
     title: str, body: str, channel: str, prefs: dict[str, Any]
 ) -> dict[str, Any]:
-    """Push through the enabled sinks. Never raises."""
+    """Push through the explicitly enabled sinks. Never raises.
+
+    A sink fires only when its channel is in the user's ``channels``
+    preference AND it is configured (ntfy: generated or entropy-gated
+    topic; webhook: ``JOB_MCP_WEBHOOK`` URL). Guessable ntfy topics are
+    rejected and reported in ``sink_warnings``.
+    """
     delivered: list[str] = []
-    allowed = set(prefs.get("channels", CHANNELS))
+    warnings: list[str] = []
+    allowed = set(prefs.get("channels", ["log"]))
     if channel in ("auto", "ntfy") and "ntfy" in allowed:
-        topic = os.environ.get("NTFY_TOPIC", "").strip()
+        topic, warning = _ntfy_topic(prefs)
+        if warning:
+            warnings.append(warning)
         if topic and _post_ntfy(topic, title, body):
             delivered.append("ntfy")
     if channel in ("auto", "webhook") and "webhook" in allowed:
         webhook = os.environ.get("JOB_MCP_WEBHOOK", "").strip()
         if webhook and _post_webhook(webhook, title, body):
             delivered.append("webhook")
-    return {"ok": True, "delivered_via": delivered}
+    result: dict[str, Any] = {"ok": True, "delivered_via": delivered}
+    if warnings:
+        result["sink_warnings"] = warnings
+    return result
 
 
 def _post_ntfy(topic: str, title: str, body: str) -> bool:
@@ -367,11 +505,14 @@ def send(
     """Send a notification. Never raises.
 
     Always writes to the local JSONL log; additionally delivers via ntfy
-    and/or webhook when configured **and** allowed by the user's
-    notification preferences:
+    and/or webhook ONLY when the user has explicitly enabled them:
 
-    * per-event opt-in: a known ``event`` the user disabled is logged only;
+    * remote sinks default OFF — with default prefs nothing is POSTed;
+    * per-event opt-in: unknown events are disabled (fail-closed); a
+      known ``event`` the user disabled is logged only;
     * channel allowlist: sinks outside ``prefs["channels"]`` are skipped;
+    * ntfy requires a generated high-entropy topic (see
+      ``setup_ntfy``); guessable topics are rejected, never posted to;
     * quiet hours / non-immediate digest cadence: the notification is queued
       into the digest buffer instead of being pushed.
 
@@ -402,8 +543,13 @@ def send(
                 "queued": True, **queued}
 
     result = _deliver(title, body, channel, prefs)
-    return {"ok": True,
-            "delivered_via": delivered + result["delivered_via"]}
+    merged: dict = {
+        "ok": True,
+        "delivered_via": delivered + result["delivered_via"],
+    }
+    if result.get("sink_warnings"):
+        merged["sink_warnings"] = result["sink_warnings"]
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -418,14 +564,15 @@ def register_tools(mcp: Any) -> None:
     def notify_send(title: str, body: str, event: str | None = None) -> dict:
         """Send a notification honoring quiet hours, digest cadence, and
         per-event opt-in. ``event`` should be one of the catalog keys
-        (see notification_prefs); unlisted events are logged and delivered
-        like before."""
+        (see notification_prefs); unlisted events are logged locally but
+        never delivered to a remote sink."""
         return send(title, body, event=event)
 
     @mcp.tool()
     def notification_prefs() -> dict:
         """Show notification preferences: channels, quiet hours, digest
-        cadence, and per-event opt-in flags."""
+        cadence, per-event opt-in flags, and whether ntfy is configured
+        with a generated topic."""
         prefs = load_prefs()
         return {
             "channels": prefs["channels"],
@@ -433,8 +580,19 @@ def register_tools(mcp: Any) -> None:
             "digest_cadence": prefs["digest_cadence"],
             "events": prefs["events"],
             "event_catalog": EVENT_CATALOG,
+            "ntfy_configured": bool(prefs.get("ntfy_topic")),
             "in_quiet_hours_now": in_quiet_hours(prefs=prefs),
         }
+
+    @mcp.tool()
+    def notification_setup_ntfy() -> dict:
+        """Enable ntfy push notifications. Generates a random
+        high-entropy topic (topics are never user-chosen — a guessable
+        topic would expose the user's job search, since ntfy.sh topics
+        are publicly readable). Returns the topic to subscribe to in the
+        ntfy app plus a plain-language privacy warning to show the
+        user."""
+        return setup_ntfy()
 
     @mcp.tool()
     def notification_digest(action: str = "status", force: bool = False) -> dict:
@@ -461,6 +619,24 @@ def _print_result(result: Any, as_json: bool) -> None:
 def _cli_send(args: Any) -> int:
     result = send(args.title, args.body, channel=args.channel, event=args.event)
     _print_result(result, args.json)
+    return 0
+
+
+def _cli_setup_ntfy(args: Any) -> int:
+    """Enable ntfy with a generated topic; always shows the privacy
+    warning in plain language. A user-supplied --topic is rejected."""
+    try:
+        result = setup_ntfy(topic=args.topic)
+    except ValueError as exc:
+        print(f"error: {exc}")
+        return 2
+    if args.json:
+        _print_result(result, True)
+    else:
+        print(result["warning"])
+        print()
+        print("Your ntfy topic (subscribe to this exact name in the ntfy app):")
+        print("  " + result["topic"])
     return 0
 
 
@@ -552,6 +728,19 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     pset.add_argument("--json", action="store_true",
                       help="Machine-readable JSON output.")
     pset.set_defaults(func=_cli_prefs_set)
+
+    psetup = sub.add_parser(
+        "setup-ntfy",
+        help="Enable ntfy push with a generated high-entropy topic.",
+    )
+    psetup.add_argument(
+        "--topic",
+        default=None,
+        help="REJECTED: ntfy topics are generated, never chosen.",
+    )
+    psetup.add_argument("--json", action="store_true",
+                        help="Machine-readable JSON output.")
+    psetup.set_defaults(func=_cli_setup_ntfy)
 
     pd = sub.add_parser("digest", help="Inspect or flush the digest queue.")
     pd.add_argument("--json", action="store_true",
