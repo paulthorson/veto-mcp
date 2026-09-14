@@ -18,6 +18,12 @@ stories, poor negotiation, low executive presence. This module provides:
   the sim breaks character with labeled COACH feedback.
 - ``log_practice`` / ``progress``: practice reps (logged as practice,
   never as credentials) with per-area trends.
+- Initiative 06 lab: ``scenario_kinds()`` / ``start_scenario(kind)`` /
+  ``review_scenario(...)`` / ``scenario_summary(...)`` — four disclosed
+  3-round scenarios (conflict, influence, negotiation,
+  ambiguous_stakeholder), each scored against the disclosed rubric plus
+  scenario behavior signals, and recorded to the longitudinal practice
+  history on completion.
 
 Honesty contract: feedback describes the qualities of the ANSWER the
 user gave. Drill prompts are built ONLY from the profile's real
@@ -37,6 +43,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Initiative 06 soft-skill lab (same repo).
+from initiatives.i06 import longitudinal as _i06_longitudinal
+from initiatives.i06 import rubric as _i06_rubric
+from initiatives.i06 import scenarios as _i06_scenarios
 
 log = logging.getLogger("job-apply-mcp.soft_skills")
 
@@ -1843,6 +1854,231 @@ def progress() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Initiative 06 — soft-skill lab: conflict, influence, negotiation,
+# ambiguous-stakeholder scenarios
+# ---------------------------------------------------------------------------
+#
+# ``scenario_kinds()`` lists the four disclosed scenarios.
+# ``start_scenario(kind)`` opens a 3-round session (briefing card first).
+# ``review_scenario(session_id, answer)`` scores each round against the
+# disclosed rubric plus scenario-specific behavior signals.
+# ``scenario_summary(session_id)`` reports per-round results.
+# Completed scenarios are recorded to the longitudinal practice history
+# (best-effort; answering never breaks if the store is unavailable).
+
+#: Lab scenario sessions (separate from drill sessions).
+LAB_SESSIONS_PATH = BASE_DIR / "soft_skill_lab_sessions.json"
+
+#: Tests redirect the lab session store here; None = default path.
+_LAB_SESSIONS_PATH: Path | None = None
+
+#: Tests redirect the longitudinal history here; None = default path.
+_LAB_LONGITUDINAL_HISTORY_PATH: Path | None = None
+
+
+def _load_lab_sessions() -> dict[str, Any]:
+    path = _LAB_SESSIONS_PATH or LAB_SESSIONS_PATH
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_lab_sessions(sessions: dict[str, Any]) -> None:
+    path = _LAB_SESSIONS_PATH or LAB_SESSIONS_PATH
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(sessions, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def scenario_kinds() -> dict[str, Any]:
+    """List the four lab scenarios with their disclosed briefing cards."""
+    return {
+        "kinds": [
+            {"kind": kind,
+             "title": _i06_scenarios.SCENARIOS[kind]["title"],
+             "card": _i06_scenarios.scenario_card(kind)}
+            for kind in _i06_scenarios.SCENARIO_KINDS
+        ]
+    }
+
+
+def start_scenario(kind: str) -> dict[str, Any]:
+    """Start a 3-round soft-skill lab scenario.
+
+    Args:
+        kind: "conflict" | "influence" | "negotiation" |
+            "ambiguous_stakeholder".
+
+    Returns {"session_id", "kind", "title", "card", "round",
+    "rounds_total", "prompt"} — answer each round with review_scenario.
+    """
+    kind = _i06_scenarios.validate_kind(kind)
+    session_id = "lab_" + uuid.uuid4().hex[:10]
+    first = _i06_scenarios.SCENARIOS[kind]["rounds"][0]["prompt"]
+    sessions = _load_lab_sessions()
+    sessions[session_id] = {
+        "type": "lab_scenario",
+        "session_id": session_id,
+        "kind": kind,
+        "round": 0,
+        "rounds_total": len(_i06_scenarios.SCENARIOS[kind]["rounds"]),
+        "results": [],
+        "done": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    _save_lab_sessions(sessions)
+    return {
+        "session_id": session_id,
+        "kind": kind,
+        "title": _i06_scenarios.SCENARIOS[kind]["title"],
+        "card": _i06_scenarios.scenario_card(kind),
+        "round": 1,
+        "rounds_total": len(_i06_scenarios.SCENARIOS[kind]["rounds"]),
+        "prompt": first,
+    }
+
+
+def review_scenario(
+    session_id: str,
+    answer: str,
+    input_modality: str = "text",
+) -> dict[str, Any]:
+    """Score one scenario round.
+
+    Args:
+        session_id: from start_scenario.
+        answer: the candidate's response text.
+        input_modality: "text" (default) or "voice" — recorded per
+            answer for the privacy ledger.
+
+    Returns the round evaluation (rubric scores + behavior signals);
+    when the final round is done, includes a debrief and records the
+    scenario to the longitudinal practice history.
+    """
+    sessions = _load_lab_sessions()
+    session = sessions.get(session_id)
+    if session is None or session.get("type") != "lab_scenario":
+        raise ValueError(f"No lab scenario session {session_id!r}")
+    if session.get("done"):
+        raise ValueError(f"Scenario session {session_id!r} is complete")
+
+    kind = session["kind"]
+    round_index = session["round"]
+    evaluation = _i06_scenarios.evaluate_round(kind, round_index, answer)
+    session["results"].append({
+        "round": round_index + 1,
+        "answer": str(answer or ""),
+        "input_modality": input_modality or "text",
+        **evaluation,
+    })
+    session["round"] = round_index + 1
+    session["done"] = session["round"] >= session["rounds_total"]
+    _save_lab_sessions(sessions)
+
+    out: dict[str, Any] = {
+        "session_id": session_id,
+        "kind": kind,
+        "round": round_index + 1,
+        "rounds_total": session["rounds_total"],
+        "passed": evaluation["passed"],
+        "rubric": evaluation["rubric"],
+        "signals": evaluation["signals"],
+        "feedback": evaluation["feedback"],
+        "input_modality": input_modality or "text",
+        "done": session["done"],
+    }
+    if session["done"]:
+        out["debrief"] = _lab_debrief(session)
+        _record_lab_result(session)
+    else:
+        nxt = _i06_scenarios.SCENARIOS[kind]["rounds"][session["round"]]
+        out["next_prompt"] = nxt["prompt"]
+        out["next_round"] = session["round"] + 1
+    return out
+
+
+def _lab_debrief(session: dict[str, Any]) -> dict[str, Any]:
+    """Final debrief: per-round pass/fail, rubric averages, next rep."""
+    results = session["results"]
+    dims: dict[str, list[int]] = {}
+    for r in results:
+        for d, s in r["rubric"]["dimension_scores"].items():
+            if s is not None:
+                dims.setdefault(d, []).append(s)
+    averages = {d: round(sum(v) / len(v)) for d, v in dims.items() if v}
+    missed = sorted({name for r in results for name, s
+                     in r["signals"].items() if not s["passed"]})
+    kind = session["kind"]
+    title = _i06_scenarios.SCENARIOS[kind]["title"]
+    if not missed:
+        next_rep = (f"Clean run on '{title}'. Re-run it in a harder "
+                    "frame: halve your words each round.")
+    else:
+        readable = ", ".join(n.replace("_", " ") for n in missed)
+        next_rep = (f"Re-run '{title}' focusing on: {readable}. One "
+                    "round at a time, out loud.")
+    return {
+        "rounds_passed": sum(1 for r in results if r["passed"]),
+        "rounds_total": len(results),
+        "rubric_averages": averages,
+        "signals_missed": missed,
+        "next_rep": next_rep,
+    }
+
+
+def _record_lab_result(session: dict[str, Any]) -> None:
+    """Best-effort longitudinal record; never raises."""
+    try:
+        dims: dict[str, list[int]] = {}
+        overalls: list[int] = []
+        for r in session["results"]:
+            for d, s in r["rubric"]["dimension_scores"].items():
+                if s is not None:
+                    dims.setdefault(d, []).append(s)
+            if r["rubric"].get("overall") is not None:
+                overalls.append(r["rubric"]["overall"])
+        dimension_scores: dict[str, int | None] = {
+            d: round(sum(v) / len(v)) for d, v in dims.items() if v
+        }
+        for d in _i06_rubric.DIMENSIONS:
+            dimension_scores.setdefault(d, None)
+        _i06_longitudinal.record_result(
+            source="soft_skill_scenario",
+            label=_i06_scenarios.SCENARIOS[session["kind"]]["title"],
+            dimension_scores=dimension_scores,
+            overall=(round(sum(overalls) / len(overalls)) if overalls
+                     else None),
+            mode=session["kind"],
+            session_id=session.get("session_id", ""),
+            history_path=_LAB_LONGITUDINAL_HISTORY_PATH,
+        )
+    except Exception as exc:  # noqa: BLE001 - history is best-effort
+        log.warning("lab longitudinal record failed: %s", exc)
+
+
+def scenario_summary(session_id: str) -> dict[str, Any]:
+    """Summarize a lab scenario session: per-round results + debrief."""
+    session = _load_lab_sessions().get(session_id)
+    if session is None or session.get("type") != "lab_scenario":
+        raise ValueError(f"No lab scenario session {session_id!r}")
+    return {
+        "session_id": session_id,
+        "kind": session["kind"],
+        "title": _i06_scenarios.SCENARIOS[session["kind"]]["title"],
+        "done": session["done"],
+        "rounds": [
+            {"round": r["round"], "passed": r["passed"],
+             "rubric": r["rubric"], "signals": r["signals"],
+             "input_modality": r.get("input_modality", "text")}
+            for r in session["results"]
+        ],
+        "debrief": _lab_debrief(session) if session["done"] else None,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Plugin wiring: MCP tools + CLI
 # ---------------------------------------------------------------------------
 
@@ -1943,6 +2179,58 @@ def register_tools(mcp: Any) -> None:
         """Per-area practice reps, averages, and trends."""
         return _impl["progress"]()
 
+    @mcp.tool()
+    def lab_scenario_kinds() -> dict:
+        """List the four soft-skill lab scenarios with briefing cards.
+
+        conflict, influence, negotiation, ambiguous_stakeholder —
+        each card discloses the setup, what good looks like, and how
+        it is scored, before the scenario starts.
+        """
+        return _impl["scenario_kinds"]()
+
+    @mcp.tool()
+    def start_lab_scenario(kind: str) -> dict:
+        """Start a 3-round soft-skill lab scenario.
+
+        Args:
+            kind: "conflict" | "influence" | "negotiation" |
+                "ambiguous_stakeholder".
+        """
+        try:
+            return _impl["start_scenario"](kind)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+    @mcp.tool()
+    def review_lab_scenario(session_id: str, answer: str,
+                            input_modality: str = "text") -> dict:
+        """Score one lab scenario round against the disclosed rubric
+        plus scenario behavior signals.
+
+        Args:
+            session_id: from start_lab_scenario.
+            answer: the candidate's response text.
+            input_modality: "text" (default) or "voice".
+        """
+        try:
+            return _impl["review_scenario"](
+                session_id, answer, input_modality=input_modality)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+    @mcp.tool()
+    def lab_scenario_summary(session_id: str) -> dict:
+        """Summarize a lab scenario: per-round results + debrief.
+
+        Args:
+            session_id: from start_lab_scenario.
+        """
+        try:
+            return _impl["scenario_summary"](session_id)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
 
 def _print(obj: Any, as_json: bool) -> None:
     if as_json:
@@ -1978,6 +2266,17 @@ def cmd_soft_skills(args: Any) -> int:
             _print(result, as_json)
         elif action == "progress":
             _print(progress(), as_json)
+        elif action == "lab-kinds":
+            _print(scenario_kinds(), as_json)
+        elif action == "lab-start":
+            result = start_scenario(args.kind)
+            _print(result, as_json)
+        elif action == "lab-review":
+            result = review_scenario(args.session_id, args.answer)
+            _print(result, as_json)
+        elif action == "lab-summary":
+            result = scenario_summary(args.session_id)
+            _print(result, as_json)
         else:
             raise ValueError(f"Unknown action {action!r}")
     except ValueError as exc:
@@ -2039,5 +2338,18 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     lg.add_argument("--kind", default="drill", help="Rep label.")
 
     sub.add_parser("progress", help="Show practice reps and trends.")
+
+    sub.add_parser("lab-kinds", help="List the lab scenarios.")
+
+    ls = sub.add_parser("lab-start", help="Start a lab scenario.")
+    ls.add_argument("kind", help="conflict|influence|negotiation|"
+                                "ambiguous_stakeholder.")
+
+    lr = sub.add_parser("lab-review", help="Score one lab scenario round.")
+    lr.add_argument("session_id", help="Session id from lab-start.")
+    lr.add_argument("answer", help="Your response text (quote it).")
+
+    lsm = sub.add_parser("lab-summary", help="Summarize a lab scenario.")
+    lsm.add_argument("session_id", help="Session id from lab-start.")
 
     return {"soft-skills": cmd_soft_skills}
