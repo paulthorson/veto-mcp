@@ -4,6 +4,13 @@
 Initiative 10 (Distribution) follow-on — it concerns Veto running on user machines.
 Queued after the 08 security work and the 09 circuit breaker.
 
+**Note (2026-09-14):** `TERMS.md` was deleted from the repo root under the settled
+Apache-2.0-only posture — the file had conditioned the Apache 2.0 license on crash
+reports, which cannot coexist with Apache 2.0. The `TERMS.md` references in this
+document have been removed as a minimal edit; the full feedback rework against the
+settled posture (local capture, no automated send, no license-condition framing)
+is a later commit's scope.
+
 ## The requirement (Paul's words, condensed)
 
 Veto needs a feedback mechanism: users can send bugs/issues they're having, and when
@@ -31,11 +38,10 @@ the git repo as an auto-generated issue, so the team can see it and fix it.
    platform, scrubbed traceback, reproduction context.
 5. **Dedup.** Same crash signature → comment on the existing open issue, not a new
    issue. Closed issues with a new occurrence get reopened with a fresh report.
-6. **Rate limits & user control.** Cap on reports per day. In the terms (TERMS.md
-   v2026-09-14): crash/problem reports are a **required** condition of the free
-   license; usage analytics are a **separate opt-in toggle** (off by default) per
-   GDPR. Every auto-filed issue links back to the local report the user can inspect
-   in Settings → "Data sent."
+6. **Rate limits & user control.** Cap on reports per day. Crash/problem reports are
+   a **required** condition of the free license; usage analytics are a **separate
+   opt-in toggle** (off by default) per GDPR. Every auto-filed issue links back to
+   the local report the user can inspect in Settings → "Data sent."
 
 ## Open questions for Paul (at build time, not now)
 
@@ -58,8 +64,7 @@ the git repo as an auto-generated issue, so the team can see it and fix it.
 ## First-run consent gate (added 2026-09-14)
 
 Paul's directive: Veto is free, and the price is anonymous telemetry — stated
-upfront, accepted before first use. The terms live in `TERMS.md` (repo root,
-plain English).
+upfront, accepted before first use.
 
 The feedback build therefore includes a first-run consent screen:
 1. Shows the deal in plain words (free product ↔ anonymous analytics + problem
@@ -70,6 +75,3 @@ The feedback build therefore includes a first-run consent screen:
 3. Accept → telemetry flows. Decline → Veto doesn't start. No silent opt-in, no
    pre-ticked boxes.
 4. Settings keeps a permanent "what you've sent" log the user can review any time.
-
-Note: TERMS.md is a product draft, not legal counsel — lawyer review required
-before public launch.
