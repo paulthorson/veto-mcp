@@ -4,6 +4,9 @@ Directive §8 (execute.md). Commit observed: `22b2a4d`
 ("feedback: local capture only, no automated send (directive §5, Rule 2)").
 Date of observation: 2026-09-14.
 
+Note: runtime observation was performed at `22b2a4d`; commits since are
+documentation-only and do not change runtime behavior.
+
 Method: a clean worktree of HEAD was created at `~/workspace/capability-tree`
 and all runtime observation was done there, under a socket-logging harness
 (`PYTHONPATH=/tmp/harness`, module `socklog`) that patches
