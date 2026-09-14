@@ -111,6 +111,7 @@ class GreenhouseEnrichmentTests(unittest.TestCase):
         self.assertEqual(details["required_questions"], 1)
         self.assertEqual(details["offices"], ["NYC HQ"])
         self.assertEqual(details["custom_fields"], ["Employment Type"])
+        self.assertEqual(details["employment_type"], "Full-time")
         self.assertEqual(details["posted_date"], "2026-09-01")
         self.assertIn("Greenhouse", details["readiness_note"])
 
@@ -142,6 +143,22 @@ class LeverEnrichmentTests(unittest.TestCase):
         _patch(self, lever, LEVER_DETAIL)
         details = lever.LeverProvider(tokens=["acme"]).get_details("acme:abc-123")
         self.assertEqual(validate_job_detail(details), [])
+
+    def test_bad_created_at_falls_back_to_empty_posted_date(self):
+        # Hostile or malformed vendor createdAt must never raise: the
+        # detail shape is returned with posted_date "" instead.
+        import copy
+
+        for bad_created_at in ("not-a-timestamp", 10**22, -10**22):
+            raw = copy.deepcopy(LEVER_DETAIL)
+            raw["createdAt"] = bad_created_at
+            _patch(self, lever, raw)
+            details = lever.LeverProvider(tokens=["acme"]).get_details(
+                "acme:abc-123"
+            )
+            self.assertEqual(details["posted_date"], "")
+            self.assertEqual(validate_job_detail(details), [])
+            mock.patch.stopall()
 
 
 class AshbyEnrichmentTests(unittest.TestCase):

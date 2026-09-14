@@ -164,6 +164,16 @@ class GreenhouseProvider:
             for m in (metadata if isinstance(metadata, list) else [])
             if isinstance(m, dict) and m.get("name")
         ]
+        # Wire the Employment Type metadata value through instead of
+        # hardcoding "". Case-insensitive name match; first hit wins.
+        employment_type = ""
+        for m in metadata if isinstance(metadata, list) else []:
+            if (
+                isinstance(m, dict)
+                and str(m.get("name") or "").strip().lower() == "employment type"
+            ):
+                employment_type = str(m.get("value") or "").strip()
+                break
         location_name = (data.get("location") or {}).get("name") or "Unknown"
         return {
             "url": url,
@@ -181,7 +191,7 @@ class GreenhouseProvider:
             "offices": [
                 o.get("name") for o in offices if isinstance(o, dict)
             ],
-            "employment_type": "",
+            "employment_type": employment_type,
             "remote": "remote" in location_name.lower(),
             "posted_date": str(data.get("updated_at") or "")[:10],
             "application_questions": len(questions),

@@ -23,11 +23,15 @@ actionable drafts:
 
 * :func:`send_followup` — the approval gate for actually sending.
   Refuses unless ``confirmed=True`` **and** ``to``/``subject``/``body``
-  are all explicitly provided non-empty. On a passing gate it delegates
-  to :mod:`email_sync`'s Gmail send path (``hatch_gws_cli gmail +send``
-  via a connected account); nothing is ever sent on the unconfirmed
-  path. This mirrors the project's Gmail rule: the exact recipient,
-  subject, and body must be approved by the user first.
+  are all explicitly provided non-empty — and even then, nothing is
+  sent without a genuine interactive user approval of the exact draft
+  (see :mod:`email_sync` / ``initiatives.i09.channels.registry``).
+  A caller-asserted ``confirmed=True`` authorizes nothing on its own.
+  On a passing gate it delegates to :mod:`email_sync`'s Gmail send path
+  (``hatch_gws_cli gmail +send`` via a connected account); nothing is
+  ever sent on the unconfirmed path. The project's Gmail rule stands:
+  the exact recipient, subject, and body must be approved by the user
+  first — interactively, at the send boundary.
 
 Stdlib only. All functions take explicit arguments (plus small optional
 ``path``/``today`` overrides) so they are trivially testable offline;
@@ -453,28 +457,30 @@ def send_followup(
     subject: str,
     body: str,
     confirmed: bool = False,
+    approval_id: str | None = None,
 ) -> dict[str, Any]:
-    """Send a follow-up email via Gmail — only past the approval gate.
+    """Send a follow-up email via Gmail — only with a genuine user approval.
 
-    APPROVAL GATE (project Gmail rule): refuses unless ``confirmed`` is
-    exactly ``True`` **and** ``to``, ``subject`` and ``body`` are all
-    explicitly provided non-empty strings. The caller (MCP layer / CLI)
-    must show the user the exact recipient, subject, and body and obtain
-    explicit approval *before* calling with ``confirmed=True``. On the
-    refusal path no Gmail call is made and the exact text is returned
-    for review.
-
-    When the gate passes, sending is delegated to
-    :func:`email_sync.send_followup`, which uses the connected Gmail
-    account (``hatch_gws_cli gmail +send``). Its result dict is returned,
-    enriched with ``entry_id``.
+    THE REAL GATE is the interactive send boundary in
+    :func:`email_sync.send_followup` (via
+    ``initiatives.i09.channels.registry``): the user must have approved
+    the EXACT to/subject/body at the terminal (typed ``send``), or an
+    unconsumed approval record for that exact content must be on file.
+    A caller-asserted ``confirmed=True`` authorizes NOTHING on its own —
+    it is deprecated (kept only so existing callers fail closed with
+    instructions instead of a TypeError) and the send is still refused
+    without a genuine interactive approval.
 
     Args:
         entry_id: job_id (or index) of the application, for audit.
         to: Recipient address (required, must contain "@").
         subject: Exact approved subject line (required, single line).
         body: Exact approved message body (required).
-        confirmed: Explicit user approval of the exact text above.
+        confirmed: DEPRECATED as an authorization signal. Warns; the send
+            still requires an interactive user approval.
+        approval_id: Approval record from an interactive approval
+            (``registry.request_send_approval``), threaded through to the
+            send boundary.
 
     Returns:
         ``{"sent": True, ...}`` on success; ``{"sent": False, "error":
@@ -484,8 +490,11 @@ def send_followup(
         return _refuse(
             "not_confirmed",
             "Not sent: user confirmation is required. Show the exact "
-            "recipient, subject, and body to the user, get explicit "
-            "approval, then call again with confirmed=True.",
+            "recipient, subject, and body to the user and obtain an "
+            "interactive approval (the send prompt asks the user to type "
+            "'send' for this exact text) — then call again with "
+            "confirmed=True. Note: even confirmed=True cannot send without "
+            "that interactive approval.",
             entry_id=str(entry_id),
             to=str(to or ""),
             subject=str(subject or ""),
@@ -527,7 +536,9 @@ def send_followup(
     try:
         # Attribute access (not a from-import) so tests can patch
         # email_sync.send_followup cleanly.
-        result = email_sync.send_followup(draft, confirm=True)
+        result = email_sync.send_followup(
+            draft, confirm=confirmed, approval_id=approval_id
+        )
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("Follow-up send failed: %s", exc)
         return _refuse(
@@ -604,13 +615,17 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
         subject: str,
         body: str,
         confirmed: bool = False,
+        approval_id: str | None = None,
     ) -> dict:
         """Send a follow-up email via the connected Gmail account.
 
-        APPROVAL GATE: refuses unless confirmed=True AND to/subject/body
-        are all explicitly provided non-empty. The agent MUST show the
-        user the exact recipient, subject, and body and obtain explicit
-        approval BEFORE calling with confirmed=True. Nothing is sent on
+        APPROVAL GATE: a caller-asserted ``confirmed=True`` authorizes
+        NOTHING on its own. Every send must pass the interactive send
+        boundary: the user approves the exact recipient, subject, and
+        body at the terminal (typing "send"), which mints a single-use
+        approval record; pass its ``approval_id`` here, or call with an
+        approval already on file. Without it the send is refused (a
+        non-interactive agent cannot self-approve). Nothing is sent on
         the unconfirmed path — the exact text is returned for review.
 
         Args:
@@ -618,9 +633,15 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
             to: Exact approved recipient address.
             subject: Exact approved subject line.
             body: Exact approved message body.
-            confirmed: Explicit user approval of the exact text above.
+            confirmed: DEPRECATED as an authorization signal; the send
+                still requires a genuine interactive approval.
+            approval_id: Approval record from an interactive approval of
+                this exact draft.
         """
-        return _core_send(entry_id, to, subject, body, confirmed=confirmed)
+        return _core_send(
+            entry_id, to, subject, body, confirmed=confirmed,
+            approval_id=approval_id,
+        )
 
     return mcp
 
@@ -662,7 +683,11 @@ def _cli_followups(args) -> int:  # noqa: ANN001 - argparse namespace
             print(f"To: {result.get('to')}")
             print(f"Subject: {result.get('subject')}")
             print(f"\n{result.get('body')}")
-            print("\nRe-run with --confirm to send exactly this text.")
+            print(
+                "\nRe-run from an interactive terminal to approve this exact "
+                "text at the send prompt (type 'send'). A --confirm flag "
+                "alone cannot authorize a send."
+            )
         return 1
 
     if args.draft:

@@ -6,7 +6,8 @@ integration sweep. Each snippet names its target file, insertion point, and
 the import it needs. All of them are additive: no existing behavior changes.
 
 Conventions used below: `BASE_DIR` is the repo root (already defined in
-each target module).
+cli.py, webui.py, and server.py; the dashboard.py snippet is pure text and
+needs no path work).
 
 ---
 
@@ -35,7 +36,7 @@ def connector_manifest(connector: str) -> dict:
 
 @mcp.tool()
 def connector_conformance(connector: str) -> dict:
-    """Run the Q2 capability-contract checks for one provider (no network)."""
+    """Run the capability-contract checks for one provider (no network)."""
     from providers import ashby, greenhouse, lever
     makers = {"greenhouse": greenhouse.GreenhouseProvider,
               "lever": lever.LeverProvider, "ashby": ashby.AshbyProvider}
@@ -84,11 +85,11 @@ from initiatives.i09 import calendar_handoff as _i09_cal
 def channel_enable(channel: str, confirm: bool = False) -> dict:
     """Enable a communication channel. Explicit opt-in only: without
     confirm=True nothing changes and the manifest is returned for review."""
-    return _i09_channels.enable_channel(channel, confirm=confirm, via="mcp")
+    return _i09_channels.enable_channel(channel, confirm=confirm, via="api")
 
 @mcp.tool()
 def channel_disable(channel: str) -> dict:
-    return _i09_channels.disable_channel(channel, via="mcp")
+    return _i09_channels.disable_channel(channel, via="api")
 
 @mcp.tool()
 def channel_status() -> dict:
@@ -119,26 +120,68 @@ def calendar_handoff(drafts: list, confirm: bool = False) -> dict:
 
 ### 1e. Record provider health on every fetch (one line per provider call)
 
-Initiative 03's contract is `provider_health.py` (repo root). Providers
-write DIRECTLY to it — there is exactly one write path:
+Target files: `providers/adzuna.py`, `providers/ashby.py`,
+`providers/greenhouse.py`, `providers/lever.py`,
+`providers/ziprecruiter.py`. Insertion point: at the end of each
+provider's `search()` and `get_details()`, just before the `return`.
+(`providers/glassdoor.py` raises `NotImplementedError` on every call, so
+it needs no recording.) Alternative single-point option:
+`providers/_common.py:154` (`fetch_json`, the shared helper used by
+adzuna/ashby/greenhouse/lever) — but it does not receive the provider
+name, so it would need an additive `provider: str = ""` kwarg with every
+call site updated.
+
+Honest status as of 2026-09-13: **providers do NOT currently record.**
+Zero provider modules import or call `provider_health`. Today the only
+writers are:
+
+- `watch.py:151` — `_record_watch_health()` calls
+  `provider_health.record_fetch(board_name, ok, note=note)` after a watch
+  run (`watch.py:119`, `:122`);
+- `providers/health_contract.py:229` (`class ProviderHealthAdapter`) / `:267`
+  (`ProviderHealthAdapter.record()`) — calls `ph.record_captcha(...)` /
+  `ph.record_fetch(...)` (at `:283`, `:292`, `:307`) through 03's public
+  write API (see below).
+
+Until this sweep adds the lines below, the scorecard (1b) renders "no
+data" rows for every provider — which is honest, but not useful. Add, per
+provider, one import and one record line (additive; health must never
+break a fetch, so wrap in try/except like `watch.py`'s helper does):
 
 ```python
+# insertion: top of providers/<provider>.py
 import provider_health
 
-# after a provider search/detail attempt:
-provider_health.record_fetch(board_name, ok,
-                             note="429 on page 2" if not ok else "")
+# insertion: end of search(), before `return jobs`
+provider_health.record_fetch(self.name, True)
+# on a failed attempt (before early `return []` or in the except block):
+provider_health.record_fetch(self.name, ok=False, note=str(exc)[:140])
 # on CAPTCHA observation (observation only — never bypassed):
-provider_health.record_captcha(board_name, "challenged")  # or "blocked"
+provider_health.record_captcha(self.name, "challenged")  # or "blocked"
 # on site pushback:
-provider_health.cooldown(board_name, seconds, reason="http_429")
+provider_health.cooldown(self.name, seconds, reason="http_429")
 ```
+
+Board names to record under are the provider classes' `name` attributes:
+`adzuna` (adzuna.py:53), `ashby` (ashby.py:53), `greenhouse`
+(greenhouse.py:48), `lever` (lever.py:48), `ziprecruiter`
+(ziprecruiter.py:115). Equivalent through the adapter (same write path):
+`health_contract.record_fetch(ProviderHealthAdapter(), self.name,
+success=..., error_state=...)`.
 
 The scorecard (1b) reads through `providers/health_contract.py`, which
 adapts 03's `provider_status()` rows onto `HealthSnapshot` — see
 `snapshot_from_status` for the field mapping. If 03 renames fields,
 update that one function. `health_contract.py` never edits
-`provider_health.py` (another team's file).
+`provider_health.py`'s *source* — but `ProviderHealthAdapter.record()`
+**does write to 03's store through its public API** (`ph.record_captcha`
+/ `ph.record_fetch`, health_contract.py:283, :292, :307). So there is more than
+one write path today: watch.py's `_record_watch_health`, the adapter's
+`record()`, and the `FileHealthStore` fallback used when 03's module is
+not importable. Routing every future write through
+`health_contract.record_fetch()` keeps this to one declared call pattern;
+merging the write paths into one is an Initiative 03 architecture call,
+not this sweep's.
 
 ---
 
@@ -167,12 +210,20 @@ def _cli_connector(a):
         from providers import ashby, greenhouse, lever
         makers = {"greenhouse": greenhouse.GreenhouseProvider,
                   "lever": lever.LeverProvider, "ashby": ashby.AshbyProvider}
-        results = _c.conformance_suite(makers[a.name](tokens=[]))
-        print(_j.dumps({"passed": _c.suite_passed(results),
-                        "checks": results}, indent=2))
+        maker = makers.get(a.name)
+        if maker is None:
+            print(_j.dumps({"ok": False,
+                            "error": f"no conformance harness for {a.name!r}"},
+                           indent=2))
+        else:
+            results = _c.conformance_suite(maker(tokens=[]))
+            print(_j.dumps({"ok": True, "passed": _c.suite_passed(results),
+                            "checks": results}, indent=2))
     else:
         m = _c.manifest_for(a.name)
-        print(_j.dumps(m.to_dict() if m else {"error": "unknown"}, indent=2))
+        print(_j.dumps({"ok": True, "manifest": m.to_dict()} if m else
+                       {"ok": False,
+                        "error": f"unknown connector {a.name!r}"}, indent=2))
 p.set_defaults(func=_cli_connector)
 
 p = subparsers.add_parser("channel", help="Explicit channel opt-in/out.")
@@ -185,9 +236,9 @@ def _cli_channel(a):
         print(_j.dumps({"enabled": _i09_channels.enabled_channels()}, indent=2))
     elif a.action == "enable":
         print(_j.dumps(_i09_channels.enable_channel(
-            a.name, confirm=a.confirm, via="cli"), indent=2))
+            a.name, confirm=a.confirm, via="cli-wizard"), indent=2))
     else:
-        print(_j.dumps(_i09_channels.disable_channel(a.name, via="cli"), indent=2))
+        print(_j.dumps(_i09_channels.disable_channel(a.name, via="cli-wizard"), indent=2))
 p.set_defaults(func=_cli_channel)
 
 p = subparsers.add_parser("apply-path", help="Honest ATS apply-path declaration.")
@@ -220,7 +271,9 @@ renderer is pure text and performs no network calls.
 Add a `/api/scorecard` route returning `scorecard.to_json()` (the JSON
 form is designed for the web/phone surfaces), and render one card per row
 with columns: provider, status, freshness, error, last success,
-capability, budget, cooldown, captcha, streak. Rows with
+capability, budget, cooldown, captcha, streak. (The display headers
+`error`/`streak` map to the row keys `error_state`/`recovery_streak` —
+scorecard.py:116-117.) Rows with
 `"status": "no data"` render an explicit "no data yet" empty state —
 never a fake healthy row.
 
