@@ -32,7 +32,7 @@ const spec: PageSpec = {
     { text: 'cli.py doctor', kind: 'cmd' },
     { text: '\u2713 profile: loaded (12 skills, 4 roles)', kind: 'ok' },
     { text: '\u2713 compliance: ToS acknowledged 2026-09-10', kind: 'ok' },
-    { text: '\u2192 scraping budget: 31/40 searches left today', kind: 'info' },
+    { text: '\u2192 search budget: 31/1000 today', kind: 'info' },
     { text: '\u2192 applications today: 2/5', kind: 'info' },
     { text: '\u2192 plugins registered: 8 (mcp tools/list to verify)', kind: 'info' },
     { text: '$ tail -1 runs/governance-verdicts.jsonl', kind: 'cmd' },
