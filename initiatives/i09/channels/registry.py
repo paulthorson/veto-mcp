@@ -26,9 +26,12 @@ A caller-asserted boolean can never authorize a send. Every send — through
 ``GmailChannel.send_followup`` OR through ``email_sync.send_followup``
 directly — must pass ``authorize_send`` here first:
 
-1. APPROVE (interactive): ``request_send_approval(draft)`` presents the
-   ACTUAL recipient, subject, and body to the user on the terminal and
-   requires them to type ``send``. The display is SANITIZED — ANSI
+1. APPROVE (interactive): ``request_send_approval(draft, expected_value=...)``
+   presents the ACTUAL recipient, subject, and body to the user on the
+   terminal and requires them to type ``expected_value`` — a value that
+   VARIES per send (e.g. the recipient address as shown). A fixed string
+   such as "send" FAILS: the typed answer is compared only against the
+   per-send expected value (legal exposure reduction, spec §6.2). The display is SANITIZED — ANSI
    escape sequences are stripped and every other control character
    (including newlines) is replaced with a visible placeholder — so a
    hostile draft cannot rewrite the terminal (e.g. overwriting the
@@ -137,9 +140,10 @@ CONSENT_LOG = BASE_DIR / "channel_consent.jsonl"
 # genuine wizard/UI opt-in from a hardcoded string.
 VALID_VIA_SOURCES = frozenset({"cli-wizard", "web-ui", "api"})
 
-# Interactive send approvals expire this long after the user typed "send".
-# Short enough that a stale approval cannot be weaponized later; long
-# enough for a wizard preview → approve → send round-trip.
+# Interactive approvals expire this long after the user typed the
+# per-action varying value. Short enough that a stale approval cannot
+# be weaponized later; long enough for a wizard preview → approve →
+# send round-trip.
 APPROVAL_TTL_SECONDS = 15 * 60
 
 # The approval prompt abandons after this long without an answer: a user
@@ -1335,10 +1339,11 @@ def _stdin_is_tty() -> bool:
     and stdout must be TTYs.
 
     stdin carries the typed answer; stdout carries the draft display. If
-    stdin is a TTY but stdout is piped away, the user would type "send"
-    blind — never seeing the draft they approve — so that is NOT
-    interactive: fail closed. (The historical name is kept as the single
-    seam for the interactive boundary; it now checks both directions.)
+    stdin is a TTY but stdout is piped away, the user would type the
+    approval value blind — never seeing the draft they approve — so that
+    is NOT interactive: fail closed. (The historical name is kept as the
+    single seam for the interactive boundary; it now checks both
+    directions.)
 
     Split out (not inlined) so tests can simulate both sides of the
     interactive boundary deterministically.
@@ -1425,14 +1430,29 @@ def _present_draft(draft: dict[str, Any], channel: str) -> None:
 
 
 def request_send_approval(
-    draft: dict[str, Any], *, channel: str = "gmail"
+    draft: dict[str, Any],
+    *,
+    channel: str = "gmail",
+    expected_value: str,
+    value_label: str = "value",
 ) -> dict[str, Any]:
     """Interactively ask the user to approve sending ``draft``.
 
     Presents the actual recipient/subject/body on the terminal and requires
-    the user to type ``send``. On a genuine approval, writes a
-    ``send_approval`` record (nonce + content hash + timestamp, HMAC-signed
-    into the consent log) and returns ``{"ok": True, "approval_id": nonce}``.
+    the user to type ``expected_value`` — a value that VARIES per send
+    (e.g. the recipient address as shown in the display). A fixed string
+    such as "send" or "yes" FAILS: the typed answer is compared ONLY
+    against ``expected_value``. ``value_label`` names the value in the
+    prompt WITHOUT echoing it (the user must read it from the display,
+    not copy it from the prompt).
+
+    ``expected_value`` is REQUIRED and must be non-empty: a missing or
+    empty value refuses instead of degrading to a fixed string (legal
+    exposure reduction, spec §6.2 — a hardcoded "yes" must fail).
+
+    On a genuine approval, writes a ``send_approval`` record (nonce +
+    content hash + timestamp, HMAC-signed into the consent log) and
+    returns ``{"ok": True, "approval_id": nonce}``.
 
     Fails closed: a non-dict draft, no usable terminal (stdin and stdout
     not both TTYs — agents, scripts, MCP servers), EOF, a declined answer,
@@ -1445,6 +1465,24 @@ def request_send_approval(
     if bad is not None:
         return {"ok": False, "approved": False, **bad}
     channel = _normalize_channel(channel)
+    expected = (expected_value or "").strip()
+    if not expected:
+        # Fail closed: without a per-send varying value there is no
+        # legal-hardening §6.2 confirmation to offer. Never degrade to a
+        # fixed string.
+        log.warning("Send approval refused: no expected_value supplied.")
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "missing_expected_value",
+            "instructions": (
+                "Not sent. The approval requires a per-send varying value "
+                "(e.g. the recipient address as shown); none was supplied, "
+                "so the prompt cannot run. This is a caller bug — fix the "
+                "call site, do not work around it."
+            ),
+        }
+    label = (value_label or "value").strip() or "value"
     content_hash = _content_hash(draft)
     if not _stdin_is_tty():
         return {
@@ -1463,7 +1501,7 @@ def request_send_approval(
     _present_draft(draft, channel)
     try:
         answer = _approval_input(
-            'Type "send" to approve sending this exact message, '
+            f"Type the {label} exactly as shown above to approve sending, "
             "anything else to abort: "
         )
     except TimeoutError:
@@ -1486,23 +1524,25 @@ def request_send_approval(
             "error": "approval_aborted",
             "instructions": "Not sent. No approval was given.",
         }
-    if answer.strip().lower() != "send":
-        log.info("Send approval declined by user.")
+    if answer.strip() != expected:
+        # The typed answer is compared ONLY against the per-send varying
+        # value. A hardcoded "send"/"yes"/"y"/"ok" fails here by
+        # construction (legal exposure reduction, spec §6.2).
+        log.info("Send approval declined by user (value mismatch).")
         return {
             "ok": False,
             "approved": False,
             "error": "approval_declined",
-            "instructions": "Not sent. The user did not approve this send.",
+            "instructions": (
+                "Not sent. The typed value did not match the value shown "
+                "in the display. Nothing was approved."
+            ),
         }
-    nonce = secrets.token_hex(16)
     try:
-        _append_consent(
-            {
-                "action": "send_approval",
-                "channel": channel,
-                "nonce": nonce,
-                "content_hash": content_hash,
-            }
+        nonce = _mint_approval_record(
+            record_action="send_approval",
+            channel=channel,
+            content_hash=content_hash,
         )
     except OSError as exc:
         log.error("Send approval NOT recorded: %s", exc)
@@ -1512,6 +1552,186 @@ def request_send_approval(
             "error": f"approval_write_failed: {exc}",
         }
     log.info("Send approval recorded (nonce %s…, channel %s).", nonce[:8], channel)
+    return {
+        "ok": True,
+        "approved": True,
+        "approval_id": nonce,
+        "content_hash": content_hash,
+        "channel": channel,
+    }
+
+
+def _mint_approval_record(
+    *, record_action: str, channel: str, content_hash: str
+) -> str:
+    """Write one approval record; return its nonce.
+
+    The record binds nonce + content_hash + timestamp (+ channel) into
+    the HMAC-signed consent log. ``record_action`` is ``"send_approval"``
+    for draft sends and ``"action_approval"`` for generic per-action
+    gates (legal-hardening commit 8, spec §6); both validate identically
+    (see ``_validate_approval`` / ``_find_unconsumed_approval``).
+
+    Raises OSError when the record cannot be persisted — the caller must
+    fail closed (no record written means no approval exists).
+    """
+    nonce = secrets.token_hex(16)
+    _append_consent(
+        {
+            "action": record_action,
+            "channel": channel,
+            "nonce": nonce,
+            "content_hash": content_hash,
+        }
+    )
+    return nonce
+
+
+def _present_action_summary(summary: str, action_label: str) -> None:
+    """Show the exact action awaiting approval on the terminal.
+
+    Display-only sanitization (see ``_present_draft``): ANSI escape
+    sequences are stripped and every other control character becomes a
+    visible placeholder, so a hostile summary cannot rewrite the
+    terminal. The approval record binds the TRUE summary bytes via the
+    content hash.
+    """
+    print(f"\n=== Veto action approval ({_sanitize_display(action_label)}) ===")
+    print(_sanitize_display(summary))
+    print("=== end summary ===")
+
+
+def request_action_approval(
+    *,
+    summary: str,
+    expected_value: str,
+    value_label: str = "value",
+    action_label: str = "action",
+    channel: str = "action",
+) -> dict[str, Any]:
+    """Generic per-action confirmation — legal-hardening commit 8, spec §6.
+
+    The SAME approval machinery as ``request_send_approval`` (interactive
+    TTY only, varying typed value, nonce + content-hash + TTL +
+    single-use, HMAC-signed consent log), but for an arbitrary action
+    summary instead of a to/subject/body draft. The approval record
+    (record action ``"action_approval"``) validates through the identical
+    path as send approvals; its content hash binds the EXACT summary
+    bytes shown.
+
+    ``expected_value`` is REQUIRED and must be non-empty: the per-action
+    varying string the user must type (e.g. the company name as shown in
+    the summary). A fixed string such as "yes" FAILS — the typed answer
+    is compared only against ``expected_value``. ``value_label`` names
+    the value in the prompt WITHOUT echoing it: the user must read it
+    from the summary, not copy it from the prompt.
+
+    Fails closed exactly like ``request_send_approval``: a missing/empty
+    expected value, no usable terminal (stdin and stdout not both TTYs —
+    agents, scripts, MCP servers), EOF, a declined answer, a timed-out
+    prompt, or an approval-write failure all return ``ok False`` and
+    write no approval record. This function never exits the process;
+    callers that must refuse-and-exit (spec §6.3) do so themselves —
+    see ``circuit_breaker.require_action_confirmation``.
+
+    There is no batch approval, no confirm-all, no remembered
+    confirmation, and no session-spanning approval: one call approves
+    one action, and the approval is single-use.
+    """
+    expected = (expected_value or "").strip()
+    if not expected:
+        log.warning("Action approval refused: no expected_value supplied.")
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "missing_expected_value",
+            "instructions": (
+                "Not approved. The approval requires a per-action varying "
+                "value (e.g. the company name as shown); none was supplied, "
+                "so the prompt cannot run. This is a caller bug — fix the "
+                "call site, do not work around it."
+            ),
+        }
+    if not isinstance(summary, str) or not summary.strip():
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "missing_summary",
+            "instructions": (
+                "Not approved. There is no action summary to show the user; "
+                "approving blind is not permitted."
+            ),
+        }
+    channel = _normalize_channel(channel)
+    label = (value_label or "value").strip() or "value"
+    action = (action_label or "action").strip() or "action"
+    content_hash = hashlib.sha256(summary.encode("utf-8")).hexdigest()
+    if not _stdin_is_tty():
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "not_interactive",
+            "instructions": (
+                "Not approved. Action approval requires a genuine "
+                "interactive user approval, but there is no usable "
+                "terminal: BOTH stdin and stdout must be TTYs (stdin "
+                "carries the typed answer, stdout carries the action "
+                "summary). Run from an interactive terminal."
+            ),
+        }
+    _present_action_summary(summary, action)
+    try:
+        answer = _approval_input(
+            f"Type the {label} exactly as shown above "
+            f"to submit this {action}, anything else to abort: "
+        )
+    except TimeoutError:
+        log.info("Action approval abandoned (prompt timed out).")
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "approval_timeout",
+            "instructions": (
+                "Not approved. The approval prompt timed out "
+                f"({APPROVAL_PROMPT_TIMEOUT_SECONDS // 60} minutes) without "
+                "an answer. Re-present the summary and try again."
+            ),
+        }
+    except (EOFError, KeyboardInterrupt):
+        log.info("Action approval aborted (no input).")
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "approval_aborted",
+            "instructions": "Not approved. No approval was given.",
+        }
+    if answer.strip() != expected:
+        log.info("Action approval declined (value mismatch).")
+        return {
+            "ok": False,
+            "approved": False,
+            "error": "approval_declined",
+            "instructions": (
+                "Not approved. The typed value did not match the value "
+                "shown in the summary. Nothing was approved."
+            ),
+        }
+    try:
+        nonce = _mint_approval_record(
+            record_action="action_approval",
+            channel=channel,
+            content_hash=content_hash,
+        )
+    except OSError as exc:
+        log.error("Action approval NOT recorded: %s", exc)
+        return {
+            "ok": False,
+            "approved": False,
+            "error": f"approval_write_failed: {exc}",
+        }
+    log.info(
+        "Action approval recorded (nonce %s…, channel %s).", nonce[:8], channel
+    )
     return {
         "ok": True,
         "approved": True,
@@ -1565,7 +1785,11 @@ def _validate_approval(
         return "consent_store_unverifiable"
     match: dict[str, Any] | None = None
     for entry in entries:
-        if entry.get("action") == "send_approval" and entry.get("nonce") == approval_id:
+        # Both record types validate identically: send_approval (draft
+        # sends) and action_approval (generic per-action gates, legal
+        # exposure reduction commit 8). The security-relevant binding is
+        # nonce + content_hash + timestamp + channel in all cases.
+        if entry.get("action") in ("send_approval", "action_approval") and entry.get("nonce") == approval_id:
             match = entry  # newest wins; log is oldest-first
     if match is None:
         return "no_such_approval"
@@ -1617,7 +1841,7 @@ def _find_unconsumed_approval(
     }
     best: str | None = None
     for entry in entries:  # oldest-first; keep newest match
-        if entry.get("action") != "send_approval":
+        if entry.get("action") not in ("send_approval", "action_approval"):
             continue
         if entry.get("content_hash") != content_hash:
             continue
@@ -1692,6 +1916,8 @@ def authorize_send(
     *,
     channel: str = "gmail",
     approval_id: str | None = None,
+    expected_value: str,
+    value_label: str = "value",
 ) -> tuple[str | None, dict[str, Any] | None]:
     """The send boundary. Returns ``(approval_id, None)`` or
     ``(None, refusal_dict)``.
@@ -1703,6 +1929,11 @@ def authorize_send(
     parameter combination by which a caller can authorize its own send.
     A non-dict draft is refused outright (invalid_draft), and the
     approval's channel binding must match ``channel`` (case-insensitive).
+
+    ``expected_value`` (REQUIRED) is the per-send varying string the
+    interactive prompt requires the user to type (e.g. the recipient
+    address as shown in the draft display); a fixed string such as
+    "send" can never satisfy it (legal exposure reduction, spec §6.2).
 
     ATOMIC CLAIM: a successful return means the approval was validated
     AND consumed as one atomic step under the cross-process
@@ -1772,7 +2003,12 @@ def authorize_send(
     # user may take minutes to answer; consent writes must not block that
     # long), then the just-minted approval is claimed atomically. Any
     # ambiguity fails closed.
-    res = request_send_approval(draft, channel=channel)
+    res = request_send_approval(
+        draft,
+        channel=channel,
+        expected_value=expected_value,
+        value_label=value_label,
+    )
     if not res.get("ok"):
         return None, {
             "sent": False,
