@@ -1,77 +1,84 @@
-# Feedback & crash reporting — requirements
+# Feedback — local capture only, no automated send
 
-**Status:** Approved scope by Paul Thorson, 2026-09-14 (chat). Scoped as an
-Initiative 10 (Distribution) follow-on — it concerns Veto running on user machines.
-Queued after the 08 security work and the 09 circuit breaker.
+**Settled posture:** Directive §5, Rule 2. Veto never transmits user data to
+infrastructure the author operates or receives from — not crash reports, not
+analytics, not contributions, not error logs, not issues. Automatic filing to
+GitHub is dead. There is no acceptance log and no shared bot token; neither
+will be built.
 
-**Note (2026-09-14):** `TERMS.md` was deleted from the repo root under the settled
-Apache-2.0-only posture — the file had conditioned the Apache 2.0 license on crash
-reports, which cannot coexist with Apache 2.0. The `TERMS.md` references in this
-document have been removed as a minimal edit; the full feedback rework against the
-settled posture (local capture, no automated send, no license-condition framing)
-is a later commit's scope.
+**Status:** Approved scope by Paul Thorson, 2026-09-14 (chat). Initiative 10
+(Distribution) follow-on — it concerns Veto running on user machines.
 
-## The requirement (Paul's words, condensed)
+**2026-09-14 rework:** This document previously specified automatic private
+issue filing (auto-filing scrubbed crash/problem reports into the author's
+issue tracker, remote dedup, a provisioned bot PAT, and a first-run consent
+gate that blocked startup on "telemetry as the price of free"). All of that
+is deleted. Feedback is now local capture only; any send is user-initiated.
 
-Veto needs a feedback mechanism: users can send bugs/issues they're having, and when
-something crashes locally on the user's machine, Veto automatically sends a report to
-the git repo as an auto-generated issue, so the team can see it and fix it.
+## The requirement
+
+Users can capture bugs and crash context locally, inspect the exact payload,
+and — only if they choose — deliver it themselves through their own channels.
+Veto provides no send path to the author.
 
 ## What to build
 
-1. **"Report a problem" in-app.** One-tap from the dashboard and the web UI / PWA.
-   Captures: what the user was doing, their description, app version, platform, and
-   recent log tail. Previews everything before sending — the user sees exactly what
-   leaves their machine.
+1. **"Report a problem" in-app.** One-tap from the dashboard and the web UI /
+   PWA. Stages a LOCAL draft file; captures: what the user was doing, their
+   description, app version, platform, recent log tail. Nothing is transmitted.
 2. **Automatic crash capture.** Unhandled exceptions are caught, fingerprinted
-   (crash signature from stack frames, not messages), and stored locally.
-3. **On-device PII scrub before anything leaves.** Veto handles resumes, emails, and
-   job applications — a raw traceback can contain all of it. Every report goes
-   through the Initiative 08 scrub/quarantine pipeline; anything that can't be
-   proven clean is withheld, and the report says what was withheld.
-4. **Automatic private issue filing.** Scrubbed reports are filed automatically into a
-   **private** issue tracker visible only to the Veto team — never posted publicly,
-   never attributed to the user (filed under Veto's own identity). Per Paul's
-   2026-09-14 decision and the terms review: public GitHub issues are NOT the intake
-   mechanism (adversarial legal review found public intake + anonymity promises
-   deceptive — Rule 1 veto). Title from the crash signature; body with version,
-   platform, scrubbed traceback, reproduction context.
-5. **Dedup.** Same crash signature → comment on the existing open issue, not a new
-   issue. Closed issues with a new occurrence get reopened with a fresh report.
-6. **Rate limits & user control.** Cap on reports per day. Crash/problem reports are
-   a **required** condition of the free license; usage analytics are a **separate
-   opt-in toggle** (off by default) per GDPR. Every auto-filed issue links back to
-   the local report the user can inspect in Settings → "Data sent."
+   (crash signature from stack frames, not messages), and stored locally only.
+3. **Local drafts.** Drafts are written to `~/.veto/feedback/drafts/` as
+   `<timestamp>-<crash-signature-or-slug>.json` (JSON envelope) plus a
+   human-readable `.md` rendering. Draft directory `0700`, files `0600`.
+   Drafts never leave the machine through Veto.
+4. **Exact-payload preview.** The draft file IS the payload. The in-app preview
+   renders the file byte-for-byte — no summarizing, no truncation that hides
+   content. What the user reads is exactly what they would be handing to
+   anyone.
+5. **User-initiated send only.** Veto has no send mechanism for feedback: no
+   `gh` invocation, no `api.github.com` calls, no stored filing credentials,
+   no auto-file, no remote dedup/comment/reopen. To share a report, the user
+   opens the draft in their editor or browser and delivers it themselves
+   (e.g. pastes it into a GitHub issue they open under their own account,
+   attaches it to an email they write). Veto is not a party to that action.
+6. **No remote state.** Because nothing is filed remotely, there is no remote
+   dedup, no issue comments, no reopening closed issues, and no rate limit
+   against a remote tracker. Local dedup (same crash signature grouping
+   drafts in the drafts directory) is permitted as a local convenience only.
 
-## Open questions for Paul (at build time, not now)
+## What this explicitly does NOT build
 
-- **GitHub token:** auto-filing needs credentials. Options: a bot/fine-grained PAT
-  Paul provisions and Veto stores securely, or per-user tokens. Paul to decide.
-- **Repo target:** file against the main repo or a dedicated `veto-feedback` repo
-  (keeps crash noise out of the development tracker).
+- No automatic filing to GitHub (or anywhere else) on the user's behalf.
+- No "required condition of the free license" framing. Reporting is optional;
+  Veto starts and runs fully regardless of any reporting choice. There is no
+  first-run consent gate and no gate may block startup.
+- No acceptance log (no record of "the user agreed to send reports").
+- No shared bot token, no fine-grained PAT provisioned by the author, no
+  author-controlled filing identity. Veto stores no credentials for filing
+  feedback.
+- No usage analytics tied to feedback. (Consent-gated local analytics are a
+  separate i12 concern; they are local and off by default.)
+- No PII-scrub pipeline dependency: the Initiative 08 scrub/quarantine
+  pipeline was removed (directive §4, Rule 2). The exact-payload preview
+  serves the transparency role — the user sees every byte before deciding
+  whether to share it, so there is no "scrubbed on their behalf" step.
+
+## Privacy properties (asserted, testable)
+
+- No outbound network connection is opened by the feedback path. Tests must
+  assert the feedback module imports no HTTP client and performs no socket
+  I/O (the capability-report runtime observation, directive §8, is the
+  final word).
+- Drafts stay under `~/.veto/feedback/` with restrictive permissions;
+  nothing is written to world-readable locations.
+- Crash fingerprints derive from stack frames, not messages, so report
+  grouping cannot smuggle user text into a filename or signature.
 
 ## Governance
 
 - Full framework compliance (ag_review.py, blind review, append-only verdicts).
-- Security-domain review is the critical gate: adversarial probes must attempt
-  PII exfiltration through the report path (poisoned resume text, emails in
-  tracebacks, tokens in log tails). The 07 WS1 consent saga is the cautionary tale:
-  the scrubber will be attacked with confusables, bidi overrides, and unusual
-  encodings until it holds.
-- Privacy review: the "what leaves the machine" preview must be byte-accurate —
-  no summarizing, no truncation that hides content.
-
-## First-run consent gate (added 2026-09-14)
-
-Paul's directive: Veto is free, and the price is anonymous telemetry — stated
-upfront, accepted before first use.
-
-The feedback build therefore includes a first-run consent screen:
-1. Shows the deal in plain words (free product ↔ anonymous analytics + problem
-   reports), with concrete examples of what is and isn't sent.
-2. "Preview a sample report" — the user can inspect a real scrubbed report before
-   agreeing, so consent is informed, not blind. (Same pattern as 07's consent
-   preview: show exactly what leaves, then ask.)
-3. Accept → telemetry flows. Decline → Veto doesn't start. No silent opt-in, no
-   pre-ticked boxes.
-4. Settings keeps a permanent "what you've sent" log the user can review any time.
+- Security-domain review is the critical gate. With no send path, adversarial
+  review targets: local file permissions, draft filename injection (signature
+  → filename must be sanitized), and log-tail content handling (the preview
+  must be byte-accurate, and drafts must not be readable by other local users).
