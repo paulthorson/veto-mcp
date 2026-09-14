@@ -53,3 +53,8 @@ tailored/
 # Belt-and-suspenders: the token file lives at ~/.veto_webui_token, outside
 # the repo — this entry only guards against an accidental copy landing here.
 .veto_webui_token
+
+# Initiative 09 communication channels: local consent audit (PII-adjacent,
+# machine-local; never commit).
+channel_consent.jsonl
+channel_consent.key

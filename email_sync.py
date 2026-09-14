@@ -19,7 +19,9 @@ Two capabilities, both read-safe by default:
   builds a short professional follow-up from the application record and the
   saved profile. Nothing is sent without a genuine interactive user
   approval: the send path requires the user to see the actual
-  recipient/subject/body and type ``send`` at the terminal (see
+  recipient/subject/body and type the per-send varying value at the
+  terminal — by default the recipient address exactly as shown; a fixed
+  string such as ``send`` or ``yes`` FAILS (see
   ``initiatives.i09.channels.registry.request_send_approval``), or an
   unconsumed approval record for the exact draft. A caller-asserted
   ``confirm=True`` authorizes nothing — it is deprecated and fail-closed.

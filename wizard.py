@@ -533,20 +533,22 @@ def maybe_create_watches(profile: dict) -> list[str]:
 
 
 def collect_compliance() -> str:
-    """Show the scraping ToS risk summary and record the user's mode choice.
+    """Show the ToS risk summary and record the user's mode choice.
 
     strict  -> official APIs only (Greenhouse, Lever, Ashby, Adzuna).
     standard -> all boards, but the user must explicitly acknowledge the
-               scraping ToS risk first.
+               scraping ToS risk first. (The scraping tier currently has
+               no live boards.)
     """
     print("\n--- Search compliance ---")
     print("Job boards fall into two risk tiers:")
     print("  official   Greenhouse, Lever, Ashby, Adzuna — public/official")
     print("             APIs. ToS-friendly; always preferred.")
-    print("  scraping   Glassdoor — HTML or")
-    print("             guest-endpoint scraping. May violate the site's Terms")
-    print("             of Service and can trigger HTTP 403/429, CAPTCHAs,")
-    print("             IP rate-limiting, or account restrictions.")
+    print("  scraping   No live boards. Glassdoor is a locked stub that")
+    print("             performs no scraping; the LinkedIn, Indeed, and")
+    print("             ZipRecruiter providers were removed. The tier")
+    print("             machinery (budgets, circuit breaker, ToS-risk")
+    print("             acknowledgment) remains in the codebase.")
     print("This tool stores no credentials and never auto-submits")
     print("applications without your explicit confirmation.")
     mode = ask(
@@ -561,8 +563,9 @@ def collect_compliance() -> str:
         ).strip().lower()
     compliance.set_mode(mode, path=COMPLIANCE_PATH)
     if mode == "standard":
-        print("\nStandard mode permits scraping-tier boards. Please confirm")
-        print("you understand the ToS risk described above.")
+        print("\nStandard mode still requires the ToS-risk acknowledgment,")
+        print("even though no board currently scrapes.")
+        print("Please confirm you understand the risk described above.")
         while True:
             if ask_yes_no("Acknowledge the scraping ToS risk?", default=False):
                 compliance.acknowledge_risks(path=COMPLIANCE_PATH)
