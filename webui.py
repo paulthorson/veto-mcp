@@ -618,7 +618,8 @@ def _followup_send_confirmed(params):
     import followup
     return followup.send_followup(params["entry_id"], params["to"],
                                   params["subject"], params["body"],
-                                  confirmed=True)
+                                  confirmed=True,
+                                  approval_id=params.get("approval_id"))
 
 
 # ---- WIN: network_crm -----------------------------------------------------------
@@ -1288,18 +1289,20 @@ TOOLS = [
      ]},
     # ---------------- WIN ----------------
     {"id": "followup", "group": "WIN", "name": "Follow-up emails",
-     "description": "Drafts follow-up emails from application history. Sending email requires a two-step confirmation.",
+     "description": "Drafts follow-up emails from application history. Sending requires a genuine interactive user approval at the send boundary (the user is shown the exact draft at a terminal and types 'send'); a confirmed=true flag alone never authorizes a send.",
      "actions": [
          _a("draft", "Draft a follow-up for one application entry.",
             _h_followup_draft, [_p("entry", "object", True, help="Application entry dict."),
                                                _profile_param()]),
          _a("drafts", "All due follow-ups with drafts.",
             _h_followup_drafts, [_profile_param()]),
-         _a("send", "Send a follow-up email. CONFIRM-GATED: first call returns a preview + hash; re-call with confirmed=true and the same hash.",
+         _a("send", "Send a follow-up email. INTERACTIVE-APPROVAL GATED: the exact draft must have been approved by the user at a terminal send prompt (they type 'send'); without that approval the send is refused. confirmed=true alone authorizes nothing.",
             _h_followup_draft,  # placeholder; dispatch uses GATED entry
             [_p("entry_id", "string", True), _p("to", "string", True),
              _p("subject", "string", True), _p("body", "string", True),
-             _p("confirmed", "boolean"), _p("preview_hash", "string")]),
+             _p("confirmed", "boolean"),
+             _p("approval_id", "string", False,
+                help="Approval record from an interactive approval of this exact draft.")]),
      ]},
     {"id": "network_crm", "group": "WIN", "name": "Network CRM",
      "description": "Local contact list with interaction logging, nudge lists, and warm paths to companies.",

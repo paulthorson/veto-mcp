@@ -164,9 +164,9 @@ class AshbyProvider:
                 "board": self.name,
                 "error": (
                     f"Ashby posting {job_id!r} not found on board {board!r}; "
-                    "the posting may have closed."
+                    "the posting may have closed. Details re-fetch the live "
+                    "job board and match by id."
                 ),
-                "note": "Details re-fetch the live job board and match by id.",
             }
         description = raw.get("descriptionPlain") or strip_html(
             raw.get("descriptionHtml")

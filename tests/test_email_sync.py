@@ -374,6 +374,17 @@ class TestSendFollowup(EmailSyncTestBase):
         "body": "Hi, just following up.",
     }
 
+    def setUp(self) -> None:
+        super().setUp()
+        # Isolate the consent/approval store: interactive-approval tests
+        # must never write to the real repo consent log.
+        from initiatives.i09.channels import registry
+
+        self.consent_log = Path(self.tmp.name) / "consent.jsonl"
+        patch = mock.patch.object(registry, "CONSENT_LOG", self.consent_log)
+        patch.start()
+        self.addCleanup(patch.stop)
+
     def test_send_without_confirm_does_not_send(self) -> None:
         with mock.patch.object(email_sync, "_run_gmail_cli") as fake:
             result = email_sync.send_followup(dict(self.DRAFT), confirm=False)
@@ -382,15 +393,50 @@ class TestSendFollowup(EmailSyncTestBase):
         self.assertIn("instructions", result)
         fake.assert_not_called()
 
-    def test_send_with_confirm_sends(self) -> None:
+    def _simulated_approval(self, draft):
+        """A genuine interactive approval, simulated for tests: TTY
+        present, user types 'send' at the prompt."""
+        from initiatives.i09.channels import registry
+
+        with (
+            mock.patch.object(registry, "CONSENT_LOG", self.consent_log),
+            mock.patch.object(registry, "_stdin_is_tty", return_value=True),
+            mock.patch.object(registry, "_approval_input", return_value="send"),
+        ):
+            res = registry.request_send_approval(draft, channel="gmail")
+        self.assertTrue(res["ok"], res)
+        return res["approval_id"]
+
+    def _no_tty(self):
+        from initiatives.i09.channels import registry
+
+        return mock.patch.object(registry, "_stdin_is_tty", return_value=False)
+
+    def test_confirm_true_alone_does_not_send(self) -> None:
+        """VETO regression: a caller-asserted confirm=True is not proof of
+        approval. Without a genuine interactive approval (no TTY here),
+        the send is refused and Gmail is never touched."""
+        with (
+            self._no_tty(),
+            mock.patch.object(email_sync, "_run_gmail_cli") as fake,
+        ):
+            result = email_sync.send_followup(dict(self.DRAFT), confirm=True)
+        self.assertFalse(result["sent"])
+        self.assertEqual(result["error"], "not_interactive")
+        fake.assert_not_called()
+
+    def test_send_with_genuine_interactive_approval_sends(self) -> None:
         calls = []
 
         def fake(*args):
             calls.append(args)
             return {"ok": True, "status": "connected"} if args[0] == "status" else {"ok": True}
 
+        approval_id = self._simulated_approval(self.DRAFT)
         with mock.patch.object(email_sync, "_run_gmail_cli", side_effect=fake):
-            result = email_sync.send_followup(dict(self.DRAFT), confirm=True)
+            result = email_sync.send_followup(
+                dict(self.DRAFT), approval_id=approval_id
+            )
         self.assertTrue(result["sent"])
         self.assertEqual(result["to"], "jane@acme.com")
         send_calls = [c for c in calls if "+send" in c]

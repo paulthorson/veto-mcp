@@ -11,7 +11,12 @@ Two capabilities, both read-safe by default:
 
 * **Follow-up drafts** (:func:`draft_followup` / :func:`send_followup`):
   builds a short professional follow-up from the application record and the
-  saved profile. Nothing is sent unless ``confirm=True``.
+  saved profile. Nothing is sent without a genuine interactive user
+  approval: the send path requires the user to see the actual
+  recipient/subject/body and type ``send`` at the terminal (see
+  ``initiatives.i09.channels.registry.request_send_approval``), or an
+  unconsumed approval record for the exact draft. A caller-asserted
+  ``confirm=True`` authorizes nothing — it is deprecated and fail-closed.
 
 All Gmail access goes through the Gmail skill's CLI
 (``hatch_gws_cli gmail ...``); see ``/opt/hatch/skills/gmail/SKILL.md``.
@@ -588,31 +593,40 @@ def draft_followup(
             + (
                 "Set the recipient address before sending."
                 if not to
-                else "Review the text, then send with confirm=True."
+                else "Review the text, then approve the exact draft "
+                "interactively (type 'send' at the terminal prompt) "
+                "before it can be sent."
             )
         ),
     }
 
 
 def send_followup(
-    draft: dict[str, Any], confirm: bool = False
+    draft: dict[str, Any], confirm: bool = False, approval_id: str | None = None
 ) -> dict[str, Any]:
-    """Send a follow-up draft via Gmail — only when ``confirm=True``.
+    """Send a follow-up draft via Gmail — only with a genuine user approval.
+
+    ``confirm`` is DEPRECATED and is not proof of approval: a
+    caller-asserted boolean can never authorize a send. Every send must
+    pass the interactive approval boundary in
+    ``initiatives.i09.channels.registry``:
+
+    * ``approval_id`` naming a valid, fresh, unconsumed interactive
+      approval record for this exact draft (see
+      ``registry.request_send_approval``), or a fresh unconsumed approval
+      already on file for this exact content; otherwise
+    * the user is prompted interactively (recipient/subject/body shown,
+      type "send") when stdin is a TTY; without a TTY the send is REFUSED.
 
     Without confirmation this returns the draft untouched, with
     instructions, and performs no Gmail call.
     """
-    if not confirm:
-        return {
-            "sent": False,
-            "draft": draft,
-            "instructions": (
-                "Review the draft above carefully. To send it through your "
-                "connected Gmail account, call send_followup again with "
-                "confirm=True (or run: email-followup <id> --send --confirm "
-                "--to <address>)."
-            ),
-        }
+    if confirm:
+        log.warning(
+            "email_sync.send_followup: confirm= is deprecated and is not "
+            "proof of approval; an interactive user approval is still "
+            "required."
+        )
     to = str(draft.get("to") or "").strip()
     subject = str(draft.get("subject") or "").strip()
     body = str(draft.get("body") or "").strip()
@@ -633,6 +647,29 @@ def send_followup(
             "error": "empty_draft",
             "instructions": "Draft is missing a subject or body; not sent.",
         }
+    # The send boundary: never trust caller-asserted flags. The registry
+    # is imported lazily (it imports this module lazily too).
+    try:
+        from initiatives.i09.channels import registry as _channels
+    except Exception as exc:  # unexpected layout / import failure
+        log.error("email_sync: approval backend unavailable: %s", exc)
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "approval_backend_unavailable",
+            "instructions": (
+                "Not sent. The send-approval backend could not be loaded; "
+                "failing closed."
+            ),
+        }
+    approval_id, refusal = _channels.authorize_send(
+        draft, channel="gmail", approval_id=approval_id
+    )
+    if refusal is not None:
+        out = dict(refusal)
+        out["draft"] = draft
+        return out
+    assert approval_id is not None  # authorize_send contract
     if not _gmail_connected():
         return {
             "sent": False,
@@ -640,6 +677,9 @@ def send_followup(
             "error": "gmail_not_connected",
             "instructions": "Gmail is not connected; connect it and retry.",
         }
+    # Single-use: consume BEFORE the transport attempt. A failed attempt
+    # does not refund the approval (fail closed).
+    _channels.consume_approval(approval_id, channel="gmail")
     try:
         sent = _gmail_send(to, subject, body)
     except RuntimeError as exc:
@@ -692,9 +732,12 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
         Args:
             application_id: The job_id of the application.
             kind: One of "check_in", "thank_you", "nudge".
-            send: Also send the draft via Gmail (requires confirm=True).
-            confirm: Explicit user confirmation to send. Without it the
-                draft is returned unsent with instructions.
+            send: Also send the draft via Gmail (requires a genuine
+                interactive user approval — see send_followup).
+            confirm: DEPRECATED. A caller-asserted boolean is not proof of
+                approval; sending always requires an interactive user
+                approval. Without it the draft is returned unsent with
+                instructions.
         """
         draft = _core_draft(application_id, kind=kind)
         if send:
@@ -789,9 +832,12 @@ def register_cli(subparsers) -> dict:  # noqa: ANN001 - argparse subparsers
     p_follow.add_argument("--to", default="",
                           help="Recipient address (required to send).")
     p_follow.add_argument("--send", action="store_true",
-                          help="Send via Gmail (needs --confirm).")
+                          help="Send via Gmail (requires interactive user "
+                               "approval at send time).")
     p_follow.add_argument("--confirm", action="store_true",
-                          help="Confirm sending the exact draft shown.")
+                          help="DEPRECATED: a caller-asserted flag is not "
+                               "proof of approval; sending still requires an "
+                               "interactive user approval.")
     p_follow.add_argument("--json", action="store_true", help="Print raw JSON.")
     p_follow.set_defaults(func=_cli_email_followup)
     return {
