@@ -292,7 +292,7 @@ class CooldownDefaultTests(unittest.TestCase):
             health_contract, "_provider_health_module", return_value=fake_ph
         ):
             snap = HealthSnapshot(
-                provider="ziprecruiter",
+                provider="glassdoor",
                 fetched_at=0.0,
                 success=False,
                 status="error",
@@ -316,7 +316,7 @@ class CooldownDefaultTests(unittest.TestCase):
             health_contract, "_provider_health_module", return_value=fake_ph
         ):
             snap = HealthSnapshot(
-                provider="ziprecruiter",
+                provider="glassdoor",
                 fetched_at=0.0,
                 success=False,
                 status="error",
@@ -390,7 +390,6 @@ class CapabilityLabelDriftTests(unittest.TestCase):
             "lever",
             "ashby",
             "adzuna",
-            "ziprecruiter",
             "glassdoor",
             "ats_direct",
         ):

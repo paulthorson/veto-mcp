@@ -5,10 +5,10 @@ Boards are classified into risk tiers:
 
   official  - public or official APIs (Greenhouse, Lever, Ashby, Adzuna).
               ToS-friendly; always preferred.
-  scraping   - HTML or guest-endpoint scraping (Indeed,
-              Glassdoor, ZipRecruiter). Works until it doesn't: it can
-              violate the site's Terms of Service and trigger HTTP 403/429,
-              CAPTCHAs, IP rate-limiting, or account restrictions.
+  scraping   - HTML or guest-endpoint scraping (Glassdoor). Works until it
+              doesn't: it can violate the site's Terms of Service and
+              trigger HTTP 403/429, CAPTCHAs, IP rate-limiting, or account
+              restrictions.
 
 Compliance modes (persisted in ``compliance.json``, gitignored)::
 
@@ -55,9 +55,7 @@ RISK_TIER: dict[str, str] = {
     "lever": "official",
     "ashby": "official",
     "adzuna": "official",
-    "indeed": "scraping",
     "glassdoor": "scraping",
-    "ziprecruiter": "scraping",
 }
 
 OFFICIAL_BOARDS = {b for b, t in RISK_TIER.items() if t == "official"}
