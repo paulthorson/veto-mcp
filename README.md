@@ -35,8 +35,8 @@ bots skip.
    application. Qualification scoring warns or blocks on real gaps.
 2. **It won't burn your accounts.** Scraping-tier boards need your
    explicit ToS acknowledgment, run on tight daily budgets, and back off
-   exponentially on 403/429/CAPTCHA. Max 5 applications a day, paced like
-   a human. No bulk blasts, ever.
+   exponentially on 403/429/CAPTCHA. A hard daily cap of 5 applications
+   and a polite delay between requests. No bulk blasts, ever.
 3. **It won't go rogue.** A constitutional veto screen reviews every
    planned application; every allow/block decision lands in an audit
    ledger. Nothing is ever submitted without your explicit confirmation.
@@ -458,8 +458,8 @@ All keys optional. Explicit `first_name`/`last_name` win over splitting
   (CAPTCHAs, IP throttles) on the target site. Mitigations built in: no
   credential storage, no logged-in sessions, nothing is ever submitted by
   the software (the submit click is always yours), screenshots for human
-  review, one application per tool call. **Apply at a human pace** (a
-  handful of applications per day, not bulk blasts), expect some sites to
+  review, one application per tool call. **Keep a measured pace** (a
+  handful of applications per day with pauses between them, not bulk blasts), expect some sites to
   block automation outright, and always verify the filled form on the live
   site before you click submit.
 - Job data returned is a snapshot; always verify details on the live posting
