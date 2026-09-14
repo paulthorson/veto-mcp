@@ -41,7 +41,6 @@ import mock_interview  # noqa: E402
 import soft_skills  # noqa: E402
 import ai_proficiency  # noqa: E402
 import mentors  # noqa: E402
-import contribute  # noqa: E402
 import offer_compare  # noqa: E402
 import skill_gaps  # noqa: E402
 import cover_letters  # noqa: E402
@@ -1240,36 +1239,6 @@ def wf_streaks() -> None:
     print(f"  Logged {kind} rep at {when_s}. Keep it going.")
 
 
-def wf_contribute() -> None:
-    """Preview a contribution bundle. Preview only — never submit."""
-    _divider("CONTRIBUTE (PREVIEW ONLY)")
-    listing = contribute.list_contributable()
-    items = listing.get("contributable") or []
-    print(f"  {listing.get('count', len(items))} completed session(s) eligible.")
-    for it in items[:5]:
-        print(f"  • {it.get('session_id')} — {it.get('source')}/"
-              f"{it.get('session_type')} (score {it.get('score')})")
-    if not items:
-        print("  Finish a mock interview, drill, or AI lesson to unlock this.")
-        return
-    ids = [i.strip() for i in ask("Session ids to preview (comma-separated)",
-                                  required=True).split(",") if i.strip()]
-    preview = contribute.preview_contribution(ids)
-    if preview.get("error"):
-        print(f"  {preview['error']}")
-        return
-    bundle = preview.get("bundle") or {}
-    sessions = bundle.get("sessions") or []
-    print(f"\n  Bundle hash: {preview.get('bundle_hash', '?')}")
-    print(f"  Sessions in bundle: {len(sessions)} | "
-          f"Scrub rules applied: {len(preview.get('scrub_rules') or [])}")
-    for s in sessions[:3]:
-        text = str(s.get("scrubbed_transcript", s.get("transcript", "")))
-        print(f"  • {s.get('session_id')}: {text[:120]}")
-    print("\n  Preview only — the dashboard never submits contributions.")
-    print("  To contribute, use the contribute module's own confirm flow.")
-
-
 # ---------------------------------------------------------------------------
 # UTILITIES
 # ---------------------------------------------------------------------------
@@ -1319,7 +1288,6 @@ MENU: dict[str, tuple[str, object]] = {
     "16": ("Rejection autopsy", wf_rejection_autopsy),
     "17": ("Red-team scan / compliance screen", wf_crew),
     "18": ("Log a rep / view streaks", wf_streaks),
-    "19": ("Preview a data contribution", wf_contribute),
     "20": ("Job watches", wf_watch),
     "21": ("Apply to a job (guided dry-run)", wf_apply),
     "22": ("Answer the grill", wf_grill),
@@ -1340,7 +1308,7 @@ def print_menu() -> None:
         ("APPLY", ["21", "22"]),
         ("TRAIN", ["7", "8", "9", "10", "11", "23"]),
         ("WIN", ["12", "24", "13", "14", "15", "16", "25"]),
-        ("GOVERN", ["17", "18", "19"]),
+        ("GOVERN", ["17", "18"]),
         ("UTILITIES", ["w", "d"]),
     ]
     print()
