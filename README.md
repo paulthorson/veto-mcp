@@ -195,33 +195,6 @@ The LinkedIn, Indeed, and ZipRecruiter providers were removed in the
 post-hardening pass (no scraping, no logged-in sessions, fill-only). Use
 the official-API boards above, or add any posting as a saved listing.
 
-### Live-test status (2026-09-10, sandbox)
-
-- **Greenhouse: working.** `search_jobs("software engineer", "",
-  board="greenhouse", limit=5)` returned real postings (Stripe, Airbnb,
-  Coinbase…); `get_job_details` round-trip returned a 2,890-char
-  description. Dead tokens (`notion`, `openai`) were dropped from
-  `boards.json`.
-- **Lever: working.** Returned real postings (Spotify, Palantir…);
-  details round-trip OK. Many curated tokens 404'd (those employers left
-  Lever); `boards.json` keeps the verified four.
-- **Ashby: working** via GET `posting-api/job-board/{board}` (POST
-  401s — implemented with GET primary, POST fallback). Returned real
-  postings (Ashby, OpenAI, Ramp…); details round-trip returned a
-  21k-char description.
-- **Adzuna: stub verified.** Without API keys, `search_jobs` raises a
-  clear `ValueError` pointing at `developer.adzuna.com`.
-
-### Earlier results (2026-09-09, sandbox)
-
-- **LinkedIn: removed.** The guest-API provider returned real postings
-  (`search_jobs(..., board="linkedin")`, e.g. JPMorganChase, AWS, Plaid),
-  but the provider was removed in the post-hardening pass — no scraping,
-  no logged-in sessions. Notes kept for provenance.
-- **Indeed: removed.** It returned HTTP 403 / dropped connections from
-  this sandbox's egress IP and was likewise removed in the post-hardening
-  pass.
-
 ## Setup
 
 ```bash
