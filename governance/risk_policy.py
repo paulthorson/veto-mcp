@@ -129,6 +129,12 @@ def adjudicate_search(
             "or CAPTCHAs. The user has acknowledged this risk; searches "
             "are daily-budgeted and circuit-broken."
         )
+    elif tier == "user":
+        summary += (
+            "This reads only the user's saved bring-your-own listings "
+            "(pasted text, user-supplied URLs, saved files) — no job "
+            "board is queried."
+        )
     else:
         summary += "This uses the board's official/public API."
     if context:
@@ -220,6 +226,14 @@ def adjudicate_apply(
             "Scraping-tier: automation fills the form but NEVER clicks the "
             "final submit; the human reviews and submits. One application "
             "per action, human-paced daily cap enforced."
+        )
+    elif tier == "user":
+        summary += (
+            "User-supplied listing: the posting came from the user's own "
+            "paste, URL, or saved file — no board was queried. Fill-only: "
+            "automation never clicks the final submit; the human reviews "
+            "and submits. One application per action, human-paced daily "
+            "cap enforced."
         )
     else:
         summary += "Official-tier: submission uses the board's official API."
