@@ -13,16 +13,17 @@ behalf too, and you confirm you have authority to do so.
 ## 2. Accepting these terms
 
 On first launch, Veto shows you these terms and asks you to check a box that says
-"I agree to the Terms of Use." Veto does not start until you do. We log when you
-agreed and which version you agreed to. A link buried in a footer is not agreement;
-the checkbox is.
+"I agree to the Terms of Use and confirm I am 18 or older." Veto does not start
+until you do. We log when you agreed and which version you agreed to. A link
+buried in a footer is not agreement; the checkbox is.
 
 ## 3. Your license to use Veto
 
 We grant you a personal, non-exclusive, non-transferable, revocable license to use
 Veto for your own job search, under the terms below and the Apache 2.0 license
 covering the source code (see LICENSE). You may not sell, rent, or sublicense
-Veto itself.
+Veto as a service or brand. This restriction does not limit your rights in the
+source code itself under the Apache 2.0 license (§14).
 
 ## 4. Age requirement
 
@@ -30,25 +31,26 @@ You must be at least 18 years old to use Veto.
 
 ## 5. The deal: free product, telemetry in return
 
-Veto is free to use. In exchange, and as a condition of the free license above,
-Veto collects two kinds of telemetry. This is the trade-off, stated plainly:
+Veto is free to use. To keep it free and maintain it, Veto collects two kinds of
+telemetry as a condition of use. This is the trade-off, stated plainly:
 
 - **(a) Crash and problem reports — required.** When something breaks, Veto sends
-  a report so we can fix it. These are required for the free version to function;
+  a report so we can fix it. These are required for Veto to function as a free product;
   without them we cannot maintain the product you are getting for free.
 - **(b) Usage analytics — optional.** Which features get used and performance
   timings. This is off unless you turn it on in Settings, and you can turn it off
   again at any time. We do not bundle it into the mandatory checkbox.
 
 If you are not comfortable with (a), Veto is not for you — please do not use it.
-This trades away a telemetry-free option to keep a free version sustainable.
+This trades away a telemetry-free option to keep Veto free and sustainable.
 
 ## 6. Crash reports: what they contain and where they go
 
 Before any report leaves your machine, it is scrubbed on your device: we remove
 names, emails, resume text, tokens, and file paths that identify you. Reports are
-filed under Veto's own identity — never attributed to you — into a **private**
-issue tracker visible only to the Veto team. They are never posted publicly.
+filed under Veto's own identity — never attributed to you — into a private,
+access-controlled issue tracker visible only to the Veto team. We do not post
+them publicly.
 
 We design reports to avoid identifying you, but we will not promise the impossible:
 a sufficiently motivated party studying technical details (stack traces, timings)
@@ -66,8 +68,14 @@ clean, the field is withheld and the report says so.
 
 ## 8. Where your data lives, and your rights
 
-Data is stored and processed in the United States. If you are in the EU/UK, you
-are consenting to that transfer by using Veto.
+Data is stored and processed in the United States by our infrastructure providers.
+If you are in the EU/UK, your use of Veto involves transferring your data to the
+US. Before launch we will put Standard Contractual Clauses in place with those
+providers; our lawyer confirms the final transfer mechanism.
+
+We process required crash reports under our legitimate interest in maintaining
+and securing a free product. Optional analytics are processed only with your
+consent, which you may withdraw at any time in Settings.
 
 You have the right to see every report Veto has sent from your machine (Settings →
 "Data sent"), to request a copy, to request deletion, and to withdraw consent for
@@ -128,13 +136,13 @@ party list.
 
 Veto is provided "AS IS," without warranties of any kind, express or implied,
 including the implied warranties of **merchantability**, fitness for a particular
-purpose, title, and non-infringment. We do not promise Veto will be error-free,
+purpose, title, and non-infringement. We do not promise Veto will be error-free,
 uninterrupted, or fit for any particular job search.
 
 ## 18. Limitation of liability
 
 To the maximum extent permitted by law, our total liability for any claim arising
-from Veto is limited to the amount you paid us — which, for the free version, is
+from Veto is limited to the amount you paid us — which, for Veto's free license, is
 $0. This limit does not apply where the law forbids it, including (where
 applicable) gross negligence, willful misconduct, or personal injury. Some states
 do not allow these limits; in those states, the limit is whatever the law allows.
@@ -160,7 +168,8 @@ to binding individual arbitration — not a courtroom, not a class action:
 - **No class actions.** You and we each waive any class, collective, or
   representative proceeding, to the extent the law allows.
 - **Opt-out.** You may opt out of arbitration within 30 days of first accepting
-  these terms by emailing [contact email] with your name and a clear statement.
+  these terms by emailing [contact email] from an address we can reply to, with a
+  clear statement that you opt out.
 - **Rules and fees.** Arbitration follows the AAA Consumer Arbitration Rules. For
   claims under $10,000, we pay the filing and arbitrator fees.
 - **Small claims.** Either of us may still use small-claims court for qualifying
