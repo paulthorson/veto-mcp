@@ -458,14 +458,18 @@ def send_followup(
     body: str,
     confirmed: bool = False,
     approval_id: str | None = None,
+    expected_value: str | None = None,
+    value_label: str = "recipient address",
 ) -> dict[str, Any]:
     """Send a follow-up email via Gmail — only with a genuine user approval.
 
     THE REAL GATE is the interactive send boundary in
     :func:`email_sync.send_followup` (via
     ``initiatives.i09.channels.registry``): the user must have approved
-    the EXACT to/subject/body at the terminal (typed ``send``), or an
-    unconsumed approval record for that exact content must be on file.
+    the EXACT to/subject/body at the terminal by typing the per-send
+    varying value shown in the display (by default the recipient
+    address; a hardcoded "send" fails), or an unconsumed approval
+    record for that exact content must be on file.
     A caller-asserted ``confirmed=True`` authorizes NOTHING on its own —
     it is deprecated (kept only so existing callers fail closed with
     instructions instead of a TypeError) and the send is still refused
@@ -481,6 +485,11 @@ def send_followup(
         approval_id: Approval record from an interactive approval
             (``registry.request_send_approval``), threaded through to the
             send boundary.
+        expected_value: Override for the per-send varying value the
+            prompt requires. Defaults to the recipient address (shown in
+            the display, varies per send).
+        value_label: Names the varying value in the prompt without
+            echoing it.
 
     Returns:
         ``{"sent": True, ...}`` on success; ``{"sent": False, "error":
@@ -492,9 +501,9 @@ def send_followup(
             "Not sent: user confirmation is required. Show the exact "
             "recipient, subject, and body to the user and obtain an "
             "interactive approval (the send prompt asks the user to type "
-            "'send' for this exact text) — then call again with "
-            "confirmed=True. Note: even confirmed=True cannot send without "
-            "that interactive approval.",
+            "the recipient address exactly as shown for this exact text) "
+            "— then call again with confirmed=True. Note: even "
+            "confirmed=True cannot send without that interactive approval.",
             entry_id=str(entry_id),
             to=str(to or ""),
             subject=str(subject or ""),
@@ -536,8 +545,20 @@ def send_followup(
     try:
         # Attribute access (not a from-import) so tests can patch
         # email_sync.send_followup cleanly.
+        # B1: this call site does NOT implement single-use itself — it
+        # threads approval_id to email_sync.send_followup, which relies
+        # on the registry's guarantee (authorize_send atomically
+        # validates+consumes under the cross-process lock;
+        # consume_approval is idempotent; the on-disk approval_consumed
+        # entry is the cross-process replay evidence). See the call-site
+        # comments in email_sync.py; full B1 proof awaits the
+        # integration-surfaces unit's registry rework.
         result = email_sync.send_followup(
-            draft, confirm=confirmed, approval_id=approval_id
+            draft,
+            confirm=confirmed,
+            approval_id=approval_id,
+            expected_value=expected_value,
+            value_label=value_label,
         )
     except Exception as exc:  # pragma: no cover - defensive
         log.warning("Follow-up send failed: %s", exc)
@@ -622,7 +643,8 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
         APPROVAL GATE: a caller-asserted ``confirmed=True`` authorizes
         NOTHING on its own. Every send must pass the interactive send
         boundary: the user approves the exact recipient, subject, and
-        body at the terminal (typing "send"), which mints a single-use
+        body at the terminal (typing the recipient address exactly as
+        shown — a hardcoded "send" fails), which mints a single-use
         approval record; pass its ``approval_id`` here, or call with an
         approval already on file. Without it the send is refused (a
         non-interactive agent cannot self-approve). Nothing is sent on
@@ -685,8 +707,9 @@ def _cli_followups(args) -> int:  # noqa: ANN001 - argparse namespace
             print(f"\n{result.get('body')}")
             print(
                 "\nRe-run from an interactive terminal to approve this exact "
-                "text at the send prompt (type 'send'). A --confirm flag "
-                "alone cannot authorize a send."
+                "text at the send prompt (type the recipient address "
+                "exactly as shown). A --confirm flag alone cannot "
+                "authorize a send."
             )
         return 1
 
@@ -776,7 +799,10 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     )
     parser.add_argument(
         "--confirm", action="store_true",
-        help="Confirm sending the exact text shown (required with --send).",
+        help="DEPRECATED as an authorization signal: a caller-asserted "
+        "flag is not proof of approval; sending still requires typing "
+        "the recipient address exactly as shown at an interactive "
+        "terminal (required with --send to attempt the send).",
     )
     parser.add_argument(
         "--profile", default="",

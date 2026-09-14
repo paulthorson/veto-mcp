@@ -6,8 +6,14 @@ Two capabilities, both read-safe by default:
 * **Recruiter-mail scan** (:func:`scan_recruiter_emails`): searches Gmail for
   recruiter-like mail, classifies it with keyword heuristics, fuzzy-matches
   it against ``applications.json``, and either *proposes* stage updates
-  (default) or *applies* them (``apply_updates=True``) — but only when the
-  match is unambiguous and classification confidence is high. Never guesses.
+  (default) or *applies* them (``apply_updates=True``) — but only with a
+  genuine interactive user approval bound to the exact proposed updates
+  (``initiatives.i09.channels.registry.request_send_approval`` /
+  ``authorize_send`` / ``consume_approval``: the same approval-record
+  mechanism as the send path), and only when the match is unambiguous
+  and classification confidence is high. A caller-asserted
+  ``confirmed=True`` authorizes nothing and no longer exists. Never
+  guesses.
 
 * **Follow-up drafts** (:func:`draft_followup` / :func:`send_followup`):
   builds a short professional follow-up from the application record and the
@@ -36,8 +42,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +59,120 @@ APPLICATIONS_FILE = BASE_DIR / "applications.json"
 GMAIL_CLI = "hatch_gws_cli"
 _CLI_TIMEOUT_S = 90
 
+#: The interactive approval prompt
+#: (``initiatives.i09.channels.registry._present_draft``) renders only
+#: the first 4000 body characters ("[…body truncated…]") while the
+#: approval binds the FULL body. S4 (round 5): never let the user type
+#: "send" for bytes they did not see — interactive approval is refused
+#: for over-cap bodies, with the full body saved to a named preview
+#: file ("preview another way").
+#:
+#: NIT 6 (round 6): this is the SINGLE definition of the cap. The
+#: browser-apply path imports it from here
+#: (``browser_apply._APPROVAL_PROMPT_BODY_CAP`` is an import alias, not
+#: a second copy). NOTE for the integration-surfaces unit:
+#: ``initiatives.i09.channels.registry._present_draft`` hardcodes its
+#: own ``4000`` — a third copy of this cap, out of this unit's scope.
+#: If the cap ever changes, all three must be aligned.
+_APPROVAL_PROMPT_BODY_CAP = 4000
+
+#: MINOR 3 (round 6): preview files accumulate PII with no cleanup.
+#: Keep at most this many recent approval-preview files in the temp
+#: dir; older ones are pruned every time a new preview is saved.
+_APPROVAL_PREVIEW_KEEP = 10
+
+
+def _prune_approval_previews(keep: int = _APPROVAL_PREVIEW_KEEP) -> int:
+    """Delete old approval-preview files, keeping the ``keep`` newest.
+
+    Returns the number of files deleted. Best-effort: per-file failures
+    are logged and skipped, never raised. Only files matching the
+    preview prefix/suffix are ever touched.
+    """
+    try:
+        candidates = [
+            p
+            for p in Path(tempfile.gettempdir()).glob(
+                "veto-approval-preview-*.txt"
+            )
+            if p.is_file()
+        ]
+    except OSError as exc:
+        log.warning("Could not list approval preview files: %s", exc)
+        return 0
+    if len(candidates) <= keep:
+        return 0
+    candidates.sort(key=lambda p: p.stat().st_mtime)
+    deleted = 0
+    for stale in candidates[:-keep]:
+        try:
+            stale.unlink()
+            deleted += 1
+        except OSError as exc:
+            log.warning(
+                "Could not delete old approval preview %s: %s", stale, exc
+            )
+    return deleted
+
+
+def _save_approval_preview(body: str) -> str | None:
+    """Save an over-cap approval body for out-of-prompt review.
+
+    Returns the preview file path, or None when saving failed. The file
+    is created 0o600 (mkstemp): the body may contain PII and must never
+    be world-readable.
+
+    MINOR 3 (round 6): preview files used to accumulate forever. Every
+    successful save now prunes the temp dir to the newest
+    ``_APPROVAL_PREVIEW_KEEP`` previews (the just-saved file is always
+    the newest, so "preview another way" still works).
+    """
+    try:
+        fd, path = tempfile.mkstemp(
+            prefix="veto-approval-preview-", suffix=".txt"
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        _prune_approval_previews()
+        return path
+    except OSError as exc:
+        log.error("Could not save overlong approval preview: %s", exc)
+        return None
+
+
+def _overlong_approval_instructions(body: str) -> str | None:
+    """S4: refusal instructions for a body the approval prompt truncates.
+
+    Returns None when ``body`` fits the approval prompt's display cap
+    (approval may proceed). Otherwise returns instructions explaining
+    that typing "send" would approve unseen bytes while the approval
+    binds the FULL body — and naming the preview file the complete body
+    was saved to, so the user can review it another way before
+    shortening the message and approving again.
+    """
+    text = str(body or "").strip()
+    if len(text) <= _APPROVAL_PROMPT_BODY_CAP:
+        return None
+    preview = _save_approval_preview(text)
+    return (
+        f"the message body is {len(text)} characters, but the interactive "
+        "approval prompt only displays the first "
+        f"{_APPROVAL_PROMPT_BODY_CAP} — typing \"send\" would approve "
+        f"{len(text) - _APPROVAL_PROMPT_BODY_CAP} characters you would "
+        "never see, while the approval binds the FULL body. "
+        + (
+            f"The complete body was saved to {preview} — read it there, "
+            "then shorten the message to "
+            f"{_APPROVAL_PROMPT_BODY_CAP} characters or fewer and approve "
+            "again."
+            if preview
+            else "Shorten the message to "
+            f"{_APPROVAL_PROMPT_BODY_CAP} characters or fewer so the "
+            "approval prompt can display all of it, then approve again."
+        )
+    )
+
+
 #: Minimum classifier confidence before a stage update may be auto-applied.
 AUTO_APPLY_MIN_CONFIDENCE = 0.8
 
@@ -58,11 +180,28 @@ AUTO_APPLY_MIN_CONFIDENCE = 0.8
 # Gmail CLI layer (mock this in tests: email_sync._run_gmail_cli)
 # ---------------------------------------------------------------------------
 
+#: Email-shaped identifiers, redacted from CLI error text (m5).
+_EMAIL_LIKE_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def _scrub_pii(text: str) -> str:
+    """Redact email-shaped identifiers from CLI error text.
+
+    (m5) The first stderr line can echo PII — e.g. a rejected recipient
+    address. Redaction is best-effort and pattern-based: it catches
+    email-shaped identifiers, not every possible identifier, which is
+    why the caller no longer claims "PII-free" errors.
+    """
+    return _EMAIL_LIKE_RE.sub("[redacted-address]", text)
+
 
 def _run_gmail_cli(*args: str) -> Any:
     """Run ``hatch_gws_cli gmail ...`` and return the parsed JSON output.
 
-    Raises RuntimeError with a PII-free message when the CLI fails.
+    Raises RuntimeError with a scrubbed message when the CLI fails:
+    email-shaped identifiers are redacted (best-effort), since the raw
+    stderr line can echo PII such as a recipient address. This is NOT a
+    "PII-free" guarantee — only a redaction of the obvious shapes.
     """
     cmd = [GMAIL_CLI, "gmail", *args]
     try:
@@ -78,7 +217,8 @@ def _run_gmail_cli(*args: str) -> Any:
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip().splitlines()
         raise RuntimeError(
-            "Gmail CLI failed: " + (detail[0][:200] if detail else "unknown error")
+            "Gmail CLI failed: "
+            + (_scrub_pii(detail[0][:200]) if detail else "unknown error")
         )
     try:
         return json.loads(proc.stdout or "null")
@@ -365,20 +505,29 @@ def _find_application(
 
 
 def scan_recruiter_emails(
-    days: int = 14, apply_updates: bool = False, confirmed: bool = False
+    days: int = 14, apply_updates: bool = False, approval_id: str | None = None
 ) -> dict[str, Any]:
     """Scan Gmail for recruiter mail and reconcile with applications.
 
     Default (``apply_updates=False``) only *proposes* stage updates.
     Governance contract (roadmap Q4 exit gate): reply classification is
     proposal-only until the user confirms the action. ``apply_updates=True``
-    therefore ALSO requires ``confirmed=True`` — without it the scan
-    degrades to propose-only and says so on each affected proposal. With
-    both flags, updates are applied via ``lifecycle.update_stage`` — but
-    only when the application match is unambiguous, the classification
-    confidence is high (>= 0.8), and the classification maps to a pipeline
-    stage. Outreach and follow-up mail never change stages. Raw email
-    bodies are never logged.
+    therefore requires a genuine interactive user approval bound to the
+    EXACT proposed updates — the same approval-record mechanism as the
+    send path (``initiatives.i09.channels.registry.request_send_approval``
+    presents the updates on the terminal and the user types the
+    per-action varying value shown (the update count);
+    ``authorize_send`` verifies nonce + content-hash + TTL + single-use;
+    ``consume_approval`` burns it before the updates are written). Pass
+    the minted ``approval_id``, or run on a TTY to be prompted; without
+    it the scan degrades to propose-only and says so on each affected
+    proposal. A caller-asserted boolean can never authorize the write.
+
+    With an approval, updates are applied via ``lifecycle.update_stage``
+    — but only when the application match is unambiguous, the
+    classification confidence is high (>= 0.8), and the classification
+    maps to a pipeline stage. Outreach and follow-up mail never change
+    stages. Raw email bodies are never logged.
     """
     result: dict[str, Any] = {
         "scanned": 0,
@@ -404,6 +553,11 @@ def scan_recruiter_emails(
 
     entries = lifecycle.load_entries(APPLICATIONS_FILE)
     result["scanned"] = len(candidates)
+
+    # Proposals eligible for auto-apply. They are NOT applied in the loop:
+    # the approval-bound phase after the loop either applies them (with a
+    # valid approval) or returns them as propose-only.
+    eligible: list[dict[str, Any]] = []
 
     for cand in candidates:
         mid, sender, subject, text = _message_text(cand)
@@ -457,48 +611,256 @@ def scan_recruiter_emails(
                 "No stage change proposed for this mail type; "
                 "review it yourself."
             )
+            result["proposed_updates"].append(proposal)
         elif proposed_stage == current_stage:
             proposal["action"] = "already_at_stage"
-        elif (
-            apply_updates
-            and confirmed
-            and confidence >= AUTO_APPLY_MIN_CONFIDENCE
-        ):
-            try:
-                lifecycle.update_stage(
-                    APPLICATIONS_FILE,
-                    app_id,
-                    proposed_stage,
-                    note=(
-                        f"auto email-sync: classified as {label} "
-                        f"(confidence {confidence})"
-                    ),
-                )
-                proposal["action"] = "applied"
-                result["applied_updates"].append(proposal)
-                log.info(
-                    "Email-sync moved application %s to %s", app_id, proposed_stage
-                )
-                continue  # already recorded in applied_updates
-            except (ValueError, KeyError) as exc:
-                proposal["action"] = "apply_failed"
-                proposal["note"] = str(exc)
+            result["proposed_updates"].append(proposal)
+        elif apply_updates and confidence >= AUTO_APPLY_MIN_CONFIDENCE:
+            # Candidate for auto-apply — but the actual write happens in
+            # the approval-bound phase after the loop. Until a valid
+            # approval lands, it is only a proposal.
+            eligible.append(proposal)
         else:
             proposal["action"] = "proposed"
-            if apply_updates and not confirmed:
-                proposal["note"] = (
-                    "Not auto-applied: applying a stage update requires "
-                    "explicit user confirmation (confirmed=True); "
-                    "propose-only per the Q4 governance contract."
-                )
-            elif apply_updates:
+            if apply_updates:
                 proposal["note"] = (
                     "Not auto-applied: confidence below threshold "
                     f"({confidence} < {AUTO_APPLY_MIN_CONFIDENCE})."
                 )
-        result["proposed_updates"].append(proposal)
+            result["proposed_updates"].append(proposal)
+
+    if eligible:
+        _apply_eligible_updates(eligible, result, approval_id)
 
     return result
+
+
+def _updates_approval_payload(
+    eligible: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """The exact payload a stage-update approval binds to.
+
+    Shaped as a to/subject/body triple so it rides the SAME
+    approval-record mechanism as the email send path: the user is shown
+    exactly which applications move to which stages, and the approval's
+    content hash binds to this payload — a changed proposal set cannot
+    reuse the approval.
+    """
+    items = [
+        {
+            "application_id": p["application_id"],
+            "company": p.get("company"),
+            "title": p.get("title"),
+            "current_stage": p["current_stage"],
+            "proposed_stage": p["proposed_stage"],
+            "classification": p["classification"],
+            "confidence": p["confidence"],
+        }
+        for p in eligible
+    ]
+    return {
+        "to": "applications.json",
+        "subject": f"email-scan: apply {len(items)} stage update(s)",
+        "body": json.dumps(items, sort_keys=True, indent=2, ensure_ascii=False),
+    }
+
+
+def _read_live_stage(application_id: str) -> str | None:
+    """Re-read an application's CURRENT stage from the store.
+
+    MINOR 4 (round 6): the approval binds
+    ``(application_id, current_stage, proposed_stage)``, but the write
+    used to go through with only the proposed stage — a concurrent store
+    modification between scan and apply could regress a stage under an
+    approval that said applied → interviewing. Callers re-read the live
+    stage just before writing and refuse when it differs from the
+    approved ``current_stage``.
+
+    Returns the normalized live stage, or None when the entry cannot be
+    found or the store cannot be read (callers fail closed on None).
+    Matches by ``job_id`` (the identifier the scan proposals carry).
+    """
+    try:
+        entries = lifecycle.load_entries(APPLICATIONS_FILE)
+    except Exception as exc:
+        log.warning(
+            "email_sync: could not re-read live stage for %r: %s",
+            application_id, exc,
+        )
+        return None
+    key = str(application_id)
+    for entry in entries:
+        if isinstance(entry, dict) and str(entry.get("job_id")) == key:
+            stage = entry.get("stage")
+            return str(stage).strip().lower() if stage else None
+    return None
+
+
+def _apply_eligible_updates(
+    eligible: list[dict[str, Any]],
+    result: dict[str, Any],
+    approval_id: str | None,
+) -> None:
+    """Approval-bound auto-apply phase for :func:`scan_recruiter_emails`.
+
+    Without a valid, fresh, unconsumed user approval bound to the EXACT
+    proposed updates, every eligible proposal degrades to propose-only.
+    There is no parameter combination by which a caller can authorize
+    its own write.
+    """
+    try:
+        from initiatives.i09.channels import registry as _channels
+    except Exception as exc:  # unexpected layout / import failure
+        for proposal in eligible:
+            proposal["action"] = "proposed"
+            proposal["note"] = (
+                "Not auto-applied: the send-approval backend is "
+                f"unavailable ({exc}); failing closed."
+            )
+            result["proposed_updates"].append(proposal)
+        return
+    payload = _updates_approval_payload(eligible)
+    # S4 (round 5): the approval prompt shows only the first 4000 body
+    # characters while binding the full body — never prompt the user to
+    # type "send" for bytes they cannot see. Over-cap update listings
+    # degrade to propose-only with instructions to review the full text
+    # another way (named preview file) and re-run with a shorter listing.
+    overlong = _overlong_approval_instructions(payload.get("body") or "")
+    if overlong is not None:
+        for proposal in eligible:
+            proposal["action"] = "proposed"
+            proposal["note"] = (
+                "Not auto-applied: " + overlong
+            )
+            result["proposed_updates"].append(proposal)
+        return
+    approval, refusal = _channels.authorize_send(
+        payload,
+        channel="email-scan",
+        approval_id=approval_id,
+        # Legal exposure reduction, spec §6.2: the interactive prompt
+        # requires a per-action VARYING value, not a fixed "send". The
+        # update count is shown in the approval display's subject line
+        # ("email-scan: apply N stage update(s)") and varies per run.
+        expected_value=str(len(eligible)),
+        value_label="number of updates shown above",
+    )
+    if refusal is not None:
+        for proposal in eligible:
+            proposal["action"] = "proposed"
+            proposal["note"] = (
+                "Not auto-applied: applying stage updates requires a "
+                "genuine user approval bound to these exact updates "
+                "(registry.request_send_approval: the user is shown the "
+                "updates and types 'send'). "
+                + str(refusal.get("instructions") or "")
+            )
+            result["proposed_updates"].append(proposal)
+        return
+    # N2 (round 4): NOT an assert — asserts vanish under ``python -O``.
+    # If authorize_send ever returned (None, None), the old assert
+    # would disappear and stage updates would be written with no
+    # approval. Fail closed explicitly, loudly: every proposal degrades
+    # to propose-only.
+    if approval is None:
+        log.error(
+            "email_sync._apply_eligible_updates: authorize_send returned "
+            "no refusal but approval is None (contract violation); "
+            "refusing to apply stage updates."
+        )
+        for proposal in eligible:
+            proposal["action"] = "proposed"
+            proposal["note"] = (
+                "Not auto-applied: the approval backend returned success "
+                "without an approval record (contract violation); "
+                "failing closed."
+            )
+            result["proposed_updates"].append(proposal)
+        return
+    # --- B1: single-use guarantee, provided by
+    # initiatives.i09.channels.registry (NOT re-implemented here — this
+    # unit may not touch registry.py). This call site relies on:
+    #   * authorize_send() atomically validates AND consumes the approval
+    #     under the cross-process consent-store lock, so two processes
+    #     racing the same approval_id cannot both succeed (the loser
+    #     fails closed with approval_already_used);
+    #   * consume_approval() is idempotent — a second call after the
+    #     atomic claim is a harmless no-op, never a double-spend;
+    #   * the on-disk approval_consumed log entry is the cross-process
+    #     replay evidence. Full B1 proof (approval replay impossible)
+    #     depends on the integration-surfaces unit's registry rework and
+    #     is verified when the re-review bundle includes it.
+    # Single-use: consume BEFORE applying. A failed apply does not refund
+    # the approval (fail closed).
+    _channels.consume_approval(approval, channel="email-scan")
+    for proposal in eligible:
+        # MINOR 4 (round 6): re-verify the live stage JUST BEFORE
+        # writing. The approval bound (application_id, current_stage,
+        # proposed_stage); a concurrent store modification between the
+        # scan and this write could otherwise regress a stage under a
+        # stale approval (e.g. the store moved applied → interviewing
+        # → rejected while the approval said applied → interviewing).
+        # On any divergence — or when the live stage cannot be read —
+        # refuse the write (named refusal, no write, fail closed).
+        live_stage = _read_live_stage(proposal["application_id"])
+        approved_current = str(
+            proposal.get("current_stage") or ""
+        ).strip().lower()
+        if live_stage is None:
+            proposal["action"] = "refused_stage_unverifiable"
+            proposal["note"] = (
+                "Not auto-applied: the application's current stage "
+                "could not be re-read just before writing, so the "
+                "approved current_stage "
+                f"({approved_current!r}) could not be re-verified. "
+                "Failing closed — no write was made. Re-run the scan."
+            )
+            result["proposed_updates"].append(proposal)
+            log.error(
+                "Email-sync refused stage update for %s: live stage "
+                "unverifiable (approved current_stage=%r)",
+                proposal["application_id"], approved_current,
+            )
+            continue
+        if live_stage != approved_current:
+            proposal["action"] = "refused_stage_changed"
+            proposal["note"] = (
+                "Not auto-applied: the application's stage changed "
+                "after the proposal was approved "
+                f"(approved current_stage={approved_current!r}, live "
+                f"stage={live_stage!r}). Refusing to write under a "
+                "stale approval — no write was made. Re-run the scan "
+                "to re-propose from the current stage."
+            )
+            result["proposed_updates"].append(proposal)
+            log.error(
+                "Email-sync refused stage update for %s: stage changed "
+                "after approval (approved %r, live %r)",
+                proposal["application_id"], approved_current, live_stage,
+            )
+            continue
+        try:
+            lifecycle.update_stage(
+                APPLICATIONS_FILE,
+                proposal["application_id"],
+                proposal["proposed_stage"],
+                note=(
+                    "auto email-sync: classified as "
+                    f"{proposal['classification']} "
+                    f"(confidence {proposal['confidence']}); user-approved"
+                ),
+            )
+            proposal["action"] = "applied"
+            result["applied_updates"].append(proposal)
+            log.info(
+                "Email-sync moved application %s to %s",
+                proposal["application_id"],
+                proposal["proposed_stage"],
+            )
+        except (ValueError, KeyError) as exc:
+            proposal["action"] = "apply_failed"
+            proposal["note"] = str(exc)
+            result["proposed_updates"].append(proposal)
 
 
 # ---------------------------------------------------------------------------
@@ -594,15 +956,19 @@ def draft_followup(
                 "Set the recipient address before sending."
                 if not to
                 else "Review the text, then approve the exact draft "
-                "interactively (type 'send' at the terminal prompt) "
-                "before it can be sent."
+                "interactively (type the recipient address exactly as "
+                "shown at the terminal prompt) before it can be sent."
             )
         ),
     }
 
 
 def send_followup(
-    draft: dict[str, Any], confirm: bool = False, approval_id: str | None = None
+    draft: dict[str, Any],
+    confirm: bool = False,
+    approval_id: str | None = None,
+    expected_value: str | None = None,
+    value_label: str = "recipient address",
 ) -> dict[str, Any]:
     """Send a follow-up draft via Gmail — only with a genuine user approval.
 
@@ -611,12 +977,26 @@ def send_followup(
     pass the interactive approval boundary in
     ``initiatives.i09.channels.registry``:
 
+    * the gmail channel must be explicitly enabled (checked here as
+      defense-in-depth — a direct caller bypasses the channel wrapper's
+      own check), and
     * ``approval_id`` naming a valid, fresh, unconsumed interactive
       approval record for this exact draft (see
       ``registry.request_send_approval``), or a fresh unconsumed approval
       already on file for this exact content; otherwise
-    * the user is prompted interactively (recipient/subject/body shown,
-      type "send") when stdin is a TTY; without a TTY the send is REFUSED.
+    * the user is prompted interactively (recipient/subject/body shown)
+      when stdin is a TTY, and must type the per-send varying value —
+      by default the recipient address exactly as shown; a hardcoded
+      "send"/"yes" fails (legal exposure reduction, spec §6.2). Without
+      a TTY the send is REFUSED.
+
+    ``expected_value`` overrides the varying value the prompt requires
+    (it must still be shown in the draft display and vary per send);
+    ``value_label`` names it in the prompt without echoing it.
+
+    Header-injection defense: ``to`` and ``subject`` must be single-line —
+    embedded CR/LF is rejected at this boundary (the real boundary, not
+    just the followup.py wrapper).
 
     Without confirmation this returns the draft untouched, with
     instructions, and performs no Gmail call.
@@ -647,6 +1027,42 @@ def send_followup(
             "error": "empty_draft",
             "instructions": "Draft is missing a subject or body; not sent.",
         }
+    # Header-injection defense AT THE SEND BOUNDARY: the followup.py
+    # wrapper also checks, but this is the real boundary — a direct
+    # caller must not smuggle extra headers into the Gmail CLI args.
+    if "\n" in to or "\r" in to:
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "bad_recipient",
+            "instructions": (
+                "Not sent: 'to' must be a single-line email address "
+                "(header-injection defense)."
+            ),
+        }
+    if "\n" in subject or "\r" in subject:
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "bad_subject",
+            "instructions": (
+                "Not sent: 'subject' must be a single line "
+                "(header-injection defense)."
+            ),
+        }
+    # S4 (round 5): the interactive approval prompt shows only the first
+    # 4000 body characters while the approval binds the FULL body — never
+    # let the user type the approval value for bytes they did not see. Refused BEFORE
+    # any prompt is shown (so no approval is minted or burned for an
+    # over-cap body); the full body is saved to a named preview file.
+    overlong = _overlong_approval_instructions(body)
+    if overlong is not None:
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "body_exceeds_approval_display_cap",
+            "instructions": f"Not sent: {overlong}",
+        }
     # The send boundary: never trust caller-asserted flags. The registry
     # is imported lazily (it imports this module lazily too).
     try:
@@ -662,14 +1078,54 @@ def send_followup(
                 "failing closed."
             ),
         }
+    # Defense-in-depth: the GmailChannel wrapper already requires the
+    # channel to be enabled, but a direct caller bypasses it. Refuse here,
+    # BEFORE any approval is consumed.
+    if not _channels.is_enabled("gmail"):
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "channel_not_enabled",
+            "instructions": (
+                "Not sent: the gmail channel is not enabled. Enable it "
+                "explicitly first (enable_channel('gmail', confirm=True, "
+                "via='cli-wizard')); it never auto-enables."
+            ),
+        }
     approval_id, refusal = _channels.authorize_send(
-        draft, channel="gmail", approval_id=approval_id
+        draft,
+        channel="gmail",
+        approval_id=approval_id,
+        # Legal exposure reduction, spec §6.2: the interactive prompt
+        # requires a per-send VARYING value, not a fixed "send". The
+        # recipient address is shown in the approval display and differs
+        # per send — a hardcoded string fails the prompt by construction.
+        expected_value=expected_value if expected_value is not None else to,
+        value_label=value_label,
     )
     if refusal is not None:
         out = dict(refusal)
         out["draft"] = draft
         return out
-    assert approval_id is not None  # authorize_send contract
+    # N2 (round 4): NOT an assert — asserts vanish under ``python -O``.
+    # If authorize_send ever returned (None, None), the old assert
+    # would disappear and _gmail_send would run with no approval. Fail
+    # closed explicitly, loudly.
+    if approval_id is None:
+        log.error(
+            "email_sync.send_followup: authorize_send returned no "
+            "refusal but approval_id is None (contract violation); "
+            "refusing to send."
+        )
+        return {
+            "sent": False,
+            "draft": draft,
+            "error": "approval_contract_violation",
+            "instructions": (
+                "Not sent. The approval backend returned success without "
+                "an approval record (contract violation); failing closed."
+            ),
+        }
     if not _gmail_connected():
         return {
             "sent": False,
@@ -677,6 +1133,19 @@ def send_followup(
             "error": "gmail_not_connected",
             "instructions": "Gmail is not connected; connect it and retry.",
         }
+    # --- B1: single-use guarantee, provided by
+    # initiatives.i09.channels.registry (NOT re-implemented here — this
+    # unit may not touch registry.py). This call site relies on:
+    #   * authorize_send() (above) atomically validated AND consumed the
+    #     approval under the cross-process consent-store lock, so two
+    #     processes racing the same approval_id cannot both succeed (the
+    #     loser fails closed with approval_already_used);
+    #   * consume_approval() is idempotent — a second call after the
+    #     atomic claim is a harmless no-op, never a double-spend;
+    #   * the on-disk approval_consumed log entry is the cross-process
+    #     replay evidence. Full B1 proof (approval replay impossible)
+    #     depends on the integration-surfaces unit's registry rework and
+    #     is verified when the re-review bundle includes it.
     # Single-use: consume BEFORE the transport attempt. A failed attempt
     # does not refund the approval (fail closed).
     _channels.consume_approval(approval_id, channel="gmail")
@@ -714,9 +1183,13 @@ def register_tools(mcp):  # noqa: ANN001, ANN202 - duck-typed FastMCP
         Args:
             days: How far back to search (default 14).
             apply_updates: When false (default), only proposes stage
-                updates. When true, applies them — but only for
-                unambiguous matches with high classification confidence.
-                Outreach and follow-up mail never change stages.
+                updates. When true, applies them — but ONLY with a genuine
+                interactive user approval bound to the exact proposed
+                updates (the scan prompts on a TTY; without one it degrades
+                to propose-only). Applies only for unambiguous matches with
+                high classification confidence. Outreach and follow-up mail
+                never change stages. A caller-asserted boolean can never
+                authorize the write.
         """
         return _core_scan(days=days, apply_updates=apply_updates)
 
@@ -817,7 +1290,9 @@ def register_cli(subparsers) -> dict:  # noqa: ANN001 - argparse subparsers
     p_scan.add_argument("--days", type=int, default=14,
                         help="How far back to search (default: 14).")
     p_scan.add_argument("--apply", action="store_true",
-                        help="Apply confident stage updates (default: propose only).")
+                        help="Apply confident stage updates after your "
+                             "interactive approval at the terminal "
+                             "(default: propose only).")
     p_scan.add_argument("--json", action="store_true", help="Print raw JSON.")
     p_scan.set_defaults(func=_cli_email_scan)
 

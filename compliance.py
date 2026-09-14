@@ -73,9 +73,19 @@ MODES = ("strict", "standard")
 #: small: politeness delays reduce load but do not make scraping compliant.
 #: The "user" budget is a formality: searching saved listings is local
 #: only and puts no load on any third party.
+#:
+#: LEGAL POSTURE (spec §6.5, legal-hardening commit 8): this is a hard
+#: code constant. It is read from this module directly by
+#: check_search_allowed(); no config file, environment variable, or CLI
+#: flag can raise it. Raising it requires editing this source.
 DEFAULT_SEARCH_BUDGET = {"official": 1000, "scraping": 40, "user": 1000}
 
 #: Max recorded/submitted applications per day across all boards.
+#:
+#: LEGAL POSTURE (spec §6.5, legal-hardening commit 8): this is a hard
+#: code constant. It is read from this module directly by
+#: check_apply_allowed(); no config file, environment variable, or CLI
+#: flag can raise it. Raising it requires editing this source.
 DEFAULT_DAILY_APPLY_CAP = 5
 
 #: Seconds to wait between automated applications (scheduler enforces).
