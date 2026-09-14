@@ -3,7 +3,8 @@
 Browser E2E: drives a REAL browser (Chromium and/or Firefox via
 Playwright — whichever installed) against a local test form:
 confirm=False fills + screenshots without submitting; confirm=True
-submits. Skipped gracefully when no browser is available.
+is accepted for compatibility but changes nothing (fill-only).
+Skipped gracefully when no browser is available.
 
 Live E2E: search_jobs() against the real server code (network).
 """
@@ -81,9 +82,13 @@ class TestBrowserE2E(unittest.TestCase):
                 self._check_browser(browser_kind)
                 before = _screenshots_now()
                 result = self._run_fill(browser_kind, confirm=False)
-                self.assertIsNone(
-                    result["error"], f"browser error: {result['error']}")
-                self.assertFalse(result["submitted"])
+                self.assertTrue(result["ok"], f"browser error: {result['error']}")
+                # Fill-only (legal-hardening commit 6): no submission
+                # receipt exists anymore — the report carries the fill.
+                self.assertNotIn("submitted", result)
+                self.assertNotIn("submit_clicked", result)
+                self.assertFalse(result.get("browser_open"))
+                self.assertIn("handoff", result)
                 self.assertGreaterEqual(result["fields_detected"], 8)
                 filled = result["fields_filled"]
                 self.assertEqual(filled.get("email"), "ada@example.com")
@@ -97,22 +102,6 @@ class TestBrowserE2E(unittest.TestCase):
                 self.assertTrue(shot and Path(shot).is_file(),
                                 "preview screenshot missing")
                 # clean up screenshots this run created
-                for name in _screenshots_now() - before:
-                    (BASE_DIR / "screenshots" / name).unlink(missing_ok=True)
-
-    def test_confirmed_run_submits(self):
-        for browser_kind in ("chromium", "firefox"):
-            with self.subTest(browser=browser_kind):
-                self._check_browser(browser_kind)
-                before = _screenshots_now()
-                result = self._run_fill(browser_kind, confirm=True)
-                self.assertIsNone(
-                    result["error"], f"browser error: {result['error']}")
-                self.assertTrue(result["submitted"], result)
-                self.assertIn("applied=1", result.get("final_url", ""))
-                shot = result.get("screenshot_after_submit")
-                self.assertTrue(shot and Path(shot).is_file(),
-                                "post-submit screenshot missing")
                 for name in _screenshots_now() - before:
                     (BASE_DIR / "screenshots" / name).unlink(missing_ok=True)
 

@@ -60,8 +60,7 @@ import briefs  # noqa: E402
 import analytics  # noqa: E402
 import watch  # noqa: E402
 import compliance  # noqa: E402
-import browser_apply  # noqa: E402
-# NOTE: ats_apply is imported lazily inside wf_apply (it needs httpx).
+# NOTE: ats_apply is imported lazily inside wf_apply.
 
 
 class _Quit(Exception):
@@ -598,7 +597,7 @@ def wf_apply() -> None:
         print(f"    endpoint status: {preview.get('endpoint_status')}")
         print(f"    direct apply available: "
               f"{preview.get('direct_apply_available')}")
-        fields = preview.get("fields_that_would_be_sent") or {}
+        fields = preview.get("fields_for_manual_form") or {}
         if fields:
             print(f"    fields that would be sent: {', '.join(fields)}")
         if preview.get("note"):
@@ -613,8 +612,9 @@ def wf_apply() -> None:
         print("    Run it via apply_to_job with JOB_MCP_BROWSER_APPLY=1 and "
               "confirm=True.")
 
-    print("\n  The dashboard never submits applications. To file for real, "
-          "use the module's own confirm flow "
+    print("\n  The dashboard never submits applications. To prepare a "
+          "fill-only apply plan or fill a browser form for your own "
+          "submit click, use the module's own tools "
           "(apply_to_job / apply_via_ats).")
     if ask_yes_no("Park this job in the drip queue instead (paced, "
                   "human-speed)?"):
