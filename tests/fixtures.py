@@ -44,19 +44,6 @@ ASHBY_POSTING = {
     "descriptionHtml": "<p>Build delightful UIs.</p>",
 }
 
-# LinkedIn guest-API search returns an HTML fragment; each card looks like this.
-LINKEDIN_CARD_HTML = """
-<li>
-  <div class="base-card">
-    <a class="base-card__full-link"
-       href="https://www.linkedin.com/jobs/view/senior-software-engineer-at-acme-4242424242?refId=abc&amp;trackingId=xyz"></a>
-    <h3 class="base-search-card__title">Senior Software Engineer</h3>
-    <h4 class="base-search-card__subtitle">Acme Corp</h4>
-    <span class="job-search-card__location">New York, NY</span>
-    <time datetime="2026-09-01">1 week ago</time>
-  </div>
-</li>
-"""
 
 # The shape every provider's search() must return per job.
 REQUIRED_JOB_KEYS = {"id", "title", "company", "location", "url", "board", "snippet"}

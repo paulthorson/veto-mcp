@@ -225,7 +225,7 @@ class TestWizardInteractive(unittest.TestCase):
         "English, Spanish",     # languages
         "AWS Solutions Architect",  # certifications
         # linkedin_ingestion
-        "3",                    # skip
+        "2",                    # skip
         # maybe_create_watches
         "n",                    # no watches
         # collect_compliance

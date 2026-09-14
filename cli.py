@@ -8,7 +8,7 @@ client config required.
 Examples:
     python cli.py boards
     python cli.py search "software engineer" --location "New York, NY"
-    python cli.py search "software engineer" --board linkedin --limit 5
+    python cli.py search "software engineer" --board greenhouse --limit 5
     python cli.py search "software engineer" --remote --json
     python cli.py show <job_id>
     python cli.py apply <job_id> --resume ~/resume.pdf        # dry run
@@ -506,7 +506,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_search.add_argument(
         "--board",
         default="all",
-        help='Board to search: "all", "indeed", "linkedin", ... (default: all).',
+        help='Board to search: "all", "indeed", ... (default: all).',
     )
     p_search.add_argument("--limit", type=int, default=10, help="Max jobs (default: 10).")
     p_search.add_argument(

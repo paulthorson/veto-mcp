@@ -273,29 +273,25 @@ class WfApplyTests(unittest.TestCase):
         self._base_patches({"total": 0})
         with mock.patch.object(
             dashboard, "ask_choice",
-            return_value="browser fill (your logged-in session)"
+            return_value="browser fill (no saved login)"
         ), mock.patch.object(
-            dashboard, "ask", side_effect=["linkedin:abc123", "", ""]
+            dashboard, "ask", side_effect=["greenhouse:abc123", "", ""]
         ), mock.patch.object(
             dashboard, "ask_yes_no", return_value=False
-        ), mock.patch.object(
-            dashboard.browser_apply, "has_saved_session", return_value=False
         ):
             out = _run(dashboard.wf_apply)
-        self.assertIn("saved linkedin login session: no", out)
+        self.assertIn("Saved login sessions are not supported", out)
         self.assertIn("submit click", out)
 
     def test_grill_gate_offers_grill_first(self):
         self._base_patches({"total": 2, "answered": 1, "complete": False})
         with mock.patch.object(
             dashboard, "ask_choice",
-            return_value="browser fill (your logged-in session)"
+            return_value="browser fill (no saved login)"
         ), mock.patch.object(
-            dashboard, "ask", side_effect=["linkedin:abc123", "", ""]
+            dashboard, "ask", side_effect=["greenhouse:abc123", "", ""]
         ), mock.patch.object(
             dashboard, "ask_yes_no", side_effect=[False, False]
-        ), mock.patch.object(
-            dashboard.browser_apply, "has_saved_session", return_value=False
         ), mock.patch("dashboard.wf_grill") as grill_wf:
             out = _run(dashboard.wf_apply)
         self.assertIn("1/2 answered", out)
