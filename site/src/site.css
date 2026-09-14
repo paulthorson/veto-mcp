@@ -3,7 +3,7 @@
    VT323 terminal type, hard offset shadows, scanlines, pixel dividers.
    Palette: phosphor-on-near-black with veto red as the brand signal. */
 
-/* Design tokens come from @veto/tokens (imported before this file in main.tsx).
+/* Design tokens come from ./vendor/tokens.css (imported before this file in main.tsx).
    The site's legacy palette was deleted 2026-09-13 (P0 craft sprint): local
    names now resolve to the canonical tokens (--panel, --green, --border,
    --font-display, --shadow-md, ...). Do not re-add hex literals here. */
