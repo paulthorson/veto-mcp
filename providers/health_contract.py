@@ -62,7 +62,6 @@ CAPABILITY_LABELS: dict[str, str] = {
     "lever": "search+details",
     "ashby": "search+details",
     "adzuna": "search(key-gated)",
-    "ziprecruiter": "search(scraping)",
     "glassdoor": "stub",
     "ats_direct": "submit-registry(empty)",
 }

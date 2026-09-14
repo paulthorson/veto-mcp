@@ -62,42 +62,6 @@ def _assert_job_shape(testcase: unittest.TestCase, job: dict, board: str) -> Non
     testcase.assertEqual(decoded_url, job["url"])
 
 
-
-
-class TestIndeedParser(unittest.TestCase):
-    """Indeed provider lives in server.py — test its card parser."""
-
-    CARD_HTML = """
-    <div class="job_seen_beacon">
-      <h2 class="jobTitle"><a data-jk="abc123XYZ" href="/pagead/clk?jk=abc123XYZ"
-        aria-label="Backend Engineer">Backend Engineer</a></h2>
-      <span data-testid="company-name">Initech</span>
-      <div data-testid="text-location">Austin, TX</div>
-      <div data-testid="job-snippet"><ul><li>Build APIs.</li></ul></div>
-    </div>
-    """
-
-    def test_parse_card_shape(self):
-        from bs4 import BeautifulSoup
-
-        soup = BeautifulSoup(self.CARD_HTML, "lxml")
-        card = soup.select_one("div.job_seen_beacon")
-        job = server.IndeedProvider()._parse_card(card)
-        self.assertIsNotNone(job)
-        _assert_job_shape(self, job, "indeed")
-        self.assertEqual(job["title"], "Backend Engineer")
-        self.assertEqual(job["company"], "Initech")
-        self.assertIn("abc123XYZ", job["url"])
-
-    def test_remote_only_filter_logic(self):
-        job = {
-            "location": "Austin, TX",
-            "snippet": "Onsite role building APIs.",
-        }
-        haystack = (job["location"] + " " + job["snippet"]).lower()
-        self.assertNotIn("remote", haystack)
-
-
 class TestGreenhouseParser(unittest.TestCase):
     def test_parse(self):
         parse = _find_parser("greenhouse")
@@ -126,7 +90,6 @@ class TestJobIdCodec(unittest.TestCase):
     def test_round_trip(self):
         for board, url in [
             ("linkedin", "https://www.linkedin.com/jobs/view/x-1234567890"),
-            ("indeed", "https://www.indeed.com/viewjob?jk=abc123"),
             ("greenhouse", "https://boards.greenhouse.io/stripe/jobs/5432109"),
         ]:
             encoded = server._encode_job_id(board, url)

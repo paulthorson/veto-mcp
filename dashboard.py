@@ -335,7 +335,7 @@ def wf_watch() -> None:
         board = ask_choice(
             "Board",
             ["all", "greenhouse", "lever", "ashby", "adzuna",
-             "indeed", "ziprecruiter"],
+             "glassdoor"],
             default="all",
         )
         remote = ask_yes_no("Remote only?")
@@ -402,7 +402,7 @@ def wf_search() -> None:
     board = ask_choice(
         "Board",
         ["all", "greenhouse", "lever", "ashby", "adzuna",
-         "indeed", "ziprecruiter"],
+         "glassdoor"],
         default="all",
     )
     limit = ask_int("Max results per board", 10, lo=1, hi=50)

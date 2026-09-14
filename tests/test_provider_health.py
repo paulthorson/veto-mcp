@@ -72,10 +72,10 @@ class TestCaptcha(_IsoMixin, unittest.TestCase):
         self.assertGreater(row["cooldown_remaining_s"], 0)
 
     def test_blocked_status(self):
-        provider_health.record_captcha("ziprecruiter", "blocked")
-        row = provider_health.provider_status("ziprecruiter")
+        provider_health.record_captcha("glassdoor", "blocked")
+        row = provider_health.provider_status("glassdoor")
         self.assertEqual(row["status"], "blocked")
-        allowed, reason = provider_health.fetch_allowed("ziprecruiter")
+        allowed, reason = provider_health.fetch_allowed("glassdoor")
         self.assertFalse(allowed)
         self.assertEqual(reason, "captcha_blocked")
 

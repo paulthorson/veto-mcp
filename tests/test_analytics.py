@@ -115,11 +115,11 @@ class TestTimeToFirstResponse(unittest.TestCase):
         self.assertEqual(r["ashby"]["median_days"], 1.0)
 
     def test_board_with_no_stage_change_reports_none(self):
-        apps = [_entry("x:1", "ziprecruiter", "applied",
+        apps = [_entry("x:1", "glassdoor", "applied",
                        [_ev("applied", "2026-01-15T09:00:00+00:00")])]
         r = analytics.time_to_first_response(apps)
-        self.assertIsNone(r["ziprecruiter"]["median_days"])
-        self.assertEqual(r["ziprecruiter"]["samples"], 0)
+        self.assertIsNone(r["glassdoor"]["median_days"])
+        self.assertEqual(r["glassdoor"]["samples"], 0)
 
 
 class TestStaleApplications(unittest.TestCase):

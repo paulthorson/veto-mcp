@@ -20,12 +20,10 @@ from providers.ashby import AshbyProvider
 from providers.adzuna import AdzunaProvider
 from providers.greenhouse import GreenhouseProvider
 from providers.lever import LeverProvider
-from providers.ziprecruiter import ZipRecruiterProvider
 
 __all__ = [
     "GreenhouseProvider",
     "LeverProvider",
     "AshbyProvider",
     "AdzunaProvider",
-    "ZipRecruiterProvider",
 ]
