@@ -14,19 +14,35 @@ bypass attempt is never made and would be a program-level incident.
 Detection runs at three points in a fill:
   1. After navigation / page load (CAPTCHA, auth loss).
   2. After field extraction (field ambiguity).
-  3. At the review step of multi-step flows (CAPTCHA, auth loss re-check).
+  3. At the review step of multi-step flows, and immediately before the
+     submit click in single-page flows (CAPTCHA, auth loss re-check).
 
 The ``page`` argument is duck-typed: any object exposing ``query_selector``,
 ``url``, and ``content()`` works (Playwright pages and test fakes alike).
+
+Decision log (Rule 2):
+  D1 — fail-open on detector failure.
+    Option: if any detector raises, ``check()`` logs a warning and
+      returns None (no rescue) instead of pausing the fill.
+    Trades away: a broken safety net fails silently. A genuinely broken
+      detector lets automation continue past a real CAPTCHA with no
+      signal beyond a log line — detector failure is silent-by-design
+      (log.warning only).
+    To get: a broken detector must never block a working fill. Detector
+      code runs against hostile, unpredictable page DOMs, and the blast
+      radius of a detector crash that hard-fails is EVERY fill on every
+      board, while the blast radius of one missed CAPTCHA is one
+      abandoned attempt that the existing no-pause path already
+      surfaces.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-import time
 import uuid
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 log = logging.getLogger("job-apply-mcp.session_rescue")
@@ -132,11 +148,13 @@ def assess_field_ambiguity(fields: list[dict[str, Any]]) -> dict[str, Any] | Non
     """Return evidence dict when fields can't be mapped confidently.
 
     Two triggers:
-    * A visible field whose name is a synthesized fallback (``field_N``)
-      and which has no label, placeholder, aria-label, or name — Veto would
-      be guessing what it is.
-    * Two or more text-like fields sharing the same normalized label —
-      Veto can't tell which one the profile value belongs in.
+    * A visible field whose name is a synthesized numeric fallback
+      (``field_N`` — digits only, so real names like ``field_of_study``
+      do NOT false-positive) and which has no label, placeholder,
+      aria-label, or name — Veto would be guessing what it is.
+    * Two or more text-like fields (text, textbox, email, password)
+      sharing the same normalized label — Veto can't tell which one
+      the profile value belongs in.
     """
     if not fields:
         return None
@@ -146,9 +164,9 @@ def assess_field_ambiguity(fields: list[dict[str, Any]]) -> dict[str, Any] | Non
         name = str(f.get("name") or "")
         label = str(f.get("label") or "").strip()
         ftype = str(f.get("type") or "").lower()
-        if name.startswith("field_") and not label:
+        if re.fullmatch(r"field_\d+", name) and not label:
             unlabeled.append(f.get("selector") or name)
-        if ftype in ("text", "textbox", "") and label:
+        if ftype in ("text", "textbox", "email", "password", "") and label:
             key = re.sub(r"\s+", " ", label).lower()
             seen.setdefault(key, []).append(name)
     dupes = {k: v for k, v in seen.items() if len(v) > 1}
@@ -174,10 +192,19 @@ def assess_field_ambiguity(fields: list[dict[str, Any]]) -> dict[str, Any] | Non
 class RescueHandoff:
     """What the user receives when automation pauses.
 
-    The ``resume_token`` lets a later run (or the user, manually) pick up
-    context: it identifies the paused attempt in logs and screenshots, it
-    never resumes automation by itself — resuming always goes through the
-    normal confirm-gated path with the human in control.
+    The ``resume_token`` is a short correlation key (``uuid4``-derived),
+    not a credential and not a resumption mechanism. Its intended
+    consumer is the human-facing surface that displays the handoff —
+    today the result dict's ``"rescue"`` bundle read by the server's
+    caller and any dashboard/alert UI built on top: the token lets a
+    human (or support tooling) match a screenshot file, a log line, and
+    the paused-attempt record to each other when the user re-runs the
+    fill. It is deliberately NOT consumed by any automated code path:
+    no component resumes automation on the strength of this token, and
+    any resume always goes through the normal confirm-gated path with
+    the human in control. Do not invent consumers for it — if a future
+    integration starts treating it as a machine-resume key, that
+    integration must go through adversarial review first.
     """
 
     reason: str  # "captcha" | "auth_loss" | "field_ambiguity"
@@ -238,7 +265,9 @@ def check(
     Priority: CAPTCHA > auth loss > field ambiguity. Returns a
     ``RescueHandoff`` on the first trigger, else None. Never raises —
     detection failures degrade to "no rescue" and are logged, because a
-    broken detector must not block a working fill.
+    broken detector must not block a working fill. This is the D1
+    decision recorded in the module docstring: fail-open, silent
+    (log.warning only) by design.
     """
     try:
         hit = detect_captcha(page)
@@ -254,7 +283,7 @@ def check(
             page_url = ""
         return RescueHandoff(
             reason=hit["reason"],
-            detected_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+            detected_at=datetime.now(timezone.utc).isoformat(),
             page_url=page_url,
             board=board,
             evidence=hit["evidence"],

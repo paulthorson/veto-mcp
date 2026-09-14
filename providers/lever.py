@@ -169,7 +169,9 @@ class LeverProvider:
                 posted_date = datetime.fromtimestamp(
                     int(posted_ms) / 1000, tz=timezone.utc
                 ).strftime("%Y-%m-%d")
-        except (TypeError, ValueError, OSError):
+        except (TypeError, ValueError, OSError, OverflowError):
+            # OverflowError: hostile createdAt (e.g. 10**22 ms) is out of
+            # range for platform time_t — never raise on vendor data.
             posted_date = ""
         departments = [c for c in (cats.get("department"), cats.get("team")) if c]
         return {
