@@ -3,7 +3,9 @@
 The design-token source of truth is @veto/tokens, vendored at
 ``webui/vendor/veto-tokens.css`` (byte-identical to the monorepo dist; see
 ``scripts/sync-design-system.sh`` and ``DESIGN_SYSTEM_VERSIONS.json``).
-The marketing site loads it via ``@veto/tokens`` (see ``site/src/main.tsx``).
+The marketing site loads the vendored copy via a relative import
+(``./vendor/tokens.css`` in ``site/src/main.tsx``) since legal-hardening
+commit 11 removed the ``file:../../veto-design-system`` dependency.
 
 These tests pin the WS-A consolidation (2026-09-13): the local stylesheets
 ``site/src/site.css``, ``webui/app.css`` and ``webui/guide.html`` must draw
@@ -96,7 +98,9 @@ def test_all_var_references_resolve_to_tokens_or_aliases():
 
 def test_site_loads_tokens_before_local_css():
     main = (REPO / "site" / "src" / "main.tsx").read_text()
-    tok = main.index("@veto/tokens")
+    # Legal-hardening commit 11: the file:../../veto-design-system dep is
+    # gone; tokens load from the vendored relative import instead.
+    tok = main.index("./vendor/tokens.css")
     local = main.index("./site.css")
     assert tok < local, "tokens must load before site.css so local overrides win"
 
