@@ -188,8 +188,9 @@ class AshbyEnrichmentTests(unittest.TestCase):
 
 class ApplyPathHonestyTests(unittest.TestCase):
     def test_no_board_allows_direct_apply(self):
-        for board in ("greenhouse", "lever", "ashby"):
-            self.assertFalse(ats_apply.can_apply_direct(board), board)
+        # Legal-hardening commit 6 deleted can_apply_direct entirely:
+        # there is no direct-apply gate left to flip on for any board.
+        self.assertFalse(hasattr(ats_apply, "can_apply_direct"))
 
     def test_describe_apply_path_names_browser_flow(self):
         for board in ("greenhouse", "lever", "ashby"):

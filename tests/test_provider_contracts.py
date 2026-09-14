@@ -161,8 +161,11 @@ class TermsClassificationTests(unittest.TestCase):
             self.assertTrue(robots_url.startswith("https://"), name)
 
     def test_scraping_boards_classified(self):
+        # Legal-hardening commit 5 deleted the ZipRecruiter scraper: no
+        # board is classified HTML_SCRAPING anymore, and ziprecruiter
+        # must NOT retain a scraping-tier classification.
         terms, _, _ = terms_for("ziprecruiter")
-        self.assertEqual(terms, TermsClass.HTML_SCRAPING)
+        self.assertNotEqual(terms, TermsClass.HTML_SCRAPING)
 
     def test_ats_direct_classified(self):
         # The module's own first-party connector must be classifiable by
@@ -190,7 +193,9 @@ class TermsClassificationTests(unittest.TestCase):
         self.assertEqual(budget_for("definitely-not-a-board"), (0, 3600))
 
     def test_registered_search_budgets_are_sane(self):
-        for name in ("greenhouse", "lever", "ashby", "ziprecruiter"):
+        # ziprecruiter was removed from the registry (legal-hardening
+        # commit 5 deleted its scraper); only surviving boards are listed.
+        for name in ("greenhouse", "lever", "ashby"):
             daily, cooldown = budget_for(name)
             self.assertGreater(daily, 0, name)
             self.assertGreater(cooldown, 0, name)
@@ -334,16 +339,17 @@ class SubmissionContractTests(unittest.TestCase):
         self.assertEqual(result.status, SubmissionStatus.DRAFT)
         self.assertEqual(validate_submission_result(result), [])
 
-    def test_ats_confirmed_without_endpoint_maps_to_unavailable(self):
-        # confirm=True, dry_run=False: no verified endpoint exists, so no
-        # network call happens; the outcome is reported, not dropped.
+    def test_ats_confirmed_never_submits_still_preview(self):
+        # Legal-hardening commit 6: apply_direct is preview-only — there
+        # is no submit path left, so confirm=True/dry_run=False still
+        # returns the dry-run preview (DRAFT), never a network submit.
         result = _ats_direct_apply(
             {"id": make_job_id("ashby", "acme:123"), "board": "ashby"},
             {"full_name": "T"},
             confirm=True,
             dry_run=False,
         )
-        self.assertEqual(result.status, SubmissionStatus.UNAVAILABLE)
+        self.assertEqual(result.status, SubmissionStatus.DRAFT)
         self.assertEqual(validate_submission_result(result), [])
 
     def test_ats_ok_true_maps_to_submitted(self):
@@ -444,34 +450,11 @@ class SubmissionContractTests(unittest.TestCase):
         )
         self.assertEqual(result.status, SubmissionStatus.FAILED)
 
-    def test_easy_statuses_map_to_vocabulary(self):
-        cases = {
-            "preview": SubmissionStatus.DRAFT,
-            "awaiting_user_submit": SubmissionStatus.NEEDS_CONFIRMATION,
-            "rescue_paused": SubmissionStatus.PAUSED,
-            "blocked": SubmissionStatus.RATE_LIMITED,
-            "already_applied": SubmissionStatus.UNAVAILABLE,
-            "no_easy_apply": SubmissionStatus.UNAVAILABLE,
-            "stuck": SubmissionStatus.FAILED,
-            "step_limit_reached": SubmissionStatus.FAILED,
-            "error": SubmissionStatus.FAILED,
-        }
-        for native, expected in cases.items():
-            with self.subTest(native=native):
-                result = submission_result_from(
-                    {"status": native, "board": "linkedin", "error": "x"
-                     if expected is SubmissionStatus.FAILED else None},
-                    connector="easy",
-                )
-                self.assertEqual(result.status, expected)
-
-    def test_easy_rescue_paused_captcha_maps_to_captcha_blocked(self):
-        result = submission_result_from(
-            {"status": "rescue_paused", "board": "linkedin",
-             "rescue": {"reason": "captcha"}, "error": "paused"},
-            connector="easy",
-        )
-        self.assertEqual(result.status, SubmissionStatus.CAPTCHA_BLOCKED)
+    # NOTE (legal-hardening commit 3): the "easy" connector vocabulary was
+    # deleted with easy_apply.py. The old easy_* mapping tests asserted
+    # mappings for a module that no longer exists; the remaining
+    # test_easy_unknown_status_raises_loudly pins the loud rejection of
+    # unrecognized shapes.
 
     def test_easy_unknown_status_raises_loudly(self):
         with self.assertRaises(ValueError):
@@ -485,12 +468,9 @@ class SubmissionContractTests(unittest.TestCase):
             submission_result_from({"frobnicate": True}, connector="x")
 
     def test_source_auto_detection(self):
-        self.assertEqual(
-            submission_result_from(
-                {"status": "preview", "board": "linkedin"}
-            ).status,
-            SubmissionStatus.DRAFT,
-        )
+        # NOTE (legal-hardening commit 3): the old {"status": "preview"}
+        # easy_apply shape is gone with easy_apply.py — only ats/browser
+        # shapes remain auto-detectable.
         self.assertEqual(
             submission_result_from(
                 {"ok": False, "submitted": False, "error": "x"}

@@ -276,14 +276,11 @@ class TestFillApplication(unittest.TestCase):
 
 
 class TestSubmitDetection(unittest.TestCase):
-    def test_find_submit_button(self):
-        page = FakePage(_standard_fields(), has_submit=True)
-        btn = browser_apply.find_submit_button(page)
-        self.assertIsNotNone(btn)
-
-    def test_no_submit_button(self):
-        page = FakePage(_standard_fields(), has_submit=False)
-        self.assertIsNone(browser_apply.find_submit_button(page))
+    def test_no_submit_button_locator_exists(self):
+        # Legal-hardening commit 6 deleted the submit-button locator
+        # (find_submit_button): Veto never locates a submit control,
+        # so the locator must not exist at all.
+        self.assertFalse(hasattr(browser_apply, "find_submit_button"))
 
     def test_consent_banners_best_effort(self):
         page = FakePage(_standard_fields())
