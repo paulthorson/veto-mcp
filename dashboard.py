@@ -694,7 +694,7 @@ def wf_apply() -> None:
     action = ask_choice(
         "Queue",
         ["done", "view the queue", "remove a queued job",
-         "run the queue (submit real applications)"],
+         "run the queue (fill + record due applications)"],
         default="done",
     )
     if action == "view the queue":
@@ -708,14 +708,16 @@ def wf_apply() -> None:
             print(f"  Removed {pick} from the queue.")
         else:
             print(f"  {pick} is no longer queued.")
-    elif action == "run the queue (submit real applications)":
+    elif action == "run the queue (fill + record due applications)":
         if not ask_yes_no(
-            "Run the queue now? This submits REAL applications for every "
-            "job that is due, paced at human speed. The queue run stops "
-            "at the daily cap. Nothing runs until you say yes.",
+            "Run the queue now? This fills each due application's form "
+            "(via the browser hook when enabled) and records it locally, "
+            "paced at human speed. Nothing is ever submitted by the "
+            "software — you finish each application yourself. The queue "
+            "run stops at the daily cap. Nothing runs until you say yes.",
             default=False,
         ):
-            print("  Queue run cancelled. Nothing was submitted.")
+            print("  Queue run cancelled. Nothing was filled or recorded.")
         else:
             try:
                 from server import apply_to_job as _apply_to_job
@@ -732,7 +734,7 @@ def wf_apply() -> None:
             applied = report.get("applied") or []
             failed = report.get("failed") or []
             print(f"  Queue run: {report.get('processed')} processed, "
-                  f"{len(applied)} applied, {len(failed)} failed, "
+                  f"{len(applied)} filled + recorded, {len(failed)} failed, "
                   f"{report.get('remaining')} remaining.")
             if report.get("stopped"):
                 print(f"  Stopped early: {report.get('stopped')} "

@@ -124,7 +124,12 @@ class TestNoSubmitPath(unittest.TestCase):
                     f"deleted submit machinery {name!r}",
                 )
 
-    def test_no_http_post_call_sites(self):
+    def test_no_bare_requests_post_call_sites(self):
+        # Narrow check: greps for the literal ".post(" string in
+        # production code. This catches requests-style ``session.post(`` /
+        # ``requests.post(`` call sites but NOT urllib-style
+        # ``method="POST"`` calls — it is a tripwire for resurrected
+        # submit paths, not a general proof that no HTTP POST exists.
         # The ONLY ".post(" text in the tree is a string literal inside an
         # i11 policy-kit attack-sample fixture (not a real HTTP call). Any
         # other occurrence is a resurrected submit path.
