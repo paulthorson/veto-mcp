@@ -158,10 +158,7 @@ LinkedIn ingestion options:
    archive, then give the wizard the ZIP path. It parses `Profile.csv`,
    `Positions.csv`, `Education.csv`, and `Skills.csv` — no LinkedIn
    login or scraping needed.
-2. **Public profile URL.** The wizard fetches your public LinkedIn page
-   best-effort (LinkedIn usually blocks scraping, so this is limited —
-   option 1 is better).
-3. **Skip** — answer everything manually.
+2. **Skip** — answer everything manually.
 
 This writes `profiles/profile.json` (gitignored — your data stays
 local). Then build your resume:
