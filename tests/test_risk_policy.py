@@ -154,8 +154,10 @@ class RiskPolicyTest(unittest.TestCase):
 
     def test_audit_flags_repeated_blocks(self):
         st = self._fresh()
+        # "linkedin" was removed from the board registry (legal-hardening
+        # commit 4); use a surviving board for the repeated-block audit.
         for _ in range(3):
-            compliance.record_block("linkedin", st, self.cpath)
+            compliance.record_block("greenhouse", st, self.cpath)
             st = self._fresh()
         audit = risk_policy.audit_risk(st)
         severities = [f["severity"] for f in audit["findings"]]
