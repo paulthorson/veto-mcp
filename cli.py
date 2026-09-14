@@ -506,7 +506,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_search.add_argument(
         "--board",
         default="all",
-        help='Board to search: "all", "indeed", ... (default: all).',
+        help='Board to search: "all", "greenhouse", "lever", "ashby", "adzuna", "glassdoor" (default: all).',
     )
     p_search.add_argument("--limit", type=int, default=10, help="Max jobs (default: 10).")
     p_search.add_argument(

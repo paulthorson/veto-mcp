@@ -109,12 +109,6 @@ TERMS_CLASSIFICATION: dict[str, tuple[TermsClass, str, str]] = {
         "ADZUNA_APP_ID/ADZUNA_APP_KEY; honest stub without them",
         "https://www.adzuna.com/robots.txt",
     ),
-    "ziprecruiter": (
-        TermsClass.HTML_SCRAPING,
-        "Guest HTML endpoints; ToS risk acknowledged in compliance.py "
-        "'scraping' tier; robots.txt honored",
-        "https://www.ziprecruiter.com/robots.txt",
-    ),
     "glassdoor": (
         TermsClass.HONEST_STUB,
         "Declared stub: no working public interface; search raises "
@@ -910,34 +904,6 @@ _register_manifest(
         ],
         official_interface="https://developer.adzuna.com/",
         interface_basis="Official API; key-gated.",
-    )
-)
-
-_register_manifest(
-    ConnectorManifest(
-        name="ziprecruiter",
-        connector_type="job_provider",
-        what_it_can_do=[
-            "Search jobs via guest HTML endpoints with polite delays, daily "
-            "budgets, and robots.txt honored.",
-        ],
-        why_it_may_be_blocked=[
-            "Scraping-tier board: HTML scraping can violate ZipRecruiter's "
-            "ToS and trigger 403/429, CAPTCHAs, or IP rate-limiting; the "
-            "circuit breaker pauses it automatically.",
-            "Requires the user to explicitly acknowledge the ToS risk "
-            "(compliance 'standard' mode) before use.",
-        ],
-        what_data_it_sends=[
-            "Search query and location to ziprecruiter.com guest endpoints "
-            "over HTTPS, at a human pace.",
-        ],
-        what_requires_confirmation=[
-            "ToS-risk acknowledgment before first scraping-tier search.",
-            "Browser-assisted application submit (confirm=True only).",
-        ],
-        official_interface="",
-        interface_basis="No official public API; guest HTML endpoints.",
     )
 )
 

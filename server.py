@@ -4,8 +4,8 @@
 Exposes job-board search and assisted-application tools over the Model
 Context Protocol (MCP) so an AI agent can:
 
-  * search jobs across major boards (Indeed, ZipRecruiter;
-    stub for Glassdoor),
+  * search jobs across official board APIs (Greenhouse, Lever, Ashby,
+    Adzuna; stub for Glassdoor),
   * fetch full job descriptions,
   * prepare (and, only with explicit user confirmation, record)
     job applications without manual form filling.
@@ -29,15 +29,11 @@ import json
 import logging
 import os
 import random
-import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
 
-import httpx
-from bs4 import BeautifulSoup
 from mcp.server.mcpserver import MCPServer
 
 # API-based providers (Greenhouse / Lever / Ashby / Adzuna) live in
@@ -144,17 +140,6 @@ except ImportError as exc:
     log.warning(
         "governance.risk_policy unavailable; risk gates disabled: %s", exc)
     _risk_policy = None  # type: ignore[assignment]
-
-try:
-    from providers.ziprecruiter import (
-        ZipRecruiterProvider as _ZipRecruiterReal,
-    )
-except ImportError as exc:
-    log.warning(
-        "providers.ziprecruiter unavailable; ZipRecruiter stays a stub: %s",
-        exc,
-    )
-    _ZipRecruiterReal = None  # type: ignore[assignment]
 
 try:
     from providers.glassdoor import WHY_NOT_SUPPORTED as _GLASSDOOR_REASON
@@ -321,118 +306,6 @@ class JobProvider(abc.ABC):
         """Return full details for a job posting URL."""
 
 
-class IndeedProvider(JobProvider):
-    """Indeed public search (no auth). HTML scraping; resilient selectors."""
-
-    name = "indeed"
-    SEARCH_URL = "https://www.indeed.com/jobs"
-
-    def search(
-        self, query: str, location: str, limit: int, remote_only: bool
-    ) -> list[dict[str, Any]]:
-        params = {"q": query, "l": location, "sort": "date", "fromage": "14"}
-        jobs: list[dict[str, Any]] = []
-        try:
-            with httpx.Client(
-                headers=_headers(), timeout=20.0, follow_redirects=True
-            ) as client:
-                _polite_delay()
-                resp = client.get(self.SEARCH_URL, params=params)
-                resp.raise_for_status()
-                soup = BeautifulSoup(resp.text, "lxml")
-                # Multiple selector generations; fall back gracefully.
-                cards = (
-                    soup.select("div.job_seen_beacon")
-                    or soup.select("td.resultContent")
-                    or soup.select("[data-jk]")
-                )
-                for card in cards:
-                    job = self._parse_card(card)
-                    if not job:
-                        continue
-                    if remote_only and "remote" not in (
-                        job["location"] + " " + job["snippet"]
-                    ).lower():
-                        continue
-                    jobs.append(job)
-                    if len(jobs) >= limit:
-                        break
-        except Exception as exc:  # never crash the tool on a scrape failure
-            log.warning("Indeed search failed: %s", exc)
-        log.info("Indeed: %d jobs for %r in %r", len(jobs), query, location)
-        return jobs
-
-    def _parse_card(self, card: Any) -> dict[str, Any] | None:
-        anchor = (
-            card.select_one("h2.jobTitle a")
-            or card.select_one("a.jcs-JobTitle")
-            or card.select_one("a[data-jk]")
-        )
-        if anchor is None:
-            return None
-        title = anchor.get("aria-label") or anchor.get_text(strip=True)
-        if not title:
-            return None
-        jk = anchor.get("data-jk") or ""
-        if not jk:
-            m = re.search(r"[?&]jk=([A-Za-z0-9_-]+)", anchor.get("href", ""))
-            jk = m.group(1) if m else ""
-        url = (
-            f"https://www.indeed.com/viewjob?jk={jk}"
-            if jk
-            else urljoin("https://www.indeed.com", anchor.get("href", ""))
-        )
-        company_el = card.select_one(
-            'span[data-testid="company-name"]'
-        ) or card.select_one("span.companyName")
-        location_el = card.select_one(
-            'div[data-testid="text-location"]'
-        ) or card.select_one("div.companyLocation")
-        snippet_el = card.select_one('div[data-testid="job-snippet"]') or card.select_one(
-            "div.job-snippet"
-        )
-        job = {
-            "id": _encode_job_id(self.name, url),
-            "title": title.strip(),
-            "company": company_el.get_text(strip=True) if company_el else "Unknown",
-            "location": location_el.get_text(strip=True) if location_el else "Unknown",
-            "url": url,
-            "board": self.name,
-            "snippet": (
-                snippet_el.get_text(" ", strip=True)[:500] if snippet_el else ""
-            ),
-        }
-        _JOB_REGISTRY[job["id"]] = job
-        return job
-
-    def get_details(self, url: str) -> dict[str, Any]:
-        try:
-            with httpx.Client(
-                headers=_headers(), timeout=20.0, follow_redirects=True
-            ) as client:
-                _polite_delay()
-                resp = client.get(url)
-                resp.raise_for_status()
-                soup = BeautifulSoup(resp.text, "lxml")
-                desc_el = soup.select_one("div#jobDescriptionText")
-                title_el = soup.select_one("h1.jobsearch-JobInfoHeader-title")
-                return {
-                    "url": url,
-                    "board": self.name,
-                    "title": title_el.get_text(strip=True) if title_el else "Unknown",
-                    "description": (
-                        desc_el.get_text("\n", strip=True) if desc_el else ""
-                    ),
-                    "requirements": "",  # Indeed embeds these in the description text
-                    "apply_url": url,
-                }
-        except Exception as exc:
-            log.warning("Indeed details failed for %s: %s", url, exc)
-            return {"url": url, "board": self.name, "error": str(exc)}
-
-
-
-
 class GlassdoorProvider(JobProvider):
     """Documented stub: Glassdoor cannot be implemented within policy.
 
@@ -453,39 +326,15 @@ class GlassdoorProvider(JobProvider):
         raise NotImplementedError(_GLASSDOOR_REASON)
 
 
-class _ZipRecruiterStub(JobProvider):
-    """Fallback stub used only if providers.ziprecruiter failed to import."""
-
-    name = "ziprecruiter"
-
-    def search(self, query: str, location: str, limit: int, remote_only: bool):
-        raise NotImplementedError(
-            "ZipRecruiter provider module failed to import; "
-            "the real provider is unavailable."
-        )
-
-    def get_details(self, url: str):
-        raise NotImplementedError(
-            "ZipRecruiter provider module failed to import; "
-            "the real provider is unavailable."
-        )
-
-
 PROVIDERS: dict[str, JobProvider] = {
-    "indeed": IndeedProvider(),
     "glassdoor": GlassdoorProvider(),
-    "ziprecruiter": (
-        _ZipRecruiterReal() if _ZipRecruiterReal is not None
-        else _ZipRecruiterStub()
-    ),
     **_API_PROVIDERS,
 }
 ACTIVE_BOARDS = {
-    "indeed",
     "greenhouse",
     "lever",
     "ashby",
-    "ziprecruiter",
+    "adzuna",
 }
 
 
@@ -566,8 +415,8 @@ def search_jobs(
     Args:
         query: Job title / keywords, e.g. "software engineer".
         location: e.g. "New York, NY" or "Remote".
-        board: One of "all", "indeed", "greenhouse", "lever",
-            "ashby", "adzuna", "glassdoor", "ziprecruiter". Stub boards and
+        board: One of "all", "greenhouse", "lever",
+            "ashby", "adzuna", "glassdoor". Stub boards and
             boards missing required credentials raise an error.
         limit: Max jobs to return per board (default 10).
         remote_only: Only include remote-friendly postings.
@@ -620,15 +469,13 @@ def search_jobs(
                 query, location, limit=limit, remote_only=remote_only
             )
         except (NotImplementedError, RuntimeError) as exc:
-            # NotImplementedError: documented stub boards (glassdoor) and
-            # the ZipRecruiter import-failure fallback stub.
+            # NotImplementedError: documented stub boards (glassdoor).
             # RuntimeError: providers needing user credentials (adzuna
             # without ADZUNA_APP_ID/ADZUNA_APP_KEY). Surface as ValueError
             # so the tool contract stays consistent.
             log.warning("%s: %s", name, exc)
             raise ValueError(f"Board {name!r} is not usable: {exc}")
-        # Budget accounting + risk tagging. (The ZipRecruiter provider
-        # stamps its own tag; re-stamping here is idempotent.)
+        # Budget accounting + risk tagging.
         # Recovery streaks are recorded by the providers themselves at
         # the exact points where a genuine fetch completed (post
         # block/CAPTCHA checks). Recording here would count blocked or

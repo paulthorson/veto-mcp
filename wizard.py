@@ -543,7 +543,7 @@ def collect_compliance() -> str:
     print("Job boards fall into two risk tiers:")
     print("  official   Greenhouse, Lever, Ashby, Adzuna — public/official")
     print("             APIs. ToS-friendly; always preferred.")
-    print("  scraping   Indeed, Glassdoor, ZipRecruiter — HTML or")
+    print("  scraping   Glassdoor — HTML or")
     print("             guest-endpoint scraping. May violate the site's Terms")
     print("             of Service and can trigger HTTP 403/429, CAPTCHAs,")
     print("             IP rate-limiting, or account restrictions.")
