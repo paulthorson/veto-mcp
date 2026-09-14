@@ -158,6 +158,7 @@ for _plugin_name in (
     "doctor",
     "analytics",
     "briefs",
+    "byol",
     "email_sync",
     "grill",
     "match",
@@ -330,6 +331,19 @@ PROVIDERS: dict[str, JobProvider] = {
     "glassdoor": GlassdoorProvider(),
     **_API_PROVIDERS,
 }
+
+# Bring-your-own-listing pseudo-provider (legal-hardening commit 7, spec
+# section 5.2): the user's pasted/URL/file listings, board name "user".
+# Imported defensively like the API providers above: the server must
+# still start if byol is missing. Deliberately NOT in ACTIVE_BOARDS —
+# "user" is a personal listing store, not a board to query on "all".
+try:
+    import byol as _byol
+
+    PROVIDERS["user"] = _byol.UserListingsBoard()
+except ImportError as exc:  # defensive: the server must still start
+    log.warning("byol provider unavailable; user listings disabled: %s", exc)
+
 ACTIVE_BOARDS = {
     "greenhouse",
     "lever",
@@ -385,6 +399,8 @@ def list_boards() -> list[dict[str, str]]:
         "adzuna": "needs ADZUNA_APP_ID + ADZUNA_APP_KEY env vars (developer.adzuna.com)",
         "glassdoor": "deliberately unsupported: no public API; plain-HTTP "
         "blocked by bot mitigation (see providers/glassdoor.py)",
+        "user": "your saved listings: add-listing (paste text / URL / HTML "
+        "file). Searched explicitly with board='user'; never queried on 'all'.",
     }
     return [
         {
@@ -416,8 +432,9 @@ def search_jobs(
         query: Job title / keywords, e.g. "software engineer".
         location: e.g. "New York, NY" or "Remote".
         board: One of "all", "greenhouse", "lever",
-            "ashby", "adzuna", "glassdoor". Stub boards and
-            boards missing required credentials raise an error.
+            "ashby", "adzuna", "glassdoor", "user". "user" searches only
+            your saved bring-your-own listings (add-listing) locally —
+            no board is queried.
         limit: Max jobs to return per board (default 10).
         remote_only: Only include remote-friendly postings.
         salary_min: Keep jobs whose best salary hint meets this annual USD
@@ -688,6 +705,22 @@ def apply_to_job(
         board, url = _decode_job_id(job_id)
     except ValueError as exc:
         return {"status": "error", "error": str(exc)}
+
+    if board == "user":
+        # Bring-your-own listing (spec section 5.2): the id payload is a
+        # local store key, not a URL. Resolve the real posting URL from
+        # the saved listing so the dry-run preview, the recorded entry,
+        # and the Phase 2 fill-only browser all open the actual posting.
+        # Listings added from pasted text have no URL — the empty string
+        # survives, exactly like a provider listing with no apply_url.
+        try:
+            _byol_details = get_job_details(job_id)
+        except Exception as exc:  # noqa: BLE001 - best-effort resolution
+            _byol_details = {"error": str(exc)}
+        if isinstance(_byol_details, dict) and not _byol_details.get("error"):
+            _byol_url = _byol_details.get("url") or _byol_details.get("apply_url")
+            if _byol_url:
+                url = _byol_url
 
     cached = _JOB_REGISTRY.get(job_id, {})
     resume = Path(resume_path).expanduser()

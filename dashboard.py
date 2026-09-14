@@ -47,6 +47,7 @@ import skill_gaps  # noqa: E402
 import cover_letters  # noqa: E402
 import linkedin_optimizer  # noqa: E402
 import jd_decoder  # noqa: E402
+import byol  # noqa: E402
 import network_crm  # noqa: E402
 import rejection_autopsy  # noqa: E402
 import streaks  # noqa: E402
@@ -222,6 +223,67 @@ def print_kpis() -> None:
 # ---------------------------------------------------------------------------
 # FIND workflows
 # ---------------------------------------------------------------------------
+
+
+def wf_byol() -> None:
+    """Bring your own listing: paste text, give a URL, or point at a saved
+    HTML file. This is the PRIMARY listing-ingestion flow (spec section
+    5.2) — the parsed listing joins the standard pipeline (score, decode,
+    tailor, brief, apply-plan) exactly like a board-sourced one."""
+    _divider("ADD A JOB LISTING")
+    print("  The primary way to get a posting into Veto: paste the text,")
+    print("  give a posting URL (fetched once, parsed locally), or point")
+    print("  at a saved HTML file (parsed locally, no network).")
+    source = ask_choice(
+        "Listing source",
+        ["Paste job-description text", "Job posting URL", "Saved HTML file"],
+    )
+    kwargs: dict[str, str] = {}
+    if source == "Paste job-description text":
+        kwargs["text"] = read_text_or_file("Job description")
+    elif source == "Job posting URL":
+        kwargs["url"] = ask("Posting URL", required=True)
+    else:
+        kwargs["html_file"] = ask("HTML file path", required=True)
+    title = ask("Job title (blank = auto-detect)", "")
+    company = ask("Company (blank = auto-detect)", "")
+    location = ask("Location (blank = auto-detect)", "")
+    result = byol.add_listing(
+        title=title, company=company, location=location, **kwargs
+    )
+    if result.get("error"):
+        print(f"  Could not add the listing: {result['error']}")
+        return
+    print(f"\n  Saved: {result['title']} @ {result['company']}")
+    if result.get("location"):
+        print(f"  Location: {result['location']}")
+    print(f"  Job id: {result['id']}")
+    job = {
+        "title": result["title"],
+        "company": result["company"],
+        "location": result.get("location", ""),
+        "description": result.get("description", ""),
+    }
+    nxt = ask_choice(
+        "Next step",
+        ["Score it against my profile", "Decode red/green flags", "Done"],
+        default="Done",
+    )
+    if nxt == "Score it against my profile":
+        profile = load_profile()
+        res = match.score_job(job, profile or {}, None)
+        print(f"\n  Score: {res['score']}/100"
+              + ("  ⚠ VETOED" if res.get("veto") else ""))
+        for reason in (res.get("reasons") or [])[:6]:
+            print(f"  • {reason}")
+    elif nxt == "Decode red/green flags":
+        v = jd_decoder.jd_verdict(result.get("description", ""))
+        print(f"\n  Verdict: {v.get('verdict', '?')} ({v.get('score', '?')}/100)")
+        for r in (v.get("reasons") or [])[:5]:
+            sign = "+" if r.get("impact", 0) > 0 else ("-" if r.get("impact", 0) < 0 else "")
+            print(f"  [{sign}{abs(r.get('impact', 0))}] {r.get('reason')}")
+    print(f"\n  The listing is saved. Tailor, brief, or queue it any time "
+          f"with job id:\n  {result['id']}")
 
 
 def wf_match() -> None:
@@ -401,7 +463,7 @@ def wf_search() -> None:
     board = ask_choice(
         "Board",
         ["all", "greenhouse", "lever", "ashby", "adzuna",
-         "glassdoor"],
+         "glassdoor", "user"],
         default="all",
     )
     limit = ask_int("Max results per board", 10, lo=1, hi=50)
@@ -1238,6 +1300,7 @@ def wf_doctor() -> None:
 
 # key -> (label, workflow)
 MENU: dict[str, tuple[str, object]] = {
+    "0": ("Add a job listing (paste text / URL / saved HTML)", wf_byol),
     "1": ("Score a job against your profile", wf_match),
     "2": ("Decode a job description", wf_jd_decoder),
     "3": ("Draw a fit radar chart", wf_radar),
@@ -1272,7 +1335,7 @@ MENU: dict[str, tuple[str, object]] = {
 def print_menu() -> None:
     """Print the grouped menu."""
     groups = [
-        ("FIND", ["1", "2", "3", "20", "26"]),
+        ("FIND", ["0", "1", "2", "3", "20", "26"]),
         ("TAILOR", ["4", "5", "6"]),
         ("APPLY", ["21", "22"]),
         ("TRAIN", ["7", "8", "9", "10", "11", "23"]),
