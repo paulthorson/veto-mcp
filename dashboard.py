@@ -334,7 +334,7 @@ def wf_watch() -> None:
         location = ask("Location (blank = anywhere)", "")
         board = ask_choice(
             "Board",
-            ["all", "greenhouse", "lever", "ashby", "adzuna", "linkedin",
+            ["all", "greenhouse", "lever", "ashby", "adzuna",
              "indeed", "ziprecruiter"],
             default="all",
         )
@@ -401,7 +401,7 @@ def wf_search() -> None:
     location = ask("Location (blank = anywhere)", "")
     board = ask_choice(
         "Board",
-        ["all", "greenhouse", "lever", "ashby", "adzuna", "linkedin",
+        ["all", "greenhouse", "lever", "ashby", "adzuna",
          "indeed", "ziprecruiter"],
         default="all",
     )
@@ -530,7 +530,7 @@ def wf_apply() -> None:
     _divider("APPLY TO A JOB (DRY-RUN)")
     path = ask_choice(
         "Application path",
-        ["official ATS (direct API)", "browser fill (your logged-in session)"],
+        ["official ATS (direct API)", "browser fill (no saved login)"],
         default="official ATS (direct API)",
     )
     job_id = ask("Job id (board:payload, from search results)", required=True)
@@ -605,8 +605,8 @@ def wf_apply() -> None:
             print(f"    note: {preview['note']}")
     else:
         print("  Browser fill preview:")
-        print(f"    saved {board} login session: "
-              f"{'yes' if browser_apply.has_saved_session(board) else 'no'}")
+        print("    Saved login sessions are not supported: the browser "
+              "runs unauthenticated and no stored session is ever loaded.")
         print("    The browser flow opens the posting, fills the form from "
               "your profile, and stops at the review step. The submit click "
               "is always yours.")
