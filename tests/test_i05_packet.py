@@ -16,6 +16,8 @@ from initiatives.i05 import evidence_library, packet, versions
 
 
 def _profile() -> dict:
+    # Synthetic fixture profile: deliberately fictional person, company,
+    # and data, used only so the tailored resume is a realistic length.
     return {
         "full_name": "Synthetic Fixture",
         "email": "fixture@example.com",
@@ -23,8 +25,14 @@ def _profile() -> dict:
         "location": "New York, NY",
         "linkedin_url": "https://example.com/in/fixture",
         "website": "https://example.com",
-        "summary": "Synthetic fixture profile for tests.",
-        "skills": ["Python", "PostgreSQL"],
+        "summary": (
+            "Synthetic fixture profile used only for tests. Backend "
+            "engineer with seven years of experience building Python web "
+            "services and PostgreSQL data pipelines for synthetic "
+            "workloads. Enjoys testing, code review, and writing "
+            "documentation that keeps on-call rotations quiet."
+        ),
+        "skills": ["Python", "PostgreSQL", "Django", "Redis"],
         "experience": [
             {
                 "title": "Backend Engineer",
@@ -32,9 +40,26 @@ def _profile() -> dict:
                 "dates": "2020 - 2024",
                 "bullets": [
                     "Shipped Python services handling 1M requests a day.",
-                    "Cut PostgreSQL query times by half.",
+                    "Cut PostgreSQL query times by half with indexes.",
+                    "Built synthetic load tests that caught regressions "
+                    "before release.",
+                    "Mentored two junior engineers on testing and code "
+                    "review.",
                 ],
-            }
+            },
+            {
+                "title": "Junior Backend Engineer",
+                "company": "FixtureLabs",
+                "dates": "2017 - 2020",
+                "bullets": [
+                    "Maintained Django APIs serving synthetic fixture data.",
+                    "Wrote PostgreSQL migrations with careful "
+                    "rollout playbooks.",
+                    "Built dashboards that flagged slow endpoints within "
+                    "minutes.",
+                    "Documented onboarding guides used by every new hire.",
+                ],
+            },
         ],
         "education": [{"degree": "B.S.", "school": "Fixture University",
                        "dates": "2016 - 2020"}],
