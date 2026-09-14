@@ -148,7 +148,7 @@ def terms_for(provider_name: str) -> tuple[TermsClass, str, str]:
 
 
 # NOTE on robots.txt: the canonical helper is
-# ``providers._common.robots_allows(board, url)`` (cached, fail-open, and
+# ``providers._common.robots_allows(board, url)`` (cached, fail-closed, and
 # already honored by the scraping-tier providers). This kit does not ship
 # a second implementation; the per-provider robots.txt URLs live in
 # TERMS_CLASSIFICATION above so reviewers can audit the policy directly.

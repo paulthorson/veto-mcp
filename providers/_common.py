@@ -97,8 +97,9 @@ def robots_allows(board: str, url: str, timeout: float = 5.0) -> bool:
     """True when the site's robots.txt permits fetching ``url``.
 
     Fetches ``/robots.txt`` once per host (cached for an hour) and honors
-    it. Fail-open: when robots.txt is missing, unreachable, or unparsable,
-    the URL is treated as allowed (a down robots file is not a ban).
+    it. Fail-CLOSED (spec §7.2): when robots.txt cannot be fetched or
+    parsed, the URL is treated as disallowed and is NOT fetched. An
+    unreadable robots file is not permission.
     Disallowed URLs must be skipped by the caller; they are never fetched.
     """
     base = urllib.parse.urlsplit(url)
@@ -118,14 +119,15 @@ def robots_allows(board: str, url: str, timeout: float = 5.0) -> bool:
             log.debug("robots.txt fetch failed for %s: %s", host, exc)
         _robots_cache[host] = (now, body)
     if body is None:
-        return True
+        log.debug("robots.txt unavailable for %s: treating %s as disallowed", host, url)
+        return False
     try:
         parser = urllib.robotparser.RobotFileParser()
         parser.parse(body.splitlines())
         return parser.can_fetch("*", url)
     except Exception as exc:
         log.debug("robots.txt parse failed for %s: %s", host, exc)
-        return True
+        return False
 
 
 def clear_robots_cache() -> None:
