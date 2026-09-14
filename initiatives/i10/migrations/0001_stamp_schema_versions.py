@@ -8,8 +8,16 @@ an explicit schema-version marker:
 * Writes ``data_dir/_schema_versions.json`` with the registry's
   {schema: version} map for the release-channel compatibility gate.
 
-Idempotent. ``backward`` removes the marker file and strips markers this
-migration added (recorded per-file in the journal detail).
+Idempotent. ``backward`` removes the marker file and strips the
+``schema_version`` markers this migration added. Which profiles those are
+comes from the journal: ``forward`` records every stamped profile name in
+its ``applied`` record's ``detail`` (``stamped_profiles``), and
+``backward`` reads that record back. Only profiles whose marker is still
+exactly ``"profile-v1"`` are unstamped (a profile already carrying the
+marker before this migration ran is left alone, as is one whose marker
+was changed afterwards). If the journal has no ``applied`` record for
+this migration, ``backward`` removes only the marker file and reports
+that the stamped set was unknown.
 """
 
 from __future__ import annotations
@@ -49,14 +57,49 @@ def forward(data_dir: Path) -> dict:
     return {"stamped_profiles": stamped, "marker": MARKER_FILE}
 
 
+def _stamped_by_this_migration(data_dir: Path) -> tuple[list[str], bool]:
+    """Return (profile names this migration stamped, known).
+
+    Reads the most recent ``applied`` record for this migration from the
+    journal and returns its ``detail["stamped_profiles"]``. ``known`` is
+    False when no such record exists (e.g. journal lost) — the caller
+    then strips nothing it cannot prove it added.
+    """
+    from initiatives.i10 import schema_migrate
+
+    for rec in reversed(schema_migrate.journal_records(data_dir)):
+        if rec.get("action") == "applied" and rec.get("migration_id") == MIGRATION_ID:
+            detail = rec.get("detail") or {}
+            return list(detail.get("stamped_profiles", [])), True
+    return [], False
+
+
 def backward(data_dir: Path) -> dict:
     data_dir = Path(data_dir)
+    stamped, known = _stamped_by_this_migration(data_dir)
+    unstamped: list[str] = []
+    for name in stamped:
+        profile = data_dir / "profiles" / name
+        try:
+            doc = json.loads(profile.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        # Only strip what forward provably added: the exact value it
+        # writes. A pre-existing marker (or one changed since) is kept.
+        if isinstance(doc, dict) and doc.get("schema_version") == "profile-v1":
+            del doc["schema_version"]
+            profile.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+            unstamped.append(name)
     removed_marker = False
     marker = data_dir / MARKER_FILE
     if marker.exists():
         marker.unlink()
         removed_marker = True
-    return {"removed_marker": removed_marker}
+    return {
+        "removed_marker": removed_marker,
+        "unstamped_profiles": unstamped,
+        "stamped_profiles_known": known,
+    }
 
 
 def verify(data_dir: Path) -> dict:
