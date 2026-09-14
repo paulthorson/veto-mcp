@@ -345,10 +345,10 @@ ACTIVE_BOARDS = {
 # Implemented in browser_apply.py (Playwright, sync API). Enable with the
 # environment variable JOB_MCP_BROWSER_APPLY=1. When enabled and
 # apply_to_job(..., confirm=True) is called, the server opens the job's
-# apply_url in headless Chromium, fills the form from `profile`, uploads
-# the resume, screenshots the result, and clicks submit - all logged to
-# applications.json. Without the env var, Phase 1 (preview + local log)
-# behavior is preserved.
+# apply_url in a browser, fills the form from `profile`, uploads
+# the resume, screenshots the completed form, and stops - fill-only.
+# The user reviews and clicks submit themselves. Without the env var,
+# Phase 1 (preview + local log) behavior is preserved.
 #
 # Anti-bot note: automated applications can lead to CAPTCHAs / IP throttles
 # / account restrictions on LinkedIn, Indeed, etc. Keep human review in the
@@ -368,12 +368,12 @@ mcp = MCPServer(
     "job-apply",
     instructions=(
         "Search jobs across major boards and prepare assisted job "
-        "applications. apply_to_job NEVER submits without confirm=True. "
+        "applications. apply_to_job NEVER submits. "
         "Without the JOB_MCP_BROWSER_APPLY env var, confirm=True only "
         "records the application locally (Phase 1) and the user completes "
         "the submission in their browser; with JOB_MCP_BROWSER_APPLY=1, "
-        "confirm=True auto-fills and submits the form in headless Chromium "
-        "via a profile dict (Phase 2)."
+        "confirm=True auto-fills the form in a browser via a profile dict "
+        "(Phase 2) and waits for the user's own submit click."
     ),
 )
 
@@ -637,7 +637,7 @@ def apply_to_job(
     profile: dict[str, str] | None = None,
     headless: bool = True,
 ) -> dict[str, Any]:
-    """Prepare (and optionally record / browser-submit) a job application.
+    """Prepare (and optionally record) a job application. Never submits.
 
     Phase 1 (default): does NOT auto-submit any form. Without confirm=True
     this returns a dry-run preview only. With confirm=True the application
@@ -647,11 +647,12 @@ def apply_to_job(
 
     Phase 2 (opt-in browser automation): set the environment variable
     JOB_MCP_BROWSER_APPLY=1 and pass a `profile` dict. Then confirm=True
-    opens the apply_url in headless Chromium, fills the form from the
-    profile, uploads the resume, screenshots the result, clicks submit,
-    and records the outcome (including screenshot path and submitted flag)
-    in applications.json. Without the env var, confirm=True keeps the
-    Phase 1 logging behavior.
+    opens the apply_url in a browser, fills the form from the profile,
+    uploads the resume, screenshots the completed form, and stops —
+    fill-only. With headless=False the call waits until the user closes
+    the browser; with headless=True the screenshot is returned so the
+    user reviews and clicks submit themselves. Nothing is ever
+    submitted by the tool.
 
     Args:
         job_id: The job id returned by search_jobs.
@@ -660,7 +661,7 @@ def apply_to_job(
         answers: Optional common application answers, e.g.
             {"work_authorization": "yes", "salary_expectation": "150000"}.
         confirm: MUST be True to record the application (Phase 1) or to
-            submit via the browser (Phase 2). Defaults to False
+            fill the form via the browser (Phase 2). Defaults to False
             (dry-run preview only).
         profile: Applicant details for Phase 2 browser fill, e.g.
             {"full_name": "Ada Lovelace", "email": "ada@example.com",
@@ -732,8 +733,8 @@ def apply_to_job(
         if _browser_apply_enabled() and profile:
             message += (
                 " Phase 2 browser automation is enabled: on confirm, the "
-                "form will be auto-filled from your profile in a headless "
-                "browser and submitted."
+                "form will be auto-filled from your profile in a browser "
+                "and left open for your own submit click."
             )
         elif profile:
             message += (
@@ -929,10 +930,12 @@ def _apply_via_browser_and_record(
     resume: Path,
     headless: bool,
 ) -> dict[str, Any]:
-    """Phase 2: fill + submit the form in a real browser, then log it.
+    """Phase 2: fill the form in a real browser (fill-only), then log the fill.
 
-    Any failure (missing Playwright, navigation error, no submit button)
-    is recorded with submitted=False - the tool never raises.
+    Any failure (missing Playwright, navigation error) is recorded with
+    ok=False - the tool never raises. Nothing is submitted; the user
+    reviews and submits by hand. In headed mode the call waits until
+    the user closes the browser window.
     """
     if cover_letter and not profile.get("cover_letter"):
         profile = {**profile, "cover_letter": cover_letter}
@@ -944,19 +947,18 @@ def _apply_via_browser_and_record(
             profile=profile,
             resume_path=str(resume),
             headless=headless,
-            confirm=True,
-            board=board,  # loads a saved login session when one exists
+            board=board,
         )
     except Exception as exc:  # defensive: the tool must never crash
         log.warning("Phase 2 browser apply failed for %s: %s", job_id, exc)
         browser_result = {
             "ok": False,
-            "submitted": False,
             "fields_filled": {},
             "fields_detected": 0,
             "screenshot": None,
-            "screenshot_after_submit": None,
             "final_url": url,
+            "browser_open": False,
+            "handoff": None,
             "error": f"browser hook crashed: {exc}",
         }
 
@@ -971,13 +973,13 @@ def _apply_via_browser_and_record(
         "cover_letter_chars": len(cover_letter),
         "answers": answers,
         "profile_keys": sorted(profile.keys()),
-        "status": "browser_submitted" if browser_result.get("submitted") else "browser_failed",
-        "submitted": bool(browser_result.get("submitted")),
+        "status": "browser_filled" if browser_result.get("ok") else "browser_failed",
+        "submitted": False,
         "fields_detected": browser_result.get("fields_detected", 0),
         "fields_filled": browser_result.get("fields_filled", {}),
         "screenshot": browser_result.get("screenshot"),
-        "screenshot_after_submit": browser_result.get("screenshot_after_submit"),
         "final_url": browser_result.get("final_url"),
+        "browser_open": browser_result.get("browser_open", False),
         "browser_error": browser_result.get("error"),
         "submitted_at": (submitted_at := datetime.now(timezone.utc).isoformat()),
         # Lifecycle fields (see lifecycle.py).
@@ -985,35 +987,35 @@ def _apply_via_browser_and_record(
         "stage_history": [{"stage": "applied", "at": submitted_at, "note": ""}],
         "follow_up_due": None,
         "note": (
-            "Phase 2 browser automation. Verify the submission on the "
-            "live site / in the confirmation email before treating it "
-            "as complete."
+            "Phase 2 browser fill-only: the form was filled from the "
+            "profile and screenshotted. Nothing was submitted — review "
+            "the form and click submit yourself in your browser."
         ),
     }
     applications = _load_applications()
     applications.append(entry)
     _save_applications(applications)
-    # outcome-min-v0 capture: append-only `applied` event. Guarded so
-    # capture can never break a confirmed submission.
-    try:
-        import outcomes as _outcomes
-
-        _outcomes.record_application_event(entry, source="server:browser_apply")
-    except Exception:
-        log.exception("outcome-min-v0 capture failed for %s", job_id)
+    # outcome-min-v0 capture is skipped here: nothing was submitted, so
+    # no applied lifecycle event is recorded for a fill. The
+    # applications.json entry above (submitted: False) is the audit
+    # trail.
     log.info(
-        "Phase 2 apply for %s (%s): submitted=%s",
+        "Phase 2 fill for %s (%s): ok=%s",
         entry["title"],
         job_id,
-        entry["submitted"],
+        browser_result.get("ok"),
     )
-    if browser_result.get("submitted"):
-        message = "Application submitted via browser automation and recorded."
+    if browser_result.get("ok"):
+        message = (
+            "Application form filled via browser automation and recorded. "
+            "Nothing was submitted — review the form and click submit "
+            "yourself."
+        )
     else:
         message = (
-            "Browser automation did not complete a submission "
-            f"({browser_result.get('error') or 'no submit button found'}). "
-            "The attempt was recorded; review the screenshot and finish "
+            "Browser automation did not complete the fill "
+            f"({browser_result.get('error') or 'unknown error'}). "
+            "The attempt was recorded; review the screenshot and fill "
             "manually if needed."
         )
     return {
