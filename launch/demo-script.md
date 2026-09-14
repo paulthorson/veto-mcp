@@ -14,11 +14,10 @@ Target: ~150 spoken words. Music: low, optional, cut under the refusal beat.
 - **Voiceover:** "And sometimes, it says no."
 
 ### 0:05–0:15 — The search
-- **Visual:** results stream in — company, title, board, risk tag on each row
-  (`official` / `scraping`).
-- **On-screen text:** "8 boards. Official APIs first."
-- **Voiceover:** "It searches eight boards — official APIs first, scraping as
-  a fallback, every result tagged with its risk tier."
+- **Visual:** results stream in — company, title, board on each row.
+- **On-screen text:** "4 boards. Official APIs only."
+- **Voiceover:** "It searches four job boards — public and official APIs
+  only. No scraping."
 
 ### 0:15–0:28 — The WhatsApp grill
 - **Visual:** phone screen: WhatsApp notification, then the chat. Five numbered
@@ -50,9 +49,9 @@ Target: ~150 spoken words. Music: low, optional, cut under the refusal beat.
 - **Visual:** `queue_list` showing 4 queued applications, "next in 4m 12s",
   a browser window with a filled form and the submit button unclicked,
   cursor hovering but not clicking.
-- **On-screen text:** "Human pace. Human clicks submit."
-- **Voiceover:** "Real applications queue at human pace — five a day max.
-  It fills the forms. You click submit."
+- **On-screen text:** "Measured pace. You click submit."
+- **Voiceover:** "Real applications queue at a measured pace — five a day
+  max. It fills the forms. You click submit."
 
 ### 0:57–1:00 — CTA
 - **Visual:** black screen.
@@ -72,9 +71,9 @@ Target: ~150 spoken words. Music: low, optional, cut under the refusal beat.
 
 1. "My AI applies to jobs for me."
 2. "Sometimes, it says no."
-3. "8 boards. Official APIs first."
+3. "4 boards. Official APIs only."
 4. "It grills you before it applies."
 5. "Tailored. Never invented."
 6. "REFUSED." (hold)
-7. "Human pace. Human clicks submit."
+7. "Measured pace. You click submit."
 8. "The job bot that says no." + link
