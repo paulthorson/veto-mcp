@@ -42,6 +42,44 @@ def _load_tokens() -> list[str]:
         return []
 
 
+def _coerce_list(value: Any) -> list[Any]:
+    """Best-effort list container for nested vendor collections
+    (`departments`, `offices`). Guarding the items (`isinstance(d, dict)`)
+    is not enough: a hostile truthy non-iterable (e.g. ``42``, ``True``)
+    makes the `raw.get(k) or []` idiom a no-op and iteration raises
+    TypeError, killing the whole call — the N1 defect class one level
+    down. Degrade to [] instead. GUARANTEES list output."""
+    return value if isinstance(value, list) else []
+
+
+def _coerce_location(value: Any) -> str:
+    """Best-effort string location (mirrors ashby._coerce_location). The
+    vendor's `location` normally arrives as {"name": ...}, but hostile
+    shapes (string, list, number, dict with non-string name) arrive —
+    coerce to a string, never crash a .lower() chain. GUARANTEES str
+    output: a non-string dict `name` (e.g. {"name": 123}, {"name":
+    ["x"]}) is stringified, never returned raw."""
+    name = value.get("name") if isinstance(value, dict) else value
+    if name is None:
+        text = ""
+    elif isinstance(name, str):
+        text = name
+    else:
+        text = str(name)
+    return text or "Unknown"
+
+
+def _coerce_text(value: Any) -> str:
+    """Guaranteed-str coercion for description-family fields (`content`).
+    Hostile truthy non-strings (dict, list, number) arrive — coerce to
+    str so strip_html is only ever called on str (its contract is pinned
+    for None/"") and the detail dict never leaks a non-str. Falsy values
+    degrade to ""."""
+    if not value:
+        return ""
+    return value if isinstance(value, str) else str(value)
+
+
 class GreenhouseProvider:
     """Search jobs across curated Greenhouse-hosted company boards."""
 
@@ -75,9 +113,17 @@ class GreenhouseProvider:
                 data = fetch_json(client, "GET", self.LIST_URL.format(token=token))
                 if not data or not isinstance(data, dict):
                     continue
-                company = data.get("company_name") or prettify_token(token)
+                company = str(data.get("company_name") or prettify_token(token))
+                # Guard both the container and its items: a hostile
+                # `jobs` (non-list) or a non-dict item mid-list must not
+                # kill the whole multi-board search — skip them instead.
+                jobs_list = data.get("jobs")
+                if not isinstance(jobs_list, list):
+                    jobs_list = []
                 taken = 0
-                for raw in data.get("jobs", []):
+                for raw in jobs_list:
+                    if not isinstance(raw, dict):
+                        continue
                     if limit and (len(jobs) >= limit or taken >= per_token):
                         break
                     job = self._parse_job(raw, token, company)
@@ -105,16 +151,24 @@ class GreenhouseProvider:
         self, raw: dict[str, Any], token: str, company: str
     ) -> dict[str, Any] | None:
         job_id = raw.get("id")
-        title = (raw.get("title") or "").strip()
+        # isinstance-guarded: vendor `title` and department `name`s are
+        # normally strings, but hostile non-string shapes arrive — coerce
+        # to str so .strip()/join never raise and the dict never leaks
+        # non-strings.
+        title = str(raw.get("title") or "").strip()
         if job_id is None or not title:
             return None
-        loc = raw.get("location") or {}
-        location = (loc.get("name") if isinstance(loc, dict) else str(loc)) or "Unknown"
-        departments = raw.get("departments") or []
+        location = _coerce_location(raw.get("location"))
+        # Container-guarded via _coerce_list (MAJOR round-5 finding): a
+        # hostile truthy non-iterable `departments` (e.g. 42, True) makes
+        # `raw.get(k) or []` a no-op and iteration raises TypeError.
+        departments = _coerce_list(raw.get("departments"))
         dept_text = " ".join(
-            (d.get("name") or "") for d in departments if isinstance(d, dict)
+            str(d.get("name") or "")
+            for d in departments
+            if isinstance(d, dict)
         )
-        url = raw.get("absolute_url") or ""
+        url = str(raw.get("absolute_url") or "")
         payload = f"{token}:{job_id}"
         snippet = f"{title} — {dept_text} — {location}".strip(" —")[:400]
         return {
@@ -135,32 +189,42 @@ class GreenhouseProvider:
         (``"token:jobid"``)."""
         token, sep, job_id = payload.partition(":")
         if not sep or not token or not job_id:
-            return {"board": self.name, "payload": payload,
+            return {"url": "", "board": self.name,
                     "error": f"Malformed Greenhouse payload: {payload!r}"}
         with make_client() as client:
             polite_delay()
             data = fetch_json(
                 client, "GET", self.DETAIL_URL.format(token=token, job_id=job_id)
             )
-        if not data:
+        if not data or not isinstance(data, dict):
+            # Falsy (None, {}) or a truthy non-dict (list, str, ...) from a
+            # degraded vendor response: return the documented fetch-failure
+            # error shape instead of crashing on .get chains.
             return {
                 "url": "",
                 "board": self.name,
                 "error": f"Greenhouse job {payload!r} not found or fetch failed",
             }
-        url = data.get("absolute_url") or ""
-        departments = data.get("departments") or []
-        offices = data.get("offices") or []
+        url = str(data.get("absolute_url") or "")
+        # Container-guarded via _coerce_list (MAJOR round-5 finding):
+        # a hostile truthy non-iterable makes `data.get(k) or []` a no-op
+        # and the comprehensions below raise TypeError.
+        departments = _coerce_list(data.get("departments"))
+        offices = _coerce_list(data.get("offices"))
         metadata = data.get("metadata")
         # Apply-readiness enrichment (Initiative 09, epic 2): the official
         # Job Board API already answers ?questions=true, so we surface the
         # application surface honestly without submitting anything.
-        questions = data.get("questions") or []
+        # `questions` must be a list: a truthy non-list (e.g. a string)
+        # would make len(questions) count characters instead of questions.
+        questions = data.get("questions")
+        if not isinstance(questions, list):
+            questions = []
         required_questions = sum(
             1 for q in questions if isinstance(q, dict) and q.get("required")
         )
         custom_fields = [
-            m.get("name")
+            str(m.get("name"))
             for m in (metadata if isinstance(metadata, list) else [])
             if isinstance(m, dict) and m.get("name")
         ]
@@ -174,22 +238,29 @@ class GreenhouseProvider:
             ):
                 employment_type = str(m.get("value") or "").strip()
                 break
-        location_name = (data.get("location") or {}).get("name") or "Unknown"
+        # isinstance-guarded via _coerce_location: vendor `location`
+        # sometimes arrives as a string, a list, a number, or a dict with a
+        # non-string name instead of {"name": ...} — always a str out.
+        location_name = _coerce_location(data.get("location"))
         return {
             "url": url,
             "board": self.name,
-            "title": data.get("title") or "Unknown",
-            "company": data.get("company_name") or prettify_token(token),
+            "title": str(data.get("title") or "Unknown"),
+            "company": str(data.get("company_name") or prettify_token(token)),
             "location": location_name,
-            "description": strip_html(data.get("content")),
+            "description": strip_html(_coerce_text(data.get("content"))),
             "requirements": self._format_metadata(metadata),
             "departments": [
-                d.get("name") for d in departments if isinstance(d, dict)
+                str(d.get("name"))
+                for d in departments
+                if isinstance(d, dict) and d.get("name")
             ],
             "apply_url": url,
             # --- Initiative 09 enrichment (additive; official API only) ---
             "offices": [
-                o.get("name") for o in offices if isinstance(o, dict)
+                str(o.get("name"))
+                for o in offices
+                if isinstance(o, dict) and o.get("name")
             ],
             "employment_type": employment_type,
             "remote": "remote" in location_name.lower(),
