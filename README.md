@@ -33,10 +33,12 @@ bots skip.
 1. **It won't invent experience.** The cover letter is honesty-scanned;
    any skill or year count your profile can't back up blocks the
    application. Qualification scoring warns or blocks on real gaps.
-2. **It won't burn your accounts.** Scraping-tier boards need your
-   explicit ToS acknowledgment, run on tight daily budgets, and back off
-   exponentially on 403/429/CAPTCHA. A hard daily cap of 5 applications
-   and a polite delay between requests. No bulk blasts, ever.
+2. **It won't burn your accounts.** Veto uses public or official APIs
+   only — no scraping, no logged-in sessions — identifies itself with an
+   honest `veto/<version>` User-Agent, and obeys robots.txt fail-closed
+   ([capability report](docs/capability-report.md) §2, §3, §8, §9.2). A
+   hard daily cap of 5 applications and a polite delay between requests.
+   No bulk blasts, ever.
 3. **It won't go rogue.** A constitutional veto screen reviews every
    planned application; every allow/block decision lands in an audit
    ledger. Nothing is ever submitted without your explicit confirmation.
