@@ -1,0 +1,19 @@
+Vendored design-system CSS (legal-hardening commit 11, spec §8.2).
+
+The site must build hermetically: site/package.json no longer depends on the
+local `file:../../veto-design-system/...` packages (@veto/tokens, @veto/web),
+which are UNLICENSED and exist only on the author's machine. Instead, their
+built CSS is copied here and imported by relative path from site/src/main.tsx.
+
+Files:
+- tokens.css  — from ../../veto-design-system/packages/tokens/dist/tokens.css
+                (@veto/tokens v0.1.0; generated from src/tokens.json)
+- veto-web.css — from ../../veto-design-system/packages/web/dist/veto-web.css
+                (@veto/web v0.1.0)
+
+Re-copy procedure: rebuild the upstream package, then copy its dist CSS over
+the file here, keeping the 7-line "VENDORED" header at the top (source path
+and version). The header records which package version each file came from.
+
+Do NOT publish these packages to fix the build — publishing is blocked until
+the design-system repo has a chosen license (a human decision, spec §12).
