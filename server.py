@@ -169,7 +169,6 @@ for _plugin_name in (
     "soft_skills",
     "ai_proficiency",
     "mentors",
-    "contribute",
     "offer_compare",
     "skill_gaps",
     "cover_letters",
