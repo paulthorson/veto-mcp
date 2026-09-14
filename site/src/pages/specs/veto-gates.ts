@@ -33,7 +33,7 @@ const spec: PageSpec = {
   ],
   demoTitle: 'veto: zsh',
   demoLines: [
-    { text: 'cli.py apply job:indeed:77 --resume ~/r.pdf --confirm', kind: 'cmd' },
+    { text: 'cli.py apply job:greenhouse:9f2c --resume ~/r.pdf --confirm', kind: 'cmd' },
     { text: '\u2192 grill: 4/4 answered \u2713', kind: 'info' },
     { text: '\u2192 honesty check: passed \u2713', kind: 'ok' },
     { text: '\u2192 veto screen: 1 hit: "mass-apply pattern"', kind: 'warn' },
