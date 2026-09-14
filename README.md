@@ -39,7 +39,7 @@ bots skip.
 2. **It won't burn your accounts.** Veto uses public or official APIs
    only — no scraping, no logged-in sessions — identifies itself with an
    honest `veto/<version>` User-Agent, and obeys robots.txt fail-closed
-   ([capability report](docs/capability-report.md) §2, §3, §8, §9.2). A
+   ([capability report](docs/capability-report.md) §2, §3, §8, §9 item 2). A
    hard daily cap of 5 applications and a polite delay between requests.
    No bulk blasts, ever.
 3. **It won't go rogue.** A constitutional veto screen reviews every
@@ -76,7 +76,7 @@ your Google tokens (report §7).
 Tokens and credentials it does hold live only in files only you can
 read (mode `0600`, report §6). The author operates no service and
 receives nothing: no copy of your resume, application history,
-credentials, or correspondence ever reaches the author (report §9.4).
+credentials, or correspondence ever reaches the author (report §9 item 4).
 
 ## Third-party services
 
