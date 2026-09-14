@@ -180,6 +180,36 @@ confirmed it performs pure local text analysis with zero network calls, so the
   the bind to 127.0.0.1; LAN access remains an explicit `--host` flag AND
   requires the bearer token (already the shipped behavior per the token-auth
   file, verified by commit 10).
+- Commit-10 verification (2026-09-14, exact lines re-derived; they drifted
+  from the commit-1 note): the complete tracked-tree bind inventory is
+  `webui.py:1871` (`serve(port, host="127.0.0.1", token=None)` — creates
+  `_Server((host, port), _Handler)`), `webui.py:1680`
+  (`resolve_bind_host`: the explicit `--host lan` maps to the auto-detected
+  LAN IP; explicit IPs and `0.0.0.0` pass through unchanged),
+  `webui.py:1920` (`cmd_serve` falls back to `"127.0.0.1"` when the flag is
+  absent), `webui.py:1989` (`_main` argparse `--host` default
+  `127.0.0.1`), and `cli.py:582` (`serve` subcommand `--host` default
+  `127.0.0.1`). No other tracked file binds a socket: `server.py` is stdio
+  only, `wizard.py:666` is a UDP `connect()` for IP display (never a bind).
+- Token gate verified: every `/api/*` route is gated by
+  `_Handler._require_auth` (:1748) in both `do_GET` (:1781) and `do_POST`
+  (:1828) BEFORE routing — including nonexistent `/api/` paths — so no
+  route can be added below the gate; fail-closed, never served open. The
+  token file (`token_file_path` :1597, default `~/.veto_webui_token`) is
+  created at mode 0600 on first start (`load_or_create_token` :1603) and
+  existing files with looser permissions are tightened to 0600 with a
+  stderr warning.
+- Documented boot behavior for `--host lan` with no token file: the server
+  does NOT refuse; it generates the token first (`cmd_serve` :1942-1955),
+  prints it exactly once, and only then binds. So LAN exposure always has
+  the token installed before any socket listens.
+- Commit-10 tests added: `tests/test_bind_hardening.py` (16 tests, 5
+  subtests) — default bind is 127.0.0.1 in `serve()`'s signature, both
+  CLI parsers, and `cmd_serve`; a real `serve(0)` socket's kernel
+  getsockname proves it cannot accept off-interface connections; LAN
+  requires the explicit `--host` flag; the `--host lan` + missing-token
+  flow generates the token first and prints it once; the auth gate
+  precedes routing on every `/api/*` path.
 - The commit-12 test asserts the uvicorn default bind is 127.0.0.1 (spec §11)
   against whichever component can bind.
 
