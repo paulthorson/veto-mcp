@@ -137,7 +137,6 @@ class TestHelpGrouping(unittest.TestCase):
             "autopsy": "WIN",
             "crew": "GOVERN",
             "streaks": "GOVERN",
-            "contribute": "GOVERN",
             "doctor": "UTILITIES",
         }
         for command, group in expected.items():

@@ -799,57 +799,6 @@ def _h_email_draft(params):
                                      params.get("kind") or "check_in")
 
 
-# ---- GOVERN: contribute --------------------------------------------------------
-
-def _h_contrib_preview(params):
-    import contribute
-    _require(params, "session_ids")
-    return contribute.preview_contribution(list(params["session_ids"]))
-
-
-def _contrib_preview_canonical(params):
-    """Canonical preview for the contribute submit gate.
-
-    Calls preview_contribution (which records the bundle hash in the
-    module's preview registry — required for submit to succeed) and
-    derives a canonical string from the deterministic bundle_hash."""
-    _require(params, "session_ids")
-    import contribute
-    session_ids = list(params["session_ids"])
-    result = contribute.preview_contribution(session_ids)
-    if "bundle_hash" not in result:
-        raise _GateError(result.get("error") or "could not build contribution bundle")
-    canonical = json.dumps(
-        {"session_ids": sorted(str(s) for s in session_ids),
-         "bundle_hash": result["bundle_hash"]},
-        sort_keys=True,
-    )
-    preview_text = "\n".join([
-        "CONTRIBUTION BUNDLE — review before confirming",
-        f"bundle_hash: {result['bundle_hash']}",
-        f"sessions: {result.get('bundle', {}).get('session_count', len(session_ids))}",
-        "Scrubbed per the scrub rules (see scrub_rules action).",
-        "Submit stages the bundle to the LOCAL outbox only — nothing is uploaded.",
-    ])
-    return canonical, preview_text
-
-
-def _contrib_submit_confirmed(params):
-    import contribute
-    return contribute.submit_contribution(list(params["session_ids"]), confirmed=True)
-
-
-def _h_contrib_scrub(_params):
-    import contribute
-    return {"rules": contribute.scrub_rules_report()}
-
-
-def _h_contrib_toggle(params):
-    import contribute
-    _require(params, "enabled")
-    return contribute.set_contributions_enabled(bool(params["enabled"]))
-
-
 # ---- GOVERN: crew -------------------------------------------------------------------
 
 def _h_crew_run(params):
@@ -1054,10 +1003,6 @@ GATED = {
     ("followup", "send"): {
         "preview": _followup_preview_pair,
         "run": _followup_send_confirmed,
-    },
-    ("contribute", "submit"): {
-        "preview": _contrib_preview_canonical,
-        "run": _contrib_submit_confirmed,
     },
     ("search", "record_apply"): {
         "preview": _apply_preview_canonical,
@@ -1406,21 +1351,7 @@ TOOLS = [
                                             _p("kind", "string", default="check_in", help="'check_in', 'thank_you', or 'nudge'.")]),
      ]},
     # ---------------- GOVERN ----------------
-    {"id": "contribute", "group": "GOVERN", "name": "Training-data contributions",
-     "description": "Preview, scrub, and stage anonymized training sessions for maintainers. Never transmits anything.",
-     "actions": [
-         _a("preview", "Build the exact bundle that would be staged; nothing is sent.",
-            _h_contrib_preview, [_p("session_ids", "array", True)]),
-         _a("submit", "Stage the bundle to the local outbox. CONFIRM-GATED: preview first, then re-call with confirmed=true and the preview_hash.",
-            _h_contrib_preview,  # placeholder; dispatch uses GATED entry
-            [_p("session_ids", "array", True), _p("confirmed", "boolean"),
-             _p("preview_hash", "string")]),
-         _a("scrub_rules", "PII scrubbing rules applied to bundles.",
-            _h_contrib_scrub, []),
-         _a("toggle", "Enable or disable contributions (kill-switch).",
-            _h_contrib_toggle, [_p("enabled", "boolean", True)]),
-     ]},
-    {"id": "crew", "group": "GOVERN", "name": "Agent crew",
+        {"id": "crew", "group": "GOVERN", "name": "Agent crew",
      "description": "Specialist personas, red-team scans, and compliance screening.",
      "actions": [
          _a("run", "Run a specialist persona on a task.",
