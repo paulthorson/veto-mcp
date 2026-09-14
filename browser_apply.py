@@ -389,7 +389,7 @@ class _FilledForm(dict):
 
     A plain ``dict[str, str]`` in every other respect (JSON-serializable,
     ``.items()``, equality with plain dicts), so existing consumers
-    (``easy_apply``, the result dict) and test doubles are unaffected.
+    (the result dict) and test doubles are unaffected.
     For ``<select>`` fields the dict value is the approved profile value
     used as the match needle — i.e. what the approval prompt shows; the
     TRANSMITTED bytes live in ``select_bindings``.
@@ -2954,7 +2954,7 @@ def _capture_control_snapshot(
     would transmit bytes the approval never bound).
 
     R7-B: this fill-time capture is kept (``fill_application`` still
-    calls it; ``easy_apply`` still consumes it) but it is SUPERSEDED
+    calls it) but it is SUPERSEDED
     on the submit path — ``_attempt_authorized_submit`` re-captures
     the baseline immediately before presenting the approval, and the
     approval display plus the submit-time diff bind THAT pre-approval

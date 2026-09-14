@@ -328,7 +328,6 @@ _PLUGIN_MODULE_GROUPS = {
     "cover_letters": "TAILOR",
     "linkedin_optimizer": "TAILOR",
     "ats_apply": "APPLY",
-    "easy_apply": "APPLY",
     "apply_queue": "APPLY",
     "grill": "APPLY",
     "mock_interview": "TRAIN",
@@ -383,7 +382,6 @@ class _GroupedHelpFormatter(argparse.HelpFormatter):
 
 _PLUGIN_CLI_MODULES = (
     "ats_apply",
-    "easy_apply",
     "apply_queue",
     "doctor",
     "analytics",

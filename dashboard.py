@@ -60,7 +60,6 @@ import briefs  # noqa: E402
 import analytics  # noqa: E402
 import watch  # noqa: E402
 import compliance  # noqa: E402
-import easy_apply  # noqa: E402
 import browser_apply  # noqa: E402
 # NOTE: ats_apply is imported lazily inside wf_apply (it needs httpx).
 
@@ -524,15 +523,14 @@ def wf_linkedin() -> None:
 
 
 def wf_apply() -> None:
-    """Guided dry-run of one application (official ATS, browser fill, or
-    LinkedIn Easy Apply), with the paced drip queue as the alternative:
+    """Guided dry-run of one application (official ATS or browser fill),
+    with the paced drip queue as the alternative:
     park, view, remove, or run it (run submits for real and asks first).
     Preview only: the dashboard never submits an application."""
     _divider("APPLY TO A JOB (DRY-RUN)")
     path = ask_choice(
         "Application path",
-        ["official ATS (direct API)", "browser fill (your logged-in session)",
-         "LinkedIn Easy Apply (fill-only)"],
+        ["official ATS (direct API)", "browser fill (your logged-in session)"],
         default="official ATS (direct API)",
     )
     job_id = ask("Job id (board:payload, from search results)", required=True)
@@ -605,18 +603,6 @@ def wf_apply() -> None:
             print(f"    fields that would be sent: {', '.join(fields)}")
         if preview.get("note"):
             print(f"    note: {preview['note']}")
-    elif path.startswith("LinkedIn"):
-        preview = easy_apply.preview_easy_apply(job_id, profile, resume_path)
-        if preview.get("status") == "error":
-            print(f"  {preview.get('error')}")
-            return
-        print("  Fill plan (no browser launched):")
-        for step in preview.get("steps") or []:
-            print(f"    - {step}")
-        fields = preview.get("fields_would_fill") or []
-        if fields:
-            print(f"    fields it would fill: {', '.join(fields)}")
-        print(f"    guarantee: {preview.get('guarantee')}")
     else:
         print("  Browser fill preview:")
         print(f"    saved {board} login session: "
@@ -629,7 +615,7 @@ def wf_apply() -> None:
 
     print("\n  The dashboard never submits applications. To file for real, "
           "use the module's own confirm flow "
-          "(apply_to_job / apply_via_ats / easy_apply_fill).")
+          "(apply_to_job / apply_via_ats).")
     if ask_yes_no("Park this job in the drip queue instead (paced, "
                   "human-speed)?"):
         item = apply_queue.add_to_queue(job_id)
