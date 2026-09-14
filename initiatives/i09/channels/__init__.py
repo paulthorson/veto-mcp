@@ -15,6 +15,7 @@ from initiatives.i09.channels.registry import (
     is_enabled,
     quarantine_consent_log,
     record_quarantine_audit,
+    request_action_approval,
     request_send_approval,
     rotate_consent_key,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "is_enabled",
     "quarantine_consent_log",
     "record_quarantine_audit",
+    "request_action_approval",
     "request_send_approval",
     "rotate_consent_key",
 ]
