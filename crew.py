@@ -1072,8 +1072,17 @@ def ext_install(ext_dir: str) -> dict:
     revocations = RevocationList(Path(base) / "extensions_revocations.json")
     if revocations.is_revoked(manifest["id"], manifest["version"]):
         return {"ok": False, "error": "this version was revoked; refusing install"}
-    loaded = host.load_extension(ext_dir, trust=(
-        "signed" if sig["ok"] else "local-unsigned"))
+    # Reviewed API (initiatives/i11/sandbox/host.py:734): trust is DERIVED
+    # inside load_extension from the packaging signature — there is no
+    # caller-supplied trust label, and passing one would violate the
+    # reviewed security design. unsafe_local_only=True is the explicit,
+    # reviewed opt-in for the CLI install path: this terminal command is a
+    # human operator's deliberate act, acknowledging the residual risk of
+    # in-process execution documented in
+    # initiatives/i11/sandbox/SECURITY_RESIDUAL.md. Unsigned packages get
+    # the honest ``local-unsigned`` label from _derive_trust — never
+    # elevated by the caller. The revocation check above stays in place.
+    loaded = host.load_extension(ext_dir, unsafe_local_only=True)
     store = InstallStore(Path(base) / "extensions_installed.json")
     store.record_install(InstallRecord(
         ext_id=manifest["id"], version=manifest["version"],
