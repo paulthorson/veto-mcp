@@ -380,7 +380,8 @@ def fill_easy_apply(
                     page, f"easy-apply-rescue-{rescue.reason}"
                 )
                 rescue.screenshot_path = str(shot) if shot else None
-                result["screenshots"].append(rescue.screenshot_path or "")
+                if rescue.screenshot_path:
+                    result["screenshots"].append(rescue.screenshot_path)
                 result["status"] = "rescue_paused"
                 result["rescue"] = rescue.to_dict()
                 result["error"] = (
@@ -430,7 +431,8 @@ def fill_easy_apply(
                             page, f"easy-apply-rescue-{rescue.reason}"
                         )
                         rescue.screenshot_path = str(shot) if shot else None
-                        result["screenshots"].append(rescue.screenshot_path or "")
+                        if rescue.screenshot_path:
+                            result["screenshots"].append(rescue.screenshot_path)
                         result["status"] = "rescue_paused"
                         result["rescue"] = rescue.to_dict()
                         result["steps_taken"] = step

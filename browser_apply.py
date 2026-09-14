@@ -625,6 +625,29 @@ def apply_via_browser(
                     )
                 else:
                     try:
+                        # --- Session rescue (Initiative 09, epic 5):
+                        # pre-submit re-check. A CAPTCHA or auth wall may
+                        # have appeared after filling (invisible reCAPTCHA
+                        # v3 scores on submit; post-fill injected
+                        # challenges). CAPTCHA is NEVER bypassed — on a
+                        # hit, the click is skipped and the
+                        # pause-and-hand-off IS the feature.
+                        rescue = session_rescue.check(page, board=board)
+                        if rescue is not None:
+                            shot = _take_screenshot(
+                                page, f"rescue-pre-submit-{rescue.reason}"
+                            )
+                            rescue.screenshot_path = str(shot) if shot else None
+                            result["paused"] = True
+                            result["rescue"] = rescue.to_dict()
+                            result["final_url"] = page.url
+                            result["error"] = (
+                                f"Paused: {rescue.reason} detected before "
+                                f"submit — control handed to the user. "
+                                f"{rescue.what_user_should_do}"
+                            )
+                            result["ok"] = False
+                            return result
                         submit.click(timeout=10000)
                         try:
                             page.wait_for_load_state("networkidle", timeout=20000)

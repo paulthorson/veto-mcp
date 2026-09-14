@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Provider-health contract — Initiative 09's interface to Initiative 03.
 
-STATUS (2026-09-13, updated): Initiative 03's provider-health contract
-EXISTS in-tree as ``provider_health.py`` (repo root, currently uncommitted
-— the 03 team's work in progress). Per the roadmap's CONTRACT-FIRST rule,
-this module is now an ADAPTER over their contract, not a parallel
-definition:
+STATUS (2026-09-13, reworked): Initiative 03's provider-health contract
+EXISTS in-tree and is committed (``provider_health.py``, repo root). Per
+the roadmap's CONTRACT-FIRST rule, this module is an ADAPTER over their
+contract, not a parallel definition:
 
 * WRITE path: providers call ``provider_health.record_fetch`` /
   ``record_captcha`` (03's functions) — directly or via
-  ``health_contract.record_fetch`` below, which delegates.
+  ``health_contract.record_fetch`` / ``ProviderHealthAdapter.record``,
+  which delegate.
 * READ path: the scorecard reads through ``default_store()``, which
   returns a ``ProviderHealthAdapter`` mapping 03's ``provider_status()``
   rows onto ``HealthSnapshot``. The mapping is explicit (see
@@ -17,14 +17,17 @@ definition:
   needs updating.
 * FALLBACK: if ``provider_health`` cannot be imported (e.g. 03
   restructures mid-flight), ``default_store()`` degrades to the local
-  ``FileHealthStore`` with a warning — the scorecard keeps working.
+  ``FileHealthStore`` — loudly (stderr + log error, not a silent log
+  warning) — and the scorecard keeps working on an i09-owned store with
+  03-mirroring semantics.
 
-ASSUMPTION FLAG (for the program coordinator): the "03's contract lands
-as described" assumption is now CONFIRMED with caveats — (1) 03's file is
-uncommitted/in-flight, so field names could still shift before they ship;
-(2) 03 tracks recovery streaks in *days* and last-success as ISO strings,
-so this adapter converts; (3) 03 has no per-attempt timestamp, so
-"freshness" here means time since last successful fetch.
+FAIL-SAFE ON SCHEMA DRIFT (Rule 1 hardening): ``snapshot_from_status``
+recognizes exactly 03's documented statuses (``ok``/``cooling``/
+``degraded``/``blocked``). An absent or unrecognized ``status`` maps to
+an EXPLICIT ``unknown`` state — ``success`` is ``False`` (never ``True``)
+so the scoreboard can never render drift as green/healthy. ``unknown``
+snapshots are also never written to 03's store on the adapter write
+path: inventing a fetch we did not observe would be fabricated data.
 
 This module never edits ``provider_health.py`` (another team's file).
 """
@@ -33,6 +36,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -55,6 +60,18 @@ CAPABILITY_LABELS: dict[str, str] = {
 
 #: 03's captcha states -> this adapter's captcha states.
 _CAPTCHA_MAP = {"clear": "none", "challenged": "seen", "blocked": "blocking"}
+
+#: The only ``provider_status()`` statuses this adapter recognizes, per
+#: 03's ``provider_status`` docstring ("ok / cooling / degraded /
+#: blocked"). Anything else — absent or unrecognized — is schema drift
+#: and maps to an explicit ``unknown`` snapshot (never to ``ok``).
+_KNOWN_STATUSES = frozenset({"ok", "cooling", "degraded", "blocked"})
+
+#: Fallback JSONL store: append-only is bounded by compaction. Once the
+#: file exceeds this many lines, the store is compacted down to the most
+#: recent snapshot per provider. Retention policy: per-provider latest
+#: only after compaction; no history beyond the live tail is kept.
+FALLBACK_MAX_LINES = 1000
 
 
 def _provider_health_module() -> Any | None:
@@ -86,11 +103,26 @@ class HealthSnapshot:
 
     The scorecard consumes these; ``snapshot_from_status`` builds them
     from 03's ``provider_status()`` rows.
+
+    ``status`` is the mapped tri-state: ``"ok"`` (observed success),
+    ``"error"`` (observed failure / captcha / cooldown), or ``"unknown"``
+    (03's row had no recognizable status — absent or unrecognized — so we
+    know nothing; ``success`` is ``False`` and the scoreboard must not
+    render green). ``status`` and ``success`` are always consistent:
+    ``"ok"`` implies ``success=True``; anything else implies ``False``.
+
+    ``recovery_streak`` is measured in CALENDAR DAYS, matching 03's
+    ``recovery_streak_days`` exactly: the number of distinct days on
+    which this provider recovered from a failing state. It increments at
+    most once per calendar day (guarded by ``last_recovery_day``) and is
+    NOT per-attempt. The ``FileHealthStore`` fallback mirrors 03's day
+    math so the column means the same thing on both stores.
     """
 
     provider: str
     fetched_at: float  # epoch seconds; here = last successful fetch
     success: bool
+    status: str = "ok"  # "ok" | "error" | "unknown"
     freshness_s: float = 0.0
     error_state: str = ""
     last_success_ts: float = 0.0
@@ -99,7 +131,8 @@ class HealthSnapshot:
     budget_total: int = 0
     cooldown_until: float = 0.0
     captcha_state: str = "none"  # "none" | "seen" | "blocking"
-    recovery_streak: int = 0
+    recovery_streak: int = 0  # calendar DAYS (see docstring), not attempts
+    last_recovery_day: str = ""  # ISO date (UTC) of last streak increment
     consecutive_failures: int = 0
     detail: str = ""
 
@@ -125,27 +158,50 @@ def snapshot_from_status(provider: str, row: dict[str, Any]) -> HealthSnapshot:
 
     This is the entire 03→09 field mapping. If 03 renames fields, update
     here and only here.
+
+    Rule 1 fail-safe: only 03's documented statuses are recognized. An
+    absent or unrecognized ``status`` yields an explicit ``unknown``
+    snapshot with ``success=False`` — schema drift is never coerced to
+    healthy.
     """
     from providers import _contract as _contract_mod
 
     now = time.time()
-    status = row.get("status") or "ok"
+    raw_status = row.get("status")
+    if raw_status in _KNOWN_STATUSES:
+        status = "ok" if raw_status == "ok" else "error"
+        success = raw_status == "ok"
+        error_state: str | None = None
+    else:
+        status = "unknown"
+        success = False
+        error_state = f"unknown:status={raw_status!r}"
+        log.warning(
+            "provider_health row for %s has unrecognized status %r; "
+            "surfacing as UNKNOWN (never healthy)",
+            provider,
+            raw_status,
+        )
     last_success = _parse_ts(row.get("last_successful_fetch"))
     budget = row.get("budget") or {}
     daily_limit = budget.get("daily_limit")
     declared_daily, _ = _contract_mod.budget_for(provider)
-    if status == "blocked":
-        error_state = f"captcha:{row.get('captcha_state') or 'blocked'}"
-    elif status == "cooling":
-        error_state = row.get("cooldown_reason") or "cooling"
-    elif status == "degraded":
-        error_state = f"{row.get('consecutive_failures') or 0}x_consecutive_failures"
-    else:
-        error_state = ""
+    if error_state is None:
+        if raw_status == "blocked":
+            error_state = f"captcha:{row.get('captcha_state') or 'blocked'}"
+        elif raw_status == "cooling":
+            error_state = row.get("cooldown_reason") or "cooling"
+        elif raw_status == "degraded":
+            error_state = (
+                f"{row.get('consecutive_failures') or 0}x_consecutive_failures"
+            )
+        else:
+            error_state = ""
     return HealthSnapshot(
         provider=provider,
         fetched_at=last_success or 0.0,
-        success=status == "ok",
+        success=success,
+        status=status,
         freshness_s=(now - last_success) if last_success else 0.0,
         error_state=error_state,
         last_success_ts=last_success,
@@ -173,9 +229,39 @@ class HealthStore(Protocol):
 class ProviderHealthAdapter:
     """Read/write adapter over Initiative 03's ``provider_health`` module.
 
-    Writes delegate to 03's ``record_fetch``/``record_captcha`` so there is
-    exactly one write path. Reads map ``provider_status()`` rows onto
-    ``HealthSnapshot`` via ``snapshot_from_status``.
+    Writes delegate to 03's ``record_fetch``/``record_captcha``/
+    ``set_budget``/``cooldown`` so there is exactly one write path. Reads
+    map ``provider_status()`` rows onto ``HealthSnapshot`` via
+    ``snapshot_from_status``.
+
+    Write-path field coverage (what is NOT dropped):
+
+    * ``success``/``detail``/``error_state`` → ``record_fetch(ok, note)``.
+      03 counts the attempt itself (``used_today``/``total_fetches`` +1).
+    * ``budget_total`` → ``set_budget(daily_limit)`` when > 0.
+    * ``cooldown_until`` → remaining seconds passed to
+      ``record_captcha(..., cooldown_seconds=...)`` for a block, or to
+      ``cooldown(seconds, reason)`` for a captcha-free cooldown.
+    * ``captcha_state`` → ``record_captcha`` ("seen"→"challenged",
+      "blocking"→"blocked"). A successful fetch already clears a
+      transient challenge inside 03's ``record_fetch``.
+    * ``status == "unknown"`` → NOTHING is written. An unknown snapshot
+      is not an observed outcome; writing it to 03's store would invent a
+      fetch that never happened.
+
+    What is still lost, and why (03's contract has no counterpart):
+
+    * ``budget_used`` (absolute): 03 owns budget counters internally;
+      there is no setter for ``used_today``. The attempt just recorded is
+      counted (+1), so 03's ``used_today`` stays truthful on its own
+      terms — but an absolute ``budget_used`` carried on the snapshot
+      cannot be imposed.
+    * ``capability_label``: a display label defined by i09
+      (``CAPABILITY_LABELS``); 03's contract has no capability concept, so
+      it stays on the ``HealthSnapshot`` for the scorecard column only.
+    * ``fetched_at``/``last_success_ts``/``recovery_streak``/
+      ``consecutive_failures``: 03 derives all of these from its own
+      write history; they are read back via ``provider_status()``.
     """
 
     def record(self, snapshot: HealthSnapshot) -> None:
@@ -184,8 +270,40 @@ class ProviderHealthAdapter:
             raise RuntimeError(
                 "provider_health unavailable and no fallback store configured"
             )
+        if snapshot.status == "unknown":
+            log.warning(
+                "refusing to write UNKNOWN snapshot for %s to "
+                "provider_health: no observed outcome",
+                snapshot.provider,
+            )
+            return
+        now = time.time()
         if snapshot.captcha_state == "blocking":
-            ph.record_captcha(snapshot.provider, "blocked")
+            remaining = snapshot.cooldown_until - now
+            ph.record_captcha(
+                snapshot.provider,
+                "blocked",
+                cooldown_seconds=(
+                    max(1, int(remaining)) if remaining > 0 else 3600
+                ),
+            )
+        elif snapshot.captcha_state == "seen":
+            remaining = snapshot.cooldown_until - now
+            ph.record_captcha(
+                snapshot.provider,
+                "challenged",
+                cooldown_seconds=(
+                    max(1, int(remaining)) if remaining > 0 else 3600
+                ),
+            )
+        elif snapshot.cooldown_until > now:
+            ph.cooldown(
+                snapshot.provider,
+                int(snapshot.cooldown_until - now),
+                reason=snapshot.error_state or snapshot.detail,
+            )
+        if snapshot.budget_total > 0:
+            ph.set_budget(snapshot.provider, snapshot.budget_total)
         ph.record_fetch(
             snapshot.provider,
             snapshot.success,
@@ -215,31 +333,75 @@ class FileHealthStore:
     use. One JSON object per line; ``latest()`` scans from the end. Health
     data never leaves the device.
 
-    Streak math (last success, recovery streak, consecutive failures) is
-    computed here on write, mirroring 03's semantics, so this store is
-    self-consistent when used standalone.
+    Streak math mirrors 03 exactly: ``recovery_streak`` counts distinct
+    CALENDAR DAYS on which a failing provider recovered (at most one
+    increment per day, guarded by ``last_recovery_day``) — it is NOT
+    per-attempt. A snapshot whose ``status`` is ``"unknown"`` carries no
+    observed outcome, so all counters carry forward untouched (an unknown
+    is neither a success nor a failure).
+
+    RETENTION (bounded growth): the file is compacted to the most recent
+    snapshot per provider once it exceeds ``FALLBACK_MAX_LINES`` lines
+    (checked every 100 records). The store therefore cannot grow
+    unboundedly in the working tree.
     """
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
         self._cache: dict[str, HealthSnapshot] = {}
+        self._writes_since_check = 0
 
     def record(self, snapshot: HealthSnapshot) -> None:
         prev = self._cache.get(snapshot.provider)
         if prev is None:
             prev = self._latest_from_file(snapshot.provider)
         now = time.time()
-        if snapshot.success:
+        today = datetime.now(timezone.utc).date().isoformat()
+        if snapshot.status == "unknown":
+            # No observed outcome: counters stay exactly as the previous
+            # snapshot left them. Unknown is unknown, not a failure.
+            snapshot.last_success_ts = prev.last_success_ts if prev else 0.0
+            snapshot.fetched_at = prev.fetched_at if prev else now
+            snapshot.recovery_streak = prev.recovery_streak if prev else 0
+            snapshot.last_recovery_day = (
+                prev.last_recovery_day if prev else ""
+            )
+            snapshot.consecutive_failures = (
+                prev.consecutive_failures if prev else 0
+            )
+        elif snapshot.success:
+            was_failing = (prev.consecutive_failures if prev else 0) > 0
             snapshot.last_success_ts = now
             snapshot.fetched_at = now
-            snapshot.recovery_streak = (prev.recovery_streak + 1) if prev else 1
             snapshot.consecutive_failures = 0
             snapshot.error_state = ""
             snapshot.captcha_state = "none"
+            if was_failing:
+                # One increment per calendar day at most (03's day math).
+                if (prev.last_recovery_day if prev else "") != today:
+                    snapshot.recovery_streak = (
+                        prev.recovery_streak if prev else 0
+                    ) + 1
+                    snapshot.last_recovery_day = today
+                else:
+                    snapshot.recovery_streak = (
+                        prev.recovery_streak if prev else 0
+                    )
+                    snapshot.last_recovery_day = (
+                        prev.last_recovery_day if prev else ""
+                    )
+            else:
+                snapshot.recovery_streak = prev.recovery_streak if prev else 0
+                snapshot.last_recovery_day = (
+                    prev.last_recovery_day if prev else ""
+                )
         else:
             snapshot.last_success_ts = prev.last_success_ts if prev else 0.0
             snapshot.fetched_at = prev.fetched_at if prev else now
-            snapshot.recovery_streak = 0
+            snapshot.recovery_streak = prev.recovery_streak if prev else 0
+            snapshot.last_recovery_day = (
+                prev.last_recovery_day if prev else ""
+            )
             snapshot.consecutive_failures = (
                 prev.consecutive_failures + 1 if prev else 1
             )
@@ -251,6 +413,42 @@ class FileHealthStore:
             log.warning("Could not write health snapshot: %s", exc)
             return
         self._cache[snapshot.provider] = snapshot
+        self._writes_since_check += 1
+        if self._writes_since_check >= 100:
+            self._writes_since_check = 0
+            self._compact_if_needed()
+
+    def _compact_if_needed(self) -> None:
+        """Bound the append-only file: keep the latest line per provider."""
+        if not self.path.exists():
+            return
+        try:
+            with self.path.open(encoding="utf-8") as fh:
+                lines = fh.readlines()
+        except OSError:
+            return
+        if len(lines) <= FALLBACK_MAX_LINES:
+            return
+        latest: dict[str, str] = {}
+        for line in lines:
+            try:
+                name = json.loads(line).get("provider")
+            except (json.JSONDecodeError, AttributeError):
+                continue
+            if name:
+                latest[name] = line
+        try:
+            with self.path.open("w", encoding="utf-8") as fh:
+                fh.writelines(latest.values())
+        except OSError as exc:
+            log.warning("Could not compact health store: %s", exc)
+            return
+        log.info(
+            "Compacted %s: %d lines -> %d providers",
+            self.path,
+            len(lines),
+            len(latest),
+        )
 
     def _latest_from_file(self, provider: str) -> HealthSnapshot | None:
         if not self.path.exists():
@@ -316,12 +514,15 @@ def record_fetch(
 
     Streak/last-success math is the store's job (03's ``record_fetch`` on
     the adapter path; ``FileHealthStore.record`` on the fallback path) —
-    this function only supplies the attempt's facts.
+    this function only supplies the attempt's facts. ``success`` is an
+    observed outcome, never inferred: the snapshot's ``status`` is
+    derived from it (``"ok"``/``"error"``).
     """
     snapshot = HealthSnapshot(
         provider=provider,
         fetched_at=time.time(),
         success=success,
+        status="ok" if success else "error",
         error_state="" if success else error_state,
         capability_label=capability_label,
         budget_used=budget_used,
@@ -334,16 +535,35 @@ def record_fetch(
     return snapshot
 
 
+def _fallback_path() -> Path:
+    """Fallback store location: OUT of the repo tree.
+
+    Local-first device data belongs in the user's data dir, not the git
+    working tree (bounded by ``FileHealthStore`` compaction regardless).
+    """
+    base = Path(os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local" / "share"))
+    return base / "veto" / "provider_health_fallback.jsonl"
+
+
 def default_store() -> HealthStore:
     """The store the scorecard reads.
 
     Initiative 03's ``provider_health`` when importable, else the local
-    JSONL fallback. If 03's contract publishes in a new location, update
+    JSONL fallback. The fallback switch is LOUD (stderr + error log —
+    the two stores have different semantics: 03's live contract vs i09's
+    day-unit approximation) because it changes what the scoreboard means.
+    If 03's contract publishes in a new location, update
     ``_provider_health_module`` — nothing downstream changes.
     """
     if _provider_health_module() is not None:
         return ProviderHealthAdapter()
-    log.warning("Falling back to FileHealthStore; 03's contract unavailable")
-    return FileHealthStore(
-        Path(__file__).resolve().parent.parent / "provider_health_fallback.jsonl"
+    path = _fallback_path()
+    msg = (
+        "health_contract: Initiative 03's provider_health is unavailable — "
+        f"using LOCAL JSONL FALLBACK at {path}. Recovery streaks on this "
+        "store are i09's day-unit approximation and 03's budget counters "
+        "are not shared. The scoreboard's meaning changes on this path."
     )
+    log.error(msg)
+    print(msg, file=sys.stderr)
+    return FileHealthStore(path)
