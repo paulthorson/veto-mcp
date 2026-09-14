@@ -1,9 +1,9 @@
 # Veto — the AI job applier that says no
 
 > Every AI job bot promises to blast 1,000 applications while you sleep.
-> This one searches 8 job boards, grills you over WhatsApp about the gaps
-> in your resume, tailors every application — and **refuses to submit the
-> ones you're not qualified for.**
+> This one searches official job-board APIs, grills you over WhatsApp
+> about the gaps in your resume, tailors every application — and
+> **never submits a single one. The final click is always yours.**
 
 Veto is an open-source [MCP](https://modelcontextprotocol.io/)
 server that turns your AI assistant into a job-search agent with a
@@ -13,9 +13,9 @@ bots skip.
 
 ## The 60-second tour
 
-1. **Search.** One query across Greenhouse, Lever, Ashby, Adzuna,
-   LinkedIn, Indeed, and ZipRecruiter. Official APIs where they exist;
-   polite, budgeted, circuit-broken scraping where they don't.
+1. **Search.** One query across Greenhouse, Lever, Ashby, and Adzuna —
+   public or official APIs only — plus your own saved listings. Deduped,
+   tier-tagged, and ranked.
 2. **Grill.** Before anything is submitted, it interrogates *you* —
    missing skills, unquantified experience, salary, logistics — over chat,
    WhatsApp, or Gmail. Answer on your phone; the application waits.
@@ -23,8 +23,8 @@ bots skip.
    cover letter referencing the actual role. It never invents experience
    — gaps are reported, not padded.
 4. **Fill, don't submit.** The agent fills the application form and stops
-   at the review screen. *You* click submit. On sites whose ToS forbid
-   automation, it never touches the submit button at all.
+   at the review screen. *You* click submit. The software never touches
+   the submit button — on any site, ever.
 5. **Track.** Stages, follow-up nudges, recruiter-email sync, response
    analytics by board.
 
@@ -116,7 +116,7 @@ Or point any MCP client at it — ready-to-paste config in
 |---|---|
 | `search_jobs(query, location, board="all", limit=10, remote_only=False)` | Search postings. Returns jobs with `id`, `title`, `company`, `location`, `url`, `board`, `snippet`. |
 | `get_job_details(job_id)` | Full description, requirements, and `apply_url` for one job. |
-| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 logs locally (default), or Phase 2 auto-fills + submits in headless Chromium when `JOB_MCP_BROWSER_APPLY=1` and a `profile` dict are provided. `profile` defaults to your saved wizard profile. Never submits without `confirm=True`. |
+| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 records the application locally (default), or Phase 2 fills the form in headless Chromium when `JOB_MCP_BROWSER_APPLY=1` and a `profile` dict are provided — then stops at the review screen so you can click submit yourself. `profile` defaults to your saved wizard profile. The software never submits. |
 | `get_profile()` | Returns the applicant profile saved by the onboarding wizard (`profiles/profile.json`), or setup instructions if it doesn't exist yet. |
 | `list_boards()` | Supported boards and their status (`active` / `stub`). |
 | `track_applications()` | Everything recorded in `applications.json`. |
@@ -132,8 +132,7 @@ risk-sensitive path is adjudicated by the risk policy (see
 | Area | Tools | What it does |
 |---|---|---|
 | **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Channels: chat (default), WhatsApp, Gmail — chosen in the onboarding wizard. Gmail replies are matched by a `[grill:<id>]` subject tag and ingested automatically. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
-| **Direct ATS apply** | `apply_via_ats` | Official ATS application endpoints only (Greenhouse/Lever/Ashby with employer-issued keys). Investigated honestly: no verified anonymous endpoint exists, so unsupported attempts return a clear error instead of guessing. |
-| **LinkedIn Easy Apply** | `easy_apply_fill` | **Fill-only.** Drives the Easy Apply modal (max 6 steps, Next/Continue/Review buttons only) and stops at the review screen. The human clicks submit. Any submit attempt by automation raises a fill-only violation. |
+| **Direct ATS apply** | `apply_via_ats` | Official ATS application endpoints only (Greenhouse/Lever/Ashby with employer-issued keys). Investigated honestly: no verified anonymous endpoint exists, so the tool returns a dry-run preview (zero network calls) and never submits. |
 | **Drip queue** | `queue_add`, `queue_list` (+ `queue-run` CLI) | Persistent, paced application queue. Respects the daily cap, pauses 2–7 minutes between applications, and adjudicates the whole run before starting. |
 | **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
 | **Interview prep** | `company_brief`, `prep_interview` | Company briefs (facts marked `unverified` when unfetched; no invented funding/headcount) and STAR stories built only from real profile achievements with metrics preserved verbatim. |
@@ -179,10 +178,6 @@ it to the agent.
 
 ## Boards
 
-- **Indeed** — active. Scrapes public search (`https://www.indeed.com/jobs`) with
-  resilient selectors (falls back across markup generations).
-- **LinkedIn** — active. Uses the public guest API
-  (`/jobs-guest/jobs/api/seeMoreJobPostings/search`, no auth).
 - **Greenhouse** — active. Public Job Board API, no auth
   (`boards-api.greenhouse.io`). Searches a curated employer list in
   `providers/boards.json` (Stripe, Airbnb, Coinbase, …) — add your own
@@ -194,11 +189,14 @@ it to the agent.
 - **Adzuna** — key-gated stub. Set `ADZUNA_APP_ID` + `ADZUNA_APP_KEY`
   (from developer.adzuna.com) to activate; without them `search_jobs`
   returns a clear error.
-- **ZipRecruiter** — active (scraping tier). Server-rendered
-  HTML/JSON-LD parsing, paced, CAPTCHA-aware, circuit-broken. Requires the
-  ToS-risk acknowledgment like other scraping-tier boards.
-- **Glassdoor** — stub with a clear TODO (JS-rendered and bot-protected;
-  needs the Phase 2 browser hook).
+- **Glassdoor** — locked stub. Reports itself as unavailable rather than
+  scraping; no guest-endpoint or HTML scraping is performed.
+- **Your saved listings** (`board="user"`) — paste text, a URL, or an HTML
+  file; searched explicitly with `board="user"`, never queried on `all`.
+
+The LinkedIn, Indeed, and ZipRecruiter providers were removed in the
+post-hardening pass (no scraping, no logged-in sessions, fill-only). Use
+the official-API boards above, or add any posting as a saved listing.
 
 ### Live-test status (2026-09-10, sandbox)
 
@@ -219,16 +217,13 @@ it to the agent.
 
 ### Earlier results (2026-09-09, sandbox)
 
-- **LinkedIn: working.** `search_jobs("software engineer", "New York, NY",
-  board="linkedin")` returned real postings (JPMorganChase, AWS, Plaid,
-  Whatnot…); `get_job_details` returned full descriptions via the
-  `/jobs-guest/jobs/api/jobPosting/{id}` endpoint. Occasional HTTP 429
-  rate-limits occur — the provider logs a warning and returns what it got.
-- **Indeed: bot-blocked from datacenter IPs.** Indeed returned HTTP 403 /
-  dropped connections from this sandbox's egress IP. The provider handles
-  this gracefully (warning + empty results, no crash). **Fallbacks:** run
-  from a residential IP, add longer delays, or use the Phase 2 browser hook
-  with a logged-in session.
+- **LinkedIn: removed.** The guest-API provider returned real postings
+  (`search_jobs(..., board="linkedin")`, e.g. JPMorganChase, AWS, Plaid),
+  but the provider was removed in the post-hardening pass — no scraping,
+  no logged-in sessions. Notes kept for provenance.
+- **Indeed: removed.** It returned HTTP 403 / dropped connections from
+  this sandbox's egress IP and was likewise removed in the post-hardening
+  pass.
 
 ## Setup
 
@@ -266,7 +261,7 @@ needed:
 ```bash
 .venv/bin/python cli.py boards
 .venv/bin/python cli.py search "software engineer" --location "New York, NY"
-.venv/bin/python cli.py search "software engineer" --board linkedin --limit 5
+.venv/bin/python cli.py search "software engineer" --board greenhouse --limit 5
 .venv/bin/python cli.py search "software engineer" --remote --json
 .venv/bin/python cli.py show <job_id>
 .venv/bin/python cli.py applications
@@ -323,8 +318,8 @@ wizard modal for every tool:
 ```
 
 The server binds `127.0.0.1` only and serves a JSON API (`GET
-/api/tools`, `GET /api/kpis`, `POST /api/run`). Actions that send email,
-submit applications, or transmit data are confirm-gated: the first call
+/api/tools`, `GET /api/kpis`, `POST /api/run`). Actions that send email
+or record applications are confirm-gated: the first call
 returns the exact text to approve plus a hash, and nothing executes
 until you confirm that exact preview — the same semantics as the CLI's
 `--confirm` flows.
@@ -405,9 +400,9 @@ headless Chromium. It never submits:
   Checkboxes/radios (attestations, EEO questions) are intentionally left
   for the human.
 - `apply_via_browser(apply_url, profile, resume_path, headless=True, confirm=False)`
-  → `{ok, submitted, fields_filled, fields_detected, screenshot,
-  final_url, error}`. It **never clicks submit** — `confirm` is accepted
-  for compatibility but does nothing. Cookie/consent banners are
+  → `{ok, fields_filled, fields_detected, screenshot, final_url, browser_open,
+  handoff, error}`. It **never clicks submit** — `confirm` is accepted
+  for compatibility but changes nothing (fill-only). Cookie/consent banners are
   dismissed best-effort; failures return error dicts, never exceptions.
 
 ### Enabling Phase 2
@@ -448,12 +443,12 @@ apply_to_job(
 Without `JOB_MCP_BROWSER_APPLY=1`, `confirm=True` keeps the Phase 1
 behavior (local log only + direct `apply_url` for manual submission).
 
-Screenshots land in `job-apply-mcp/screenshots/` (pre-fill preview and,
-after a confirmed submit, a post-submit shot). Each confirmed Phase 2
-attempt appends to `applications.json` with `status` of
-`browser_submitted` or `browser_failed`, the screenshot paths, and the
-`submitted` flag — always verify on the live site before treating an
-application as complete.
+Screenshots land in `job-apply-mcp/screenshots/` (pre-fill preview and a
+post-fill shot). Each confirmed Phase 2 attempt appends to
+`applications.json` with `status` of `browser_filled` or
+`browser_failed`, the screenshot paths, and `"submitted": false` —
+always verify on the live site and click submit yourself before treating
+an application as complete.
 
 ### Profile schema
 
@@ -470,33 +465,6 @@ All keys optional. Explicit `first_name`/`last_name` win over splitting
 | `website` | Website/portfolio fields |
 | `cover_letter` | Cover-letter textareas |
 
-### Persistent login sessions
-
-Phase 2 used to launch a fresh browser every run, so logins (LinkedIn
-Easy Apply, Indeed, etc.) never survived. `browser_apply.py` now supports
-saved sessions:
-
-- `login_session(board)` — opens a **headed** browser on the board's login
-  page. You log in manually (MFA/CAPTCHA included); the function watches
-  for the login to complete (up to 5 minutes), then saves
-  `sessions/{board}.json` (gitignored, `chmod 600`). **Passwords are
-  never typed or stored** — only the resulting session cookies/storage.
-- `apply_via_browser(..., board="linkedin")` — when a saved session exists
-  for the board, it is loaded into the browser context automatically.
-
-```python
-from browser_apply import login_session
-login_session("linkedin")   # log in in the opened window, then it closes itself
-```
-
-```bash
-export JOB_MCP_BROWSER_APPLY=1
-# apply_to_job(..., confirm=True) now reuses the LinkedIn session
-```
-
-Sessions expire like normal logins — re-run `login_session(board)` when a
-site starts asking you to log in again.
-
 ## ⚠️ Risks / Terms-of-Service warning
 
 > The full policy lives in [`docs/compliance.md`](docs/compliance.md) —
@@ -504,27 +472,26 @@ site starts asking you to log in again.
 > surface. The code (`compliance.py`, `governance/risk_policy.py`) is the
 > source of truth.
 
-- **Scraping LinkedIn and Indeed may violate their Terms of Service.**
-  LinkedIn in particular aggressively blocks automation; the guest API used
-  here can return HTTP 403/429 or CAPTCHAs at any time.
-- Consequences can include **IP rate-limiting, CAPTCHA loops, and account
-  restrictions** if you later automate logged-in actions. This server stores
-  **no credentials** and performs **no logged-in automation**.
-- The server adds 1–2s politeness delays and rotates user agents, but that
-  only reduces load — it does not make scraping ToS-compliant.
+- **No scraping boards remain.** The four active providers
+  (Greenhouse, Lever, Ashby, Adzuna) use public or official APIs only.
+  Glassdoor is a locked stub that performs no scraping; the LinkedIn,
+  Indeed, and ZipRecruiter providers were removed. The scraping-tier
+  machinery (budgets, circuit breaker, ToS-risk acknowledgment) stays in
+  the codebase but has no live boards to govern.
+- This server stores **no credentials** and performs **no logged-in
+  automation**.
 - **Never auto-submit applications** without the user's explicit review:
   `apply_to_job` requires `confirm=True`, and even then Phase 1 only
   *records* the application locally — the human completes the final submit.
-- **Phase 2 automated applying carries extra risk.** Driving real
-  application forms with a headless browser can trigger **anti-bot
-  measures (CAPTCHAs, IP throttles) and account limits or bans on
-  LinkedIn, Indeed, and other boards** — especially on logged-in flows
-  like LinkedIn Easy Apply or Workday. Mitigations built in: no
-  credential storage, explicit `confirm=True` required to click submit,
-  screenshots for human review, one application per tool call. Still,
-  **apply at a human pace** (a handful of applications per day, not
-  bulk blasts), expect some sites to block automation outright, and
-  always verify the submission on the live site.
+- **Phase 2 browser automation is fill-only.** Driving real application
+  forms with a headless browser can still trigger anti-bot measures
+  (CAPTCHAs, IP throttles) on the target site. Mitigations built in: no
+  credential storage, no logged-in sessions, nothing is ever submitted by
+  the software (the submit click is always yours), screenshots for human
+  review, one application per tool call. **Apply at a human pace** (a
+  handful of applications per day, not bulk blasts), expect some sites to
+  block automation outright, and always verify the filled form on the live
+  site before you click submit.
 - Job data returned is a snapshot; always verify details on the live posting
   before applying.
 
@@ -536,7 +503,7 @@ job-apply-mcp/
 ├── cli.py              # terminal CLI mirroring the MCP tools
 ├── wizard.py           # onboarding wizard → profiles/profile.json
 ├── resume_builder.py   # resume.md / resume.html / resume.pdf from profile
-├── browser_apply.py    # Phase 2 Playwright form-fill/submit automation
+├── browser_apply.py    # Phase 2 Playwright form-fill automation (fill-only; never submits)
 ├── providers/          # API-based board providers (no auth needed)
 │   ├── __init__.py
 │   ├── _common.py      # shared HTTP/polite-delay/id helpers
@@ -772,10 +739,10 @@ The suite lives in `tests/` and uses only the standard library
 | Module | What it covers |
 |---|---|
 | `test_sanity` | `py_compile` on every project `.py`; MCP stdio smoke test (initialize → `tools/list` shows the expected tools); CLI `--help` exits 0 and `boards` lists boards (read-only) |
-| `test_unit_providers` | Provider parsers fed realistic fixtures (Greenhouse/Lever/Ashby API JSON, LinkedIn guest-API HTML cards, Indeed HTML): asserts the canonical job-dict shape (`id/title/company/location/url/board/snippet`) and job-ID encode→decode round-tripping. Unimplemented providers skip with a clear reason |
+| `test_unit_providers` | Provider parsers fed realistic fixtures (Greenhouse/Lever/Ashby API JSON): asserts the canonical job-dict shape (`id/title/company/location/url/board/snippet`) and job-ID encode→decode round-tripping |
 | `test_unit_forms` | Form logic on a fake page (no browser): hidden/submit/invisible inputs excluded from detection; `full_name` splitting (explicit first/last win); email/phone/location/linkedin/cover-letter mapping; resume uploaded only when the file exists; checkboxes/radios skipped; empty profile doesn't crash |
 | `test_unit_profile_resume` | LinkedIn export-ZIP parsing (crafted `Profile.csv`/`Positions.csv`/`Education.csv`/`Skills.csv`), profile merging, interactive wizard via mocked input (writes to a temp dir, never the real profile), resume Markdown/HTML generation and escaping |
-| `test_e2e` | **Real browsers**: drives headless Chromium *and* Firefox (Playwright) against a local test form — `confirm=False` fills + screenshots without submitting, `confirm=True` submits and lands on `?applied=1`. **Live**: `search_jobs("software engineer", "New York, NY", board="all")` through the real server code must return results from at least one provider |
+| `test_e2e` | **Real browsers**: drives headless Chromium *and* Firefox (Playwright) against a local test form — `confirm=False` fills + screenshots without submitting; `confirm=True` is accepted for compatibility but changes nothing (fill-only: no submission receipt exists in the result). **Live**: `search_jobs("software engineer", "New York, NY", board="all")` through the real server code must return results from at least one provider |
 
 ### Installing browsers
 

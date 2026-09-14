@@ -74,7 +74,6 @@ const TOOL_GROUPS: ToolGroup[] = [
     tools: [
       { name: 'apply_to_job', desc: 'Dry-run preview by default; confirm=True records it. Governed end to end.' },
       { name: 'tailor_application', desc: 'Per-job resume + cover letter from your profile. Never invents.' },
-      { name: 'easy_apply_fill', desc: 'Fills the LinkedIn Easy Apply modal and stops at review. Never submits.' },
       { name: 'apply_via_ats', desc: 'Official ATS endpoints only; honest errors where nothing verified exists.' },
     ],
   },
@@ -161,31 +160,18 @@ const MODULE_GROUPS: ToolGroup[] = [
     label: 'Govern',
     tools: [
       { name: 'crew', desc: 'Eleven governed personas (ceo, chief_of_staff, pm, eng, ux, qa, researcher, scout, tailor_agent, coach, red) plus 20 red-team specialists. Spawn > work > review > merge.' },
-      { name: 'contribute', desc: 'Opt-in training data: PII-scrubbed, preview-mandatory, per-bundle confirmed. Maintainer-curated impact loop shows what your data improved.' },
     ],
   },
 ];
 
 const TROUBLESHOOTING = [
   {
-    q: 'Indeed returns 403s',
-    a: 'Symptom: searches against Indeed fail with HTTP 403. Why: Indeed runs aggressive bot protection that blocks datacenter IPs on sight; the failure is expected, not a bug in the server. What to do: stop hitting it, the circuit breaker has already cooled the board down. The working fallback is the browser hook with your logged-in session: set JOB_MCP_BROWSER_APPLY=1 and confirm explicitly. A real session from a real browser passes checks a datacenter request never will.',
-  },
-  {
-    q: 'LinkedIn rate-limits (429)',
-    a: 'Symptom: LinkedIn calls start returning 429 and the board goes unavailable. Why: you tripped their rate limit, and the circuit breaker tripped with it. What to do: do nothing for a while. The breaker enforces a 1-hour cooldown that doubles on repeat blocks (up to 24 hours), and it clears itself after a successful request. Do not hammer the endpoint to "check"; each block makes the timeout longer. If LinkedIn is a critical board for you, spread queries across days.',
-  },
-  {
     q: 'Glassdoor does nothing',
-    a: 'Symptom: Glassdoor results never arrive and the board reports itself as unavailable. Why: Glassdoor is a deliberate stub. It stays locked rather than silently failing or returning junk. What to do: nothing; that is the intended behavior. Search the other scraping-tier boards (LinkedIn, Indeed, ZipRecruiter) or switch to official-tier boards for clean coverage.',
+    a: 'Symptom: Glassdoor results never arrive and the board reports itself as unavailable. Why: Glassdoor is a deliberate stub. It stays locked rather than silently failing or returning junk. What to do: nothing; that is the intended behavior. Search the official-tier boards (Greenhouse, Lever, Ashby, Adzuna) for clean coverage.',
   },
   {
     q: 'Adzuna never activates',
     a: 'Symptom: Adzuna stays dark no matter what you do. Why: unlike the other official boards, Adzuna needs credentials before it serves you. What to do: get a free API key at developer.adzuna.com (free tier is enough for job search), then drop it into your config and restart. The board lights up immediately once the key is present.',
-  },
-  {
-    q: 'Easy Apply fill broke',
-    a: 'Symptom: LinkedIn Easy Apply fill fails or the modal flow stops mid-way. Why: scraping-tier boards redesign their markup without telling anyone, and selectors drift. The fill intentionally stops at the review step, so a broken selector looks like a stuck form. What to do: report it on GitHub with the URL you were on and a screenshot of the modal. Selectors get fixed; it just takes a few days. Meanwhile, fill-only means you can always finish by hand.',
   },
   {
     q: 'The grill never completes (grill_pending)',
@@ -193,7 +179,7 @@ const TROUBLESHOOTING = [
   },
   {
     q: 'Search is blocked: risk acknowledgment missing',
-    a: 'Symptom: check_search_allowed refuses LinkedIn or Indeed with a consent error even though nothing is down. Why: standard mode requires explicit ToS-risk acknowledgment before any scraping-tier board unlocks; compliance.json has no timestamp for you. What to do: run the wizard (step 03) or call acknowledge_risks to record your consent. If you would rather not consent to scraping at all, switch to strict mode and use the official-tier boards instead.',
+    a: 'Symptom: check_search_allowed refuses a scraping-tier board with a consent error even though nothing is down. Why: standard mode requires explicit ToS-risk acknowledgment before any scraping-tier board unlocks; compliance.json has no timestamp for you. What to do: run the wizard (step 03) or call acknowledge_risks to record your consent. If you would rather not consent to scraping at all, switch to strict mode and use the official-tier boards instead.',
   },
   {
     q: 'The MCP client does not see the tools',
@@ -212,11 +198,11 @@ const TROUBLESHOOTING = [
 const FAQS = [
   {
     q: 'What is Veto?',
-    a: 'A governed 26-module job-search machine that finds, tailors, applies, and tracks. Find: one search across every enabled board, deduped and ranked. Tailor: per-job resumes and cover letters grounded in your real profile. Apply: human-paced, confirm-gated, fill-only on scraping boards. Track: applications.json holds your pipeline, and the analytics module reads it. The governance is the product: budgets, circuit breakers, honesty checks, and consent gates run in code, not in prompts.',
+    a: 'A governed 26-module job-search machine that finds, tailors, applies, and tracks. Find: one search across every enabled board, deduped and ranked. Tailor: per-job resumes and cover letters grounded in your real profile. Apply: human-paced, confirm-gated, and always fill-only — the software never submits. Track: applications.json holds your pipeline, and the analytics module reads it. The governance is the product: budgets, circuit breakers, honesty checks, and consent gates run in code, not in prompts.',
   },
   {
     q: 'What is Veto not?',
-    a: 'Not a mass-apply spammer: 5 applications a day, hard cap, no exceptions. Not a credential thief: nothing in the codebase stores credentials; scraping flows use your own logged-in browser session. Not a lie factory: the tailor module is forbidden from inventing experience, employers, skills, or metrics. Anything unfetched is marked unverified; anything quoted comes from a source you can check.',
+    a: 'Not a mass-apply spammer: 5 applications a day, hard cap, no exceptions. Not a credential thief: nothing in the codebase stores credentials, and there are no logged-in browser sessions or scraping flows at all. Not a lie factory: the tailor module is forbidden from inventing experience, employers, skills, or metrics. Anything unfetched is marked unverified; anything quoted comes from a source you can check.',
   },
   {
     q: 'What does it cost?',
@@ -224,15 +210,15 @@ const FAQS = [
   },
   {
     q: 'What data does it keep?',
-    a: 'Your profile (from the LinkedIn export or wizard answers), applications.json (your recorded applications and stages), compliance.json (mode, risk acknowledgment timestamp, budgets, cooldowns), and grill_sessions.json (your grill answers). compliance.json is gitignored so your consent state never lands in a repo. No credentials are stored anywhere: board logins live in your own browser sessions, not in files Veto writes.',
+    a: 'Your profile (from the LinkedIn export or wizard answers), applications.json (your recorded applications and stages), compliance.json (mode, risk acknowledgment timestamp, budgets, cooldowns), and grill_sessions.json (your grill answers). compliance.json is gitignored so your consent state never lands in a repo. No credentials are stored anywhere, and no board sessions are created or kept.',
   },
   {
     q: 'Does it submit applications for me?',
-    a: 'Not without you. Every apply starts as a dry-run preview and needs your explicit confirmation to record anything. On scraping-tier boards it is fill-only: the agent fills the form and stops at the review step; the final submit click is always yours. On official boards, submission goes through the board\'s official ATS endpoints, with the apply_disclosure(board) shown in the preview first.',
+    a: 'Never. Every apply starts as a dry-run preview and needs your explicit confirmation to record anything. It is always fill-only: the agent fills the form and stops at the review step; the final submit click is always yours. apply_via_ats returns a dry-run preview (zero network calls) and never submits.',
   },
   {
     q: 'Which boards are supported?',
-    a: 'Two tiers. Official (public APIs, preferred): Greenhouse, Lever, Ashby, Adzuna (Adzuna needs a free key from developer.adzuna.com). Scraping (HTML/guest-endpoint scraping, explicit consent required): LinkedIn, Indeed, ZipRecruiter. Glassdoor is a locked stub; it says so openly. Every result is tagged with its tier, so you always know what you are looking at.',
+    a: 'Greenhouse, Lever, and Ashby: public JSON APIs, no login. Adzuna needs a free key from developer.adzuna.com. Glassdoor is a locked stub that performs no scraping; the LinkedIn, Indeed, and ZipRecruiter providers were removed in the post-hardening pass. You can also search your own saved listings (board="user"). Every result is tagged with its risk tier, so you always know what you are looking at.',
   },
   {
     q: 'What honesty guarantees does it make?',
@@ -445,7 +431,9 @@ export default function DocsPage() {
                 can violate the site&rsquo;s Terms of Service, and it triggers
                 HTTP 403/429, CAPTCHAs, IP rate-limiting, or account
                 restrictions. Glassdoor stays locked: it reports itself as a
-                stub instead of failing weirdly.
+                stub instead of failing weirdly. No live board currently
+                scrapes — the LinkedIn, Indeed, and ZipRecruiter providers
+                were removed.
               </p>
               <table
                 style={{
@@ -488,11 +476,12 @@ export default function DocsPage() {
                       scraping
                     </td>
                     <td style={{ padding: '10px 12px 10px 0' }}>
-                      LinkedIn, Indeed, Glassdoor, ZipRecruiter
+                      Glassdoor (locked stub — performs no scraping)
                     </td>
                     <td style={{ padding: '10px 0' }}>
-                      HTML / guest-endpoint scraping. Explicit consent
-                      required; Glassdoor remains a locked stub.
+                      No live board scrapes. The tier machinery
+                      (budgets, consent, breaker) remains; Glassdoor is
+                      a locked stub.
                     </td>
                   </tr>
                 </tbody>
@@ -541,7 +530,7 @@ export default function DocsPage() {
             <div className="tool-group">
               <h4>Fill-only</h4>
               <p className="tool-desc">
-                On scraping-tier boards the agent fills but never performs
+                The agent fills application forms but never performs
                 the final submit click. The human reviews and submits. Every
                 apply flow must surface{' '}
                 <code>apply_disclosure(board)</code> in its preview, spelling
