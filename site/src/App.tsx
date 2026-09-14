@@ -843,8 +843,8 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 The job bot that <span className="no">says&nbsp;no.</span>
               </Heading>
               <p className="hero-sub">
-                <strong>Veto</strong> plugs your AI assistant into 8 job
-                boards. 26 modules handle the rest: fit scoring, radar charts,
+                <strong>Veto</strong> plugs your AI assistant into 4 job
+                boards (Greenhouse, Lever, Ashby, Adzuna). 26 modules handle the rest: fit scoring, radar charts,
                 tailored resumes, cover letters, mock interviews, brutal
                 negotiation sims, offer comparison, streaks, and a governed AI
                 crew. It fills the forms. You click submit. Nothing ships
@@ -877,7 +877,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
         {/* PROVIDERS */}
         <section className="strip" aria-label="Supported job boards">
           <div className="wrap">
-            <p className="strip-label">One query · eight boards</p>
+            <p className="strip-label">One query · four boards</p>
             <div className="provider-row">
               {PROVIDERS.map((p) => (
                 <span key={p.name} className="provider">
