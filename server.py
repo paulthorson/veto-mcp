@@ -17,7 +17,8 @@ hook sketches future Playwright-based browser automation.
 
 Safety: scraping job boards may violate their Terms of Service and can
 trigger rate limits / CAPTCHAs / account restrictions. Built-in politeness
-(1-2s delays, user-agent rotation) reduces but does not eliminate that risk.
+(1-2s delays between requests) reduces but does not eliminate that risk.
+Every outbound request carries a single honest, identifying User-Agent.
 """
 
 from __future__ import annotations
@@ -50,6 +51,8 @@ try:
         GreenhouseProvider,
         LeverProvider,
     )
+    # The single honest User-Agent (defined in providers/_common.py).
+    from providers._common import VETO_USER_AGENT
 
     _API_PROVIDERS: dict[str, Any] = {
         "greenhouse": GreenhouseProvider(),
@@ -60,6 +63,10 @@ try:
 except ImportError as exc:  # defensive: the server must still start
     log.warning("providers/ package failed to import; API boards disabled: %s", exc)
     _API_PROVIDERS = {}
+    # Fallback copy of the honest User-Agent, defined only when the providers
+    # package itself is unimportable. The canonical definition is
+    # providers._common.VETO_USER_AGENT; this literal must match it.
+    VETO_USER_AGENT = "veto/0.1.0 (+https://github.com/paulthorson/job-apply-mcp)"  # noqa: F811
 
 # Application-quality helpers (dedup.py, prefs.py, filters.py, tailor.py).
 # Imported defensively: the server must start even if one is missing.
@@ -222,17 +229,6 @@ WATCHES_FILE = BASE_DIR / "watches.json"
 import lifecycle
 import watch as watch_store
 
-USER_AGENTS = [
-    
-    "VETO-REDACTED-UA"
-    "",
-    "VETO-REDACTED-UA"
-    "",
-    "VETO-REDACTED-UA",
-    "VETO-REDACTED-UA"
-    "",
-]
-
 # In-memory cache of jobs returned by recent search_jobs calls, keyed by
 # job_id. Enriches previews/details; job_ids are also self-describing
 # (board + base64url of the job URL) so they work without a prior search.
@@ -240,9 +236,9 @@ _JOB_REGISTRY: dict[str, dict[str, Any]] = {}
 
 
 def _headers() -> dict[str, str]:
-    """Return request headers with a rotated user agent."""
+    """Return request headers that identify with the single honest Veto User-Agent."""
     return {
-        "User-Agent": random.choice(USER_AGENTS),
+        "User-Agent": VETO_USER_AGENT,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
     }
