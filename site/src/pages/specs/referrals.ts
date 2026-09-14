@@ -17,8 +17,8 @@ const spec: PageSpec = {
     {
       icon: 'chat',
       tone: '',
-      title: 'Warm and cold drafts',
-      body: 'Outreach drafts tuned to the relationship: a genuine warm note for real connections, an honest cold note otherwise. Relationship defaults to "connection", never inflated.',
+      title: 'Warm drafts only',
+      body: 'Outreach drafts tuned to the relationship: a genuine warm note for every real connection. Relationship defaults to "connection", never inflated, and cold drafts are off the table — if you do not know anyone there, Veto drafts nothing.',
     },
     {
       icon: 'ledger',
