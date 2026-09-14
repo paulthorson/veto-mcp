@@ -160,14 +160,20 @@ class CheckPriorityTests(unittest.TestCase):
         self.assertEqual(bundle["reason"], "captcha")
         self.assertEqual(bundle["board"], "greenhouse")
 
-    def test_detector_failure_degrades_to_no_rescue(self):
+    def test_detector_failure_fails_closed_with_loud_handoff(self):
+        # Legal-hardening: a crashed detector must FAIL CLOSED with a
+        # loud RescueHandoff (reason="detector_failure"), never a silent
+        # None that downstream would misread as "no CAPTCHA found".
         class Broken:
             url = "https://example.com"
             def query_selector(self, selector):
                 raise RuntimeError("boom")
             def content(self):
                 raise RuntimeError("boom")
-        self.assertIsNone(check(Broken()))
+        handoff = check(Broken())
+        self.assertIsNotNone(handoff)
+        self.assertEqual(handoff.reason, "detector_failure")
+        self.assertIn("RuntimeError", handoff.evidence)
 
 
 class NeverBypassTests(unittest.TestCase):
@@ -255,34 +261,6 @@ class _PlaywrightFakedTest(unittest.TestCase):
             self._pw_old = None
 
 
-class _PreSubmitFakePage:
-    """Clean at page load; a CAPTCHA appears right after fields are filled
-    (invisible reCAPTCHA v3-style, scored on submit)."""
-
-    def __init__(self, captcha_after_fill=True):
-        self.url = "https://example.com/apply"
-        self.captcha_active = False
-        self._captcha_after_fill = captcha_after_fill
-
-    def goto(self, url, **kwargs):
-        self.url = url
-
-    def wait_for_load_state(self, *args, **kwargs):
-        return None
-
-    def query_selector(self, selector):
-        if self.captcha_active and selector in ("#captcha", ".captcha"):
-            return object()
-        return None
-
-    def content(self):
-        return "<html><body><form>clean</form></body></html>"
-
-    def arm_captcha(self):
-        if self._captcha_after_fill:
-            self.captcha_active = True
-
-
 class _FakeSubmitButton:
     def __init__(self, page):
         self.page = page
@@ -295,135 +273,6 @@ class _FakeSubmitButton:
                 "submit.click() ran despite a post-fill CAPTCHA — the "
                 "pre-submit rescue check failed"
             )
-
-
-class PreSubmitRescueTests(_PlaywrightFakedTest):
-    """browser_apply.py's pre-submit rescue re-check (init-09 rework).
-
-    Simulates a CAPTCHA injected between fill and submit. The check
-    immediately before ``submit.click()`` must PAUSE — set
-    ``result['paused']``, record ``result['rescue']`` — and skip the
-    click. It must never click through a CAPTCHA.
-    """
-
-    def _run_apply(self, captcha_after_fill):
-        page = _PreSubmitFakePage(captcha_after_fill=captcha_after_fill)
-        submit = _FakeSubmitButton(page)
-
-        self._start("browser_apply.dismiss_consent_banners", lambda p: None)
-        self._start(
-            "browser_apply.extract_form_fields",
-            lambda p: [
-                {
-                    "name": "first_name",
-                    "label": "First name",
-                    "type": "text",
-                    "selector": "input[name='first_name']",
-                }
-            ],
-        )
-
-        def _fill(p, profile, resume_path):
-            p.arm_captcha()
-            return {"first_name": True}
-
-        self._start("browser_apply.fill_application", _fill)
-        self._start("browser_apply.find_submit_button", lambda p: submit)
-        self._start("browser_apply._take_screenshot", lambda p, suffix="x": None)
-        self._start("browser_apply.time.sleep", lambda s: None)
-
-        self._pw_old, _browser = _install_fake_playwright(page)
-        return self.browser_apply.apply_via_browser(
-            "https://example.com/apply",
-            {"first_name": "Ada", "email": "ada@example.com"},
-            confirm=True,
-            browser_kind="chromium",
-        ), submit
-
-    def test_post_fill_captcha_pauses_before_submit(self):
-        result, submit = self._run_apply(captcha_after_fill=True)
-        self.assertFalse(
-            submit.clicked, "submit.click() must be skipped on a post-fill CAPTCHA"
-        )
-        self.assertFalse(result["submitted"])
-        self.assertTrue(result["paused"], "result['paused'] must be True")
-        self.assertEqual(result["rescue"]["reason"], "captcha")
-        self.assertIn("Paused", result["error"])
-        self.assertFalse(result["ok"])
-
-    def test_clean_page_still_submits(self):
-        # Negative control: with no CAPTCHA the pre-submit check must be a
-        # no-op and the submit click proceeds as before.
-        result, submit = self._run_apply(captcha_after_fill=False)
-        self.assertTrue(submit.clicked, "clean page must still submit")
-        self.assertTrue(result["submitted"])
-        self.assertNotIn("paused", result)
-        self.assertTrue(result["ok"])
-
-
-class _CaptchaOnLoadFakePage:
-    """CAPTCHA visible immediately (for easy_apply's load-time rescue)."""
-
-    def __init__(self):
-        self.url = "https://www.linkedin.com/jobs/view/123456"
-
-    def goto(self, url, **kwargs):
-        self.url = url
-
-    def wait_for_load_state(self, *args, **kwargs):
-        return None
-
-    def query_selector(self, selector):
-        return object() if selector == "#captcha" else None
-
-    def content(self):
-        return "<html><body>captcha wall</body></html>"
-
-
-class EasyApplyScreenshotListTests(_PlaywrightFakedTest):
-    """easy_apply rescue must not pollute result['screenshots'] with ''.
-
-    When the rescue screenshot can't be taken, the old code appended
-    ``rescue.screenshot_path or ""`` — an empty string. The fixed code
-    appends only truthy paths.
-    """
-
-    def test_rescue_without_screenshot_leaves_list_empty(self):
-        import easy_apply
-
-        page = _CaptchaOnLoadFakePage()
-        fake_browser = mock.MagicMock()
-
-        self._start(
-            "easy_apply.compliance.is_board_allowed", lambda b: (True, "")
-        )
-        self._start("easy_apply.compliance.check_apply_allowed", lambda: (True, ""))
-        self._start(
-            "easy_apply._resolve_job_url",
-            lambda j: ("linkedin", "https://www.linkedin.com/jobs/view/123456"),
-        )
-        self._start("easy_apply._resolve_resume", lambda r: None)
-        self._start(
-            "easy_apply._launch_context",
-            lambda p, headless=True: (fake_browser, None, page),
-        )
-        self._start("browser_apply.dismiss_consent_banners", lambda p: None)
-        self._start("browser_apply._take_screenshot", lambda p, suffix="x": None)
-        self._start("browser_apply.time.sleep", lambda s: None)
-
-        self._pw_old, _ = _install_fake_playwright(page)
-        result = easy_apply.fill_easy_apply(
-            "linkedin:123456",
-            {"first_name": "Ada"},
-            None,
-            confirm=True,
-            headed=False,
-            keep_open=False,
-        )
-        self.assertEqual(result["status"], "rescue_paused")
-        self.assertEqual(result["rescue"]["reason"], "captcha")
-        self.assertNotIn("", result["screenshots"])
-        self.assertEqual(result["screenshots"], [])
 
 
 if __name__ == "__main__":

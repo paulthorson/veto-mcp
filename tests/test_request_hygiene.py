@@ -86,6 +86,22 @@ class FailClosedRobotsTests(unittest.TestCase):
 
 
 class BlockCooldownTests(unittest.TestCase):
+    def setUp(self):
+        # record_block/record_block_cleared persist via save_state: point
+        # the real compliance.json at a temp file so these tests can
+        # never poison the working tree (or a later test in the suite).
+        import tempfile
+
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        patcher = mock.patch.object(
+            compliance,
+            "COMPLIANCE_FILE",
+            Path(self._tmp.name) / "compliance.json",
+        )
+        self.addCleanup(patcher.stop)
+        patcher.start()
+
     def _fresh_state(self):
         return compliance._default_state()
 
