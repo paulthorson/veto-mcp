@@ -213,6 +213,21 @@ class ConnectionDraftTests(_TempStore):
         self.assertIn("DRAFT", res["status"])
         self.assertLessEqual(len(res["note"]), 300)
         self.assertEqual(res["note_length"], len(res["note"]))
+        # Hidden contact (the default): the URL is sealed until mutual
+        # consent — never returned here.
+        self.assertNotIn("mentor_linkedin_url", res)
+        self.assertTrue(res.get("contact_sealed"))
+        self.assertIn("consent", res["instructions"].lower())
+
+    def test_draft_public_mentor_keeps_url(self):
+        pub_id = mentors.mentor_opt_in(
+            _profile(preferred_contact="linkedin_public")
+        )["card"]["id"]
+        res = mentors.connection_draft(
+            pub_id, "Paul T",
+            "land my first senior backend role at a fintech company",
+        )
+        self.assertTrue(res["ok"])
         self.assertIn("linkedin.com", res["mentor_linkedin_url"])
         self.assertIn("send this yourself", res["instructions"].lower())
 

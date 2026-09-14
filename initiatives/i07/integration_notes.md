@@ -114,7 +114,10 @@ All under `initiatives/i07/` (local-first, never transmitted):
 - `safety.json` — block list + quarantines
 - `reports.jsonl` — abuse reports (append-only)
 - `sessions.json` — session notes / follow-ups / feedback
-- `draft_outbox.jsonl` — warm-path drafts for human review
+
+Warm-path drafts live OUTSIDE the repo tree (never transmitted, never
+committed): `~/.local/share/veto/warm_path_drafts.jsonl` (honors
+`XDG_DATA_HOME`), since drafts contain real contact names.
 
 ## 5. Contracts
 
