@@ -18,8 +18,29 @@
   <p>Veto keeps your last synced dashboard views available offline.
      Actions you take now are queued and will replay when you're back online.</p>
   <p><span data-veto-queue-count hidden></span> queued actions pending.</p>
+  <p><button id="veto-sync-now" type="button" hidden>Review &amp; sync queued actions</button></p>
   <p><a href="/">Retry</a></p>
 </main>
 <script src="/deferred-queue.js"></script>
+<script>
+(function () {
+  function refresh() {
+    if (!window.VetoQueue) return;
+    window.VetoQueue.pendingCount().then(function (n) {
+      var btn = document.getElementById("veto-sync-now");
+      if (btn) btn.hidden = n === 0;
+    });
+  }
+  document.addEventListener("veto:queue-changed", refresh);
+  document.addEventListener("DOMContentLoaded", function () {
+    refresh();
+    var btn = document.getElementById("veto-sync-now");
+    if (btn) btn.addEventListener("click", function () {
+      // replay() always confirms ("will replay N actions") before sending.
+      window.VetoQueue.replay().then(refresh);
+    });
+  });
+})();
+</script>
 </body>
 </html>
