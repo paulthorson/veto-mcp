@@ -23,14 +23,23 @@ Connects mentors with people seeking mentorship, opt-in only on both sides:
 * ``matchmake(answers, consent_preview=False)``: the questionnaire now
   takes context, urgency, expected outcome, and (voluntarily supplied)
   identity preferences — the last are echoed, never ranked on. With
-  ``consent_preview=True``, contact fields are redacted per the
-  Initiative 07 revelation rule (see initiatives/i07/CONTRACTS.md):
-  neither profile contact detail is revealed until both parties approve
-  the introduction via the consent handshake.
+  ``consent_preview=True``, matches go through the Initiative 07
+  redacted preview (see initiatives/i07/CONTRACTS.md): contact fields
+  are sealed until both parties approve the introduction via the consent
+  handshake. The default full mode remains for the self-serve path.
 * Mentor cards may carry ``availability_windows``, ``boundaries``
   (offers/wont/note), and ``preferred_contact`` ("hidden" default —
   contact sealed until mutual consent; "linkedin_public" opts the URL
-  into the public discovery card).
+  into the public discovery card). **Hidden is sealed everywhere**:
+  ``matchmake`` (either mode), ``connection_draft``, and
+  ``publish_mentor_card`` never emit the LinkedIn URL of a hidden mentor —
+  the URL is revealed only after mutual consent (see
+  ``initiatives.i07.consent.reveal_contact``).
+* ``matchmake`` is the single safety choke point: it consults
+  ``initiatives.i07.safety.discovery_exclusions()`` internally and hides
+  blocked/quarantined mentors from every surface (web UI, dashboard,
+  CLI, MCP) without each caller having to remember. Pass
+  ``apply_safety_exclusions=False`` only to deliberately opt out.
 * ``rate_mentorship(mentor_id, stars, note="", by="mentee")`` records
   two-sided ratings ("mentee" or "mentor" perspective); per-side averages
   show on cards and match results.
@@ -59,6 +68,7 @@ Stdlib only.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import logging
@@ -145,6 +155,86 @@ def _card_id(linkedin_url: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Safety choke point (Initiative 07, epic 6)
+# ---------------------------------------------------------------------------
+
+
+def _safety_exclusions() -> set[str]:
+    """Mentor ids the local user ("me") must never see in discovery.
+
+    The union of actors the user blocked and every quarantined actor —
+    see ``initiatives.i07.safety.discovery_exclusions``. The import is
+    lazy so mentors.py stays importable without the initiatives package
+    on the path. Fails open to an empty set only when the safety module
+    itself cannot be reached; exclusions passed explicitly via
+    ``exclude_mentor_ids`` are always honored. A corrupt safety state
+    raises ``SafetyStateError`` (fail closed: discovery is refused rather
+    than silently surfacing blocked or quarantined actors).
+    """
+    try:
+        from initiatives.i07 import safety as _safety
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("initiatives.i07.safety unavailable (%s); no safety exclusions", exc)
+        return set()
+    try:
+        return set(_safety.discovery_exclusions("me"))
+    except _safety.SafetyStateError:
+        raise  # corrupt state: fail closed, discovery refused
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("safety.discovery_exclusions failed (%s); no safety exclusions", exc)
+        return set()
+
+
+def _exclusion_rejection(mentor_id: str) -> dict[str, Any] | None:
+    """Loud refusal when a direct-id tool targets an excluded mentor.
+
+    Returns an ``{"ok": False, ...}`` error dict when ``mentor_id`` is in
+    the local user's safety exclusions (blocked or quarantined), else
+    ``None``. Direct-id tools (connection_draft, session_agenda,
+    record_outreach) must call this before touching the directory.
+    """
+    mid = str(mentor_id or "").strip()
+    if not mid:
+        return None
+    try:
+        from initiatives.i07 import safety as _safety
+    except Exception:  # pragma: no cover - defensive
+        return None
+    try:
+        excluded = _safety.discovery_exclusions("me")
+    except _safety.SafetyStateError:
+        # Corrupt safety state: fail closed — refuse the action rather
+        # than risk reaching out to a blocked/quarantined mentor.
+        return {
+            "ok": False,
+            "error": (
+                "safety state is unreadable; refusing to act rather than "
+                "risk contacting a blocked or quarantined mentor. Only a "
+                "human can clear or repair the underlying safety store."
+            ),
+        }
+    except Exception:  # pragma: no cover - defensive
+        return None
+    if mid not in excluded:
+        return None
+    try:
+        reason = (
+            "under safety review (quarantined)"
+            if _safety.is_quarantined(mid)
+            else "blocked by you"
+        )
+    except Exception:  # pragma: no cover - defensive
+        reason = "excluded by your safety settings"
+    return {
+        "ok": False,
+        "error": (
+            f"mentor {mid!r} is {reason}: this tool refuses to draft, "
+            "plan, or log outreach to excluded mentors."
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
@@ -167,7 +257,7 @@ def _validate_profile(profile: dict[str, Any]) -> dict[str, Any]:
     name = need("name")  # display name or initials — the mentor's privacy choice
     industry = need("industry")
     role = need("role")
-    seniority = profile.get("seniority", "").strip()
+    seniority = str(profile.get("seniority") or "").strip()
     if seniority not in _VALID_BANDS:
         raise ValueError(
             f"profile['seniority'] must be one of {_VALID_BANDS}, got {seniority!r}"
@@ -384,6 +474,7 @@ def matchmake(
     answers: dict[str, Any],
     consent_preview: bool = False,
     exclude_mentor_ids: tuple[str, ...] | list[str] = (),
+    apply_safety_exclusions: bool = True,
 ) -> dict[str, Any]:
     """Rank mentors against a mentee's questionnaire.
 
@@ -411,6 +502,19 @@ def matchmake(
 
     ``exclude_mentor_ids`` hides mentors from results entirely (blocked or
     quarantined actors — see ``initiatives.i07.safety.discovery_exclusions``).
+
+    ``apply_safety_exclusions`` (default True) makes ``matchmake`` itself
+    consult ``initiatives.i07.safety.discovery_exclusions()`` and hide
+    blocked/quarantined mentors from every surface (web UI, dashboard,
+    CLI, MCP) without each caller having to remember — this function is
+    the single safety choke point. Pass ``False`` only to deliberately
+    opt out of the safety consult (explicit ``exclude_mentor_ids`` are
+    still honored).
+
+    Contact sealing: matches never carry a ``linkedin_url`` for mentors
+    whose ``preferred_contact`` is "hidden" (the default) — the key is
+    absent until mutual consent reveals it. Mentors who opted
+    ``preferred_contact="linkedin_public"`` keep their URL in results.
     """
     answers = answers or {}
     industry = str(answers.get("industry", "")).strip().lower()
@@ -431,6 +535,12 @@ def matchmake(
 
     directory = _load_directory()
     excluded = set(exclude_mentor_ids or ())
+    if apply_safety_exclusions:
+        # THE safety choke point: blocked/quarantined mentors are hidden
+        # from every discovery surface (web UI, dashboard, CLI, MCP)
+        # without each caller having to remember. A corrupt safety state
+        # raises SafetyStateError here: discovery is refused, fail closed.
+        excluded |= _safety_exclusions()
     with_capacity = [c for c in directory.values() if remaining_capacity(c) > 0]
     available = [c for c in with_capacity if c.get("id") not in excluded]
     if not available:
@@ -450,6 +560,12 @@ def matchmake(
             "ok": True,
             "matches": [],
             "guidance": guidance,
+            "mentee_goal": goal,
+            "mentee_context": context,
+            "mentee_urgency": urgency,
+            "mentee_expected_outcome": expected_outcome,
+            "identity_preferences": identity_preferences,
+            "consent_preview": consent_preview,
         }
 
     ranked: list[dict[str, Any]] = []
@@ -501,27 +617,31 @@ def matchmake(
         if availability:
             reasons.append(f"availability: {availability}")
 
-        ranked.append(
-            {
-                "mentor_id": card.get("id"),
-                "name": card.get("name"),
-                "industry": card.get("industry"),
-                "role": card.get("role"),
-                "seniority": card.get("seniority"),
-                "topics": card.get("topics"),
-                "linkedin_url": card.get("linkedin_url"),
-                "preferred_contact": card.get("preferred_contact", "hidden"),
-                "bio": card.get("bio"),
-                "availability": card.get("availability"),
-                "availability_windows": card.get("availability_windows", []),
-                "boundaries": card.get("boundaries", {}),
-                "remaining_capacity": cap,
-                "score": min(100, round(score, 1)),
-                "reasons": reasons,
-                "prep": _prep_text(prep_topic) if prep_topic else _prep_text(""),
-                "ratings": _rating_summary(card),
-            }
-        )
+        # Contact sealing (Initiative 07 revelation rule): a hidden mentor's
+        # LinkedIn URL never leaves the module until mutual consent reveals
+        # it. Only an explicit preferred_contact="linkedin_public" opt-in
+        # keeps the URL in discovery results.
+        match: dict[str, Any] = {
+            "mentor_id": card.get("id"),
+            "name": card.get("name"),
+            "industry": card.get("industry"),
+            "role": card.get("role"),
+            "seniority": card.get("seniority"),
+            "topics": card.get("topics"),
+            "preferred_contact": card.get("preferred_contact", "hidden"),
+            "bio": card.get("bio"),
+            "availability": card.get("availability"),
+            "availability_windows": card.get("availability_windows", []),
+            "boundaries": card.get("boundaries", {}),
+            "remaining_capacity": cap,
+            "score": min(100, round(score, 1)),
+            "reasons": reasons,
+            "prep": _prep_text(prep_topic) if prep_topic else _prep_text(""),
+            "ratings": _rating_summary(card),
+        }
+        if card.get("preferred_contact", "hidden") == "linkedin_public":
+            match["linkedin_url"] = card.get("linkedin_url")
+        ranked.append(match)
 
     ranked.sort(key=lambda m: (-m["score"], m["name"]))
     if consent_preview:
@@ -590,7 +710,11 @@ def record_outreach(mentor_id: str) -> dict[str, Any]:
 
     Increments the mentor's recorded mentee count so capacity stays honest.
     Reversible only by the directory owner editing mentors.json.
+    Refuses loudly when ``mentor_id`` is blocked or quarantined.
     """
+    rejected = _exclusion_rejection(mentor_id)
+    if rejected is not None:
+        return rejected
     directory = _load_directory()
     card = directory.get(mentor_id)
     if card is None:
@@ -640,10 +764,20 @@ def connection_draft(
 ) -> dict[str, Any]:
     """Draft a LinkedIn connection-request note to a mentor.
 
-    Returned labeled as a DRAFT with the mentor's LinkedIn URL and explicit
+    Returned labeled as a DRAFT with the mentor's LinkedIn URL (when the
+    mentor opted ``preferred_contact="linkedin_public"``) and explicit
     instructions: the mentee sends this themselves on LinkedIn. The tool
     never sends anything.
+
+    Contact sealing: for a "hidden" mentor (the default) the LinkedIn URL
+    is NOT returned — ``mentor_linkedin_url`` is absent and the
+    instructions route you to the two-sided consent introduction flow,
+    which reveals contact only after mutual consent. Refuses loudly when
+    ``mentor_id`` is blocked or quarantined.
     """
+    rejected = _exclusion_rejection(mentor_id)
+    if rejected is not None:
+        return rejected
     if not mentee_name or not mentee_name.strip():
         return {"ok": False, "error": "mentee_name is required"}
     if not mentee_goal or not mentee_goal.strip():
@@ -659,24 +793,37 @@ def connection_draft(
         }
     note = _connection_note(mentee_name.strip(), mentee_goal.strip(), card)
     prep_checklist = [_prep_text(t) for t in (card.get("topics") or [])]
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "status": "DRAFT — not sent",
         "note": note,
         "note_length": len(note),
         "mentor_name": card.get("name"),
-        "mentor_linkedin_url": card.get("linkedin_url"),
         "prep_checklist": prep_checklist,
         "prep_note": (
             "Completing the prep is recommended, not required — it makes the "
             "first session more useful, but no mentor will check."
         ),
-        "instructions": (
+    }
+    if card.get("preferred_contact", "hidden") == "linkedin_public":
+        result["mentor_linkedin_url"] = card.get("linkedin_url")
+        result["instructions"] = (
             "YOU send this yourself on LinkedIn: open the mentor's profile URL, "
             "click Connect, add a note, and paste the text above. This tool "
             "never sends messages on your behalf."
-        ),
-    }
+        )
+    else:
+        # Sealed: the mentor's contact is private until mutual consent.
+        result["contact_sealed"] = True
+        result["instructions"] = (
+            "This mentor keeps their contact details private until mutual "
+            "consent — no profile URL is returned here. Request an "
+            "introduction instead (the intro-request consent flow): once both "
+            "sides approve, the LinkedIn URL is revealed via "
+            "initiatives.i07.consent.reveal_contact. This tool never sends "
+            "messages on your behalf."
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -690,6 +837,11 @@ def publish_mentor_card(confirmed: bool = False) -> dict[str, Any]:
     Writes ``contributions/outbox/mentor-<id>.json`` ONLY with explicit
     ``confirmed=True``. Without confirmation it returns a preview and the
     next steps instead of publishing anything.
+
+    Contact sealing: when ``preferred_contact`` is "hidden" (the default),
+    the published card does NOT carry ``linkedin_url`` — the URL is sealed
+    until mutual consent reveals it, so the outbox file never declares a
+    hidden contact while leaking it.
     """
     directory = _load_directory()
     own = [c for c in directory.values() if c.get("own")]
@@ -698,11 +850,25 @@ def publish_mentor_card(confirmed: bool = False) -> dict[str, Any]:
     card = dict(own[0])
     card.pop("own", None)  # the published card doesn't carry local flags
 
+    sealed = card.get("preferred_contact", "hidden") != "linkedin_public"
+    public_card = dict(card)
+    if sealed:
+        # A "hidden" card must not declare the preference while leaking the
+        # URL in the same file: the URL stays out until mutual consent.
+        public_card.pop("linkedin_url", None)
+
     if not confirmed:
+        preview: dict[str, Any] = dict(public_card)
+        if sealed:
+            preview["contact_note"] = (
+                "linkedin_url sealed (preferred_contact='hidden'): your contact "
+                "details stay private until mutual consent. The published card "
+                "carries no contact URL."
+            )
         return {
             "ok": True,
             "published": False,
-            "preview": card,
+            "preview": preview,
             "next_steps": (
                 "Review the preview above. If it looks right, re-run with "
                 "confirmed=True and this exact card will be written to "
@@ -715,7 +881,7 @@ def publish_mentor_card(confirmed: bool = False) -> dict[str, Any]:
     OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
     path = OUTBOX_DIR / f"mentor-{card['id']}.json"
     path.write_text(
-        json.dumps(card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        json.dumps(public_card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return {
         "ok": True,
@@ -883,7 +1049,9 @@ def _training_weak_areas() -> tuple[list[dict[str, Any]], list[str], bool]:
     return weak, unavailable, has_history
 
 
-def suggest_mentors_from_training() -> dict[str, Any]:
+def suggest_mentors_from_training(
+    exclude_mentor_ids: tuple[str, ...] | list[str] = (),
+) -> dict[str, Any]:
     """Suggest mentors based on your real training history.
 
     Reads ``soft_skills.progress()`` and ``ai_proficiency.progress()``,
@@ -891,6 +1059,9 @@ def suggest_mentors_from_training() -> dict[str, Any]:
     mentor topics via ``WEAK_AREA_TO_TOPICS``, and reuses ``matchmake`` for
     the top mentors per topic. With no training history it says so and
     suggests running a drill first — training data is never fabricated.
+    ``exclude_mentor_ids`` is forwarded to ``matchmake`` (blocked or
+    quarantined actors never surface; the safety choke point also applies
+    internally).
     """
     weak, unavailable, has_history = _training_weak_areas()
 
@@ -905,12 +1076,15 @@ def suggest_mentors_from_training() -> dict[str, Any]:
         labels = ", ".join(
             w["area"].replace("_", " ") for w in weak if topic in w.get("topics", [])
         )
-        res = matchmake({
-            "industry": "",
-            "target_role": "",
-            "topics_ranked": [topic],
-            "goal": f"Get better at {labels} (flagged by my practice history).",
-        })
+        res = matchmake(
+            {
+                "industry": "",
+                "target_role": "",
+                "topics_ranked": [topic],
+                "goal": f"Get better at {labels} (flagged by my practice history).",
+            },
+            exclude_mentor_ids=exclude_mentor_ids,
+        )
         # The suggestion is topic-driven: prep should speak to the suggested
         # topic, not to whatever topic the mentor happens to list first.
         matches = res.get("matches", [])[:3]
@@ -1010,7 +1184,11 @@ def session_agenda(mentor_id: str, mentee_goal: str) -> dict[str, Any]:
     Structure: 5 min intros + goal, 15 min deep-dive (3 questions drawn
     from the mentor's topics), 5 min mentor-story prompt, 5 min next steps.
     Labeled as a starting template the pair can adapt — not a script.
+    Refuses loudly when ``mentor_id`` is blocked or quarantined.
     """
+    rejected = _exclusion_rejection(mentor_id)
+    if rejected is not None:
+        return rejected
     if not mentee_goal or not mentee_goal.strip():
         return {"ok": False, "error": "mentee_goal is required"}
     directory = _load_directory()
@@ -1188,21 +1366,35 @@ def register_tools(mcp: Any) -> None:
 
     @mcp.tool()
     def mentor_match(industry: str, target_role: str, topics: list,
-                     goal: str) -> dict:
+                     goal: str, consent_preview: bool = True,
+                     exclude_mentor_ids: list | None = None) -> dict:
         """Matchmake: rank available mentors for a mentee's questionnaire.
+
+        Defaults to the SAFE mode (consent_preview=True): contact fields
+        are sealed until both parties approve the introduction via the
+        consent handshake. Pass consent_preview=False only for the
+        self-serve cold-contact path. Blocked/quarantined mentors are
+        always excluded (the matchmake safety choke point applies them
+        internally); exclude_mentor_ids hides additional ids.
 
         Args:
             industry: The mentee's industry.
             target_role: The mentee's target role.
             topics: Topics ranked most-important first.
             goal: The mentee's goal in one sentence.
+            consent_preview: Seal contact fields until mutual consent
+                (default True — the safe mode).
+            exclude_mentor_ids: Extra mentor ids to hide from results.
         """
         return _impl_match({
             "industry": industry,
             "target_role": target_role,
             "topics_ranked": topics,
             "goal": goal,
-        })
+        },
+            consent_preview=consent_preview,
+            exclude_mentor_ids=exclude_mentor_ids or (),
+        )
 
     @mcp.tool()
     def mentor_connection_draft(mentor_id: str, mentee_name: str,
@@ -1228,14 +1420,20 @@ def register_tools(mcp: Any) -> None:
         return _impl_publish(confirmed=confirm)
 
     @mcp.tool()
-    def suggest_mentors_from_training() -> dict:
+    def suggest_mentors_from_training(
+        exclude_mentor_ids: list | None = None,
+    ) -> dict:
         """Suggest mentors for your weakest training areas.
 
         Reads your soft-skills and AI-proficiency practice history and
         matches you with mentors for the areas where your scores are
         weakest. No history yet? It will say so and suggest a drill first.
+        Blocked/quarantined mentors never surface.
+
+        Args:
+            exclude_mentor_ids: Extra mentor ids to hide from suggestions.
         """
-        return _impl_suggest()
+        return _impl_suggest(exclude_mentor_ids=exclude_mentor_ids or ())
 
     @mcp.tool()
     def session_agenda(mentor_id: str, mentee_goal: str) -> dict:
@@ -1284,13 +1482,23 @@ def cmd_mentors(args: Any) -> int:
         _print_result(my_mentor_card(updates), as_json)
     elif action == "match":
         topics = [t.strip() for t in (args.topics or "").split(",") if t.strip()]
+        excluded = [
+            e.strip()
+            for e in (args.exclude_mentor_ids or "").split(",")
+            if e.strip()
+        ]
         _print_result(
-            matchmake({
-                "industry": args.industry or "",
-                "target_role": args.target_role or "",
-                "topics_ranked": topics,
-                "goal": args.goal or "",
-            }),
+            matchmake(
+                {
+                    "industry": args.industry or "",
+                    "target_role": args.target_role or "",
+                    "topics_ranked": topics,
+                    "goal": args.goal or "",
+                },
+                # SAFE mode by default: seal contact until mutual consent.
+                consent_preview=args.consent_preview,
+                exclude_mentor_ids=excluded,
+            ),
             as_json,
         )
     elif action == "draft":
@@ -1350,6 +1558,20 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     p.add_argument("--target-role", help="Your target role (match).")
     p.add_argument("--topics", help="Comma-separated topics, most important first.")
     p.add_argument("--goal", help="Your goal in one sentence (match).")
+    p.add_argument(
+        "--consent-preview",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Seal mentor contact fields until mutual consent (default: on — "
+            "the safe mode). Use --no-consent-preview for the self-serve "
+            "full-contact path."
+        ),
+    )
+    p.add_argument(
+        "--exclude-mentor-ids",
+        help="Comma-separated mentor ids to hide from match results (match).",
+    )
     p.add_argument("--mentee-name", help="Your name (draft).")
     p.add_argument("--mentee-goal", help="Your goal in one sentence (draft, agenda).")
     p.add_argument("--stars", type=int, help="Rating 1-5 (rate).")
