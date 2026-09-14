@@ -410,6 +410,250 @@ def _load_profile() -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+# ---------------------------------------------------------------------------
+# Initiative 06 — longitudinal practice gaps (observed, never invented)
+# ---------------------------------------------------------------------------
+#
+# These functions read the interview-lab practice history
+# (initiatives.i06.longitudinal) — per-session disclosed-rubric scores —
+# and surface *observed* gaps plus the next drill. The hard boundary:
+# recommendations come only from observed gaps (same disclosed rubric
+# dimension below threshold in >= repeat_count of the last `window`
+# completed sessions) or from the user's explicit focus selection.
+# With neither, the engine says so and suggests a maintenance rep —
+# it never invents weakness labels and never emits a generic course
+# list.
+
+def _i06_longitudinal() -> Any:
+    """Import the longitudinal engine (same repo)."""
+    from initiatives.i06 import longitudinal as _mod
+
+    return _mod
+
+
+#: Tests redirect the practice history/focus stores here; None = default.
+_PRACTICE_HISTORY_PATH: Path | None = None
+_PRACTICE_FOCUS_PATH: Path | None = None
+
+
+def practice_observed_gaps(
+    window: int = 3,
+    repeat_count: int = 2,
+    threshold: int = 70,
+) -> dict[str, Any]:
+    """Find observed practice gaps under the parameterized rule.
+
+    Args:
+        window: how many recent completed sessions to consider.
+        repeat_count: minimum sessions below threshold to count.
+        threshold: per-dimension "meets" score (0-100). The default
+            (70) is pending Paul + independent-framework-reviewer
+            approval per the roadmap Q1 gate; pass the approved value.
+
+    Returns {"gaps", "rule", "sessions_considered", "sessions_total"}.
+    Each gap has basis "observed" with the session evidence behind it.
+    """
+    mod = _i06_longitudinal()
+    rule = mod.ObservedGapRule(window=window, repeat_count=repeat_count,
+                               threshold=threshold)
+    history, history_ok, history_note = mod._read_history_store(  # noqa: SLF001 - same project, test seams
+        _PRACTICE_HISTORY_PATH or mod.HISTORY_PATH)
+    if not history_ok:
+        # Corrupt history must never look like a clean bill of health:
+        # mirror the engine's own corrupt-path output shape.
+        return {
+            "gaps": [],
+            "rule": mod._rule_payload(rule),  # noqa: SLF001 - same project, pending_approval
+            "sessions_considered": 0,
+            "sessions_total": 0,
+            "history_ok": False,
+            "history_note": history_note,
+        }
+    return mod.observed_gaps(history, rule)
+
+
+def practice_progress() -> dict[str, Any]:
+    """Per-dimension trends: which behaviors improved, which are steady
+    or declining, and whether the latest session meets threshold.
+
+    Trends are computed from the numbers only — dimension names come
+    from the disclosed rubric; no weakness labels are invented.
+    """
+    mod = _i06_longitudinal()
+    history, history_ok, history_note = mod._read_history_store(  # noqa: SLF001 - same project, test seams
+        _PRACTICE_HISTORY_PATH or mod.HISTORY_PATH)
+    if not history_ok:
+        # Corrupt history means "could not read your history", never
+        # an empty report. Mirrors the engine's own corrupt-path shape.
+        return {
+            "dimensions": [],
+            "outcome_note": mod.link_outcomes([])["outcome_note"],
+            "sessions_total": 0,
+            "history_ok": False,
+            "history_note": history_note,
+        }
+    return mod.progress_report(history)
+
+
+def _recommend_drill_history_corrupt(mod: Any, history_note: str,
+                                    focus_path: Any) -> dict[str, Any]:
+    """Corrupt-history branch of :func:`recommend_next_drill`.
+
+    Mirrors the longitudinal engine's own corrupt-path output shape
+    (see ``recommend_next_drill`` in initiatives/i06/longitudinal.py):
+    ``history_ok`` False, the note surfaced loudly, and never a clean
+    "no gaps" maintenance rep — the record may be destroyed, not
+    empty. The explicit focus store is still read with provenance
+    (a valid focus is honored; an unreadable one is flagged).
+    """
+    rule = mod.DEFAULT_RULE
+    history: list = []
+    history_ok = False
+    focus, focus_ok, focus_note = mod._read_focus_store(focus_path)  # noqa: SLF001 - same project
+
+    focus_age = mod._focus_age_days(focus)  # noqa: SLF001 - same project
+    stale = mod._focus_is_stale(focus)  # noqa: SLF001 - same project
+    expired_focus: dict[str, Any] | None = None
+    also_observed: list[dict[str, Any]] = []
+    drill_warnings: list[str] = []
+    recommendations: list[dict[str, Any]] = []
+    targets: list[dict[str, Any]] = []
+
+    if focus and not stale:
+        basis = "user_selected"
+        targets = [{"dimension": focus["dimension"],
+                    "basis": "user_selected",
+                    "selected_at": focus.get("selected_at"),
+                    "focus_age_days": focus_age,
+                    "stale": False}]
+    elif focus and stale:
+        expired_focus = {"dimension": focus["dimension"],
+                         "selected_at": focus.get("selected_at"),
+                         "focus_age_days": focus_age}
+        basis = "none"
+    else:
+        basis = "none"
+
+    for target in targets:
+        dim = target["dimension"]
+        drills = mod.DRILLS.get(dim)
+        if not drills:
+            drill_warnings.append(
+                f"No DRILLS entry for dimension {dim!r}: cannot render a "
+                f"drill for this target. Add a DRILLS entry for {dim!r} — "
+                f"the target is NOT being silently dropped.")
+            continue
+        for drill in drills:
+            recommendations.append({
+                "dimension": dim,
+                "basis": target["basis"],
+                "lab": drill["lab"],
+                "mode": drill["mode"],
+                "drill": drill["drill"],
+                "reps": drill["reps"],
+            })
+
+    if basis == "none":
+        # Never claim "no observed gaps" when the history could not be
+        # read — the record may be destroyed, not empty.
+        recommendations.append({
+            "dimension": None,
+            "basis": "none",
+            "lab": "mock_interview",
+            "mode": "hiring_manager",
+            "drill": ("Holding pattern: your practice history could not "
+                      "be loaded, so no recommendation can be made from "
+                      "your recorded sessions. Recover the history file "
+                      "first — do not treat this as a clean bill of "
+                      "health."),
+            "reps": "1 round",
+        })
+
+    lines = ["# Next drill", ""]
+    lines.append(
+        f"⚠️ Practice history could not be loaded ({history_note}). "
+        f"The recommendation below does NOT reflect your recorded "
+        f"sessions — recover the history file before trusting it.")
+    lines.append("")
+    if not focus_ok:
+        lines.append(f"⚠️ Focus selection unreadable ({focus_note}) — "
+                     f"proceeding without it.")
+        lines.append("")
+    if basis == "user_selected":
+        target = targets[0]
+        age = target.get("focus_age_days")
+        age_txt = (f" (selected {age} day(s) ago; focus expires after "
+                   f"{mod.FOCUS_TTL_DAYS} days)"
+                   if age is not None else "")
+        lines.append(f"Your selected focus: **{target['dimension']}**"
+                     f"{age_txt}.")
+    else:
+        if expired_focus:
+            lines.append(
+                f"Your focus selection (**{expired_focus['dimension']}**, "
+                f"selected {expired_focus['focus_age_days']} day(s) ago) "
+                f"expired after {mod.FOCUS_TTL_DAYS} days. Gaps cannot be "
+                f"assessed either — your practice history could not be "
+                f"loaded, so nothing is labeled a weakness because nothing "
+                f"could be measured. Suggested maintenance:")
+    lines.append("")
+    for i, rec in enumerate(recommendations, 1):
+        dim = rec["dimension"] or "maintenance"
+        lines.append(f"{i}. **{dim}** ({rec['lab']}, {rec['mode']}): "
+                     f"{rec['drill']} [{rec['reps']}]")
+    for warning in drill_warnings:
+        lines += ["", f"⚠️ {warning}"]
+    return {
+        "basis": basis,
+        "rule": mod._rule_payload(rule),  # noqa: SLF001 - same project, pending_approval
+        "targets": targets,
+        "also_observed": also_observed,
+        "expired_focus": expired_focus,
+        "recommendations": recommendations,
+        "drill_warnings": drill_warnings,
+        "sessions_total": len(history),
+        "history_ok": history_ok,
+        "history_note": history_note,
+        "focus_ok": focus_ok,
+        "focus_note": focus_note,
+        "markdown": "\n".join(lines),
+    }
+
+
+def recommend_next_drill() -> dict[str, Any]:
+    """Recommend the next drill from observed gaps or your selection.
+
+    Priority: your explicit focus first, then observed gaps (worst
+    average first). With neither, basis is "none" and the suggestion
+    is a maintenance rep — explicitly not a weakness.
+    """
+    mod = _i06_longitudinal()
+    history, history_ok, history_note = mod._read_history_store(  # noqa: SLF001 - same project, test seams
+        _PRACTICE_HISTORY_PATH or mod.HISTORY_PATH)
+    focus_path = _PRACTICE_FOCUS_PATH or mod.FOCUS_PATH
+    if not history_ok:
+        # Never a clean "no gaps": mirror the engine's own
+        # corrupt-history output shape (focus still honored loudly).
+        return _recommend_drill_history_corrupt(mod, history_note,
+                                               focus_path)
+    return mod.recommend_next_drill(history, focus_path=focus_path)
+
+
+def select_practice_focus(dimension: str) -> dict[str, Any]:
+    """Set your explicit practice focus (a user choice, not a system
+    label). Takes priority over observed gaps in recommendations."""
+    mod = _i06_longitudinal()
+    return mod.select_focus(
+        dimension, focus_path=_PRACTICE_FOCUS_PATH or mod.FOCUS_PATH)
+
+
+def clear_practice_focus() -> dict[str, Any]:
+    """Clear your explicit practice focus."""
+    mod = _i06_longitudinal()
+    mod.clear_focus(focus_path=_PRACTICE_FOCUS_PATH or mod.FOCUS_PATH)
+    return {"cleared": True}
+
+
 def _print_result(result: dict[str, Any], as_json: bool) -> None:
     if as_json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
@@ -443,8 +687,40 @@ def cmd_skill_gaps(args: Any) -> int:
             ),
             as_json,
         )
+    elif action == "observe":
+        _print_result(
+            practice_observed_gaps(
+                window=int(getattr(args, "window", 3) or 3),
+                repeat_count=int(getattr(args, "repeat", 2) or 2),
+                threshold=int(getattr(args, "threshold", 70) or 70),
+            ),
+            as_json,
+        )
+    elif action == "progress":
+        result = practice_progress()
+        if not as_json and "markdown" not in result:
+            lines = ["# Practice progress", ""]
+            for dim in result.get("dimensions", []):
+                delta = (f"{dim['delta']:+}" if dim["delta"] is not None
+                         else "n/a")
+                lines.append(
+                    f"- **{dim['dimension']}**: {dim['sessions']} sessions, "
+                    f"latest {dim['latest_score']}/100, trend "
+                    f"{dim['trend']} (delta {delta})")
+            lines += ["", result.get("outcome_note", "")]
+            result = {**result, "markdown": "\n".join(lines)}
+        _print_result(result, as_json)
+    elif action == "recommend":
+        _print_result(recommend_next_drill(), as_json)
+    elif action == "focus":
+        _print_result(select_practice_focus(getattr(args, "skill", "")),
+                      as_json)
+    elif action == "unfocus":
+        _print_result(clear_practice_focus(), as_json)
     else:
-        raise SystemExit(f"Unknown action {action!r}; use analyze|plan|mark")
+        raise SystemExit(
+            "Unknown action {!r}; use analyze|plan|mark|observe|progress|"
+            "recommend|focus|unfocus".format(action))
     return 0
 
 
@@ -453,6 +729,11 @@ def register_tools(mcp: Any) -> None:
     _impl_analyze = globals()["analyze_gaps"]
     _impl_plan = globals()["gap_plan"]
     _impl_mark = globals()["mark_gap_progress"]
+    _impl_observe = globals()["practice_observed_gaps"]
+    _impl_progress = globals()["practice_progress"]
+    _impl_recommend = globals()["recommend_next_drill"]
+    _impl_focus = globals()["select_practice_focus"]
+    _impl_unfocus = globals()["clear_practice_focus"]
 
     @mcp.tool()
     def analyze_skill_gaps(profile: dict, jobs: list) -> dict:
@@ -491,6 +772,62 @@ def register_tools(mcp: Any) -> None:
         """
         return _impl_mark(skill, status, evidence)
 
+    @mcp.tool()
+    def practice_observed_gaps(window: int = 3, repeat_count: int = 2,
+                               threshold: int = 70) -> dict:
+        """Find observed interview-practice gaps.
+
+        An observed gap is a disclosed rubric dimension scoring below
+        `threshold` in at least `repeat_count` of the last `window`
+        completed practice sessions. Unscored dimensions never count.
+
+        Args:
+            window: recent completed sessions to consider.
+            repeat_count: minimum sessions below threshold.
+            threshold: per-dimension "meets" score (default 70,
+                pending Paul + reviewer approval per the Q1 gate).
+        """
+        return _impl_observe(window, repeat_count, threshold)
+
+    @mcp.tool()
+    def practice_progress() -> dict:
+        """Per-dimension practice trends: improved, steady, or declining.
+
+        Computed from session scores only; no weakness labels invented.
+        """
+        return _impl_progress()
+
+    @mcp.tool()
+    def recommend_next_drill() -> dict:
+        """Recommend the next drill from observed gaps or your focus.
+
+        Your explicit focus wins; then observed gaps (worst first).
+        With neither, suggests a maintenance rep — never a generic
+        course list, never an invented weakness.
+        """
+        return _impl_recommend()
+
+    @mcp.tool()
+    def select_practice_focus(dimension: str) -> dict:
+        """Set your explicit practice focus dimension.
+
+        A user choice, not a system label; takes priority in
+        recommend_next_drill.
+
+        Args:
+            dimension: one of structure, evidence, clarity, trade_offs,
+                question_quality.
+        """
+        try:
+            return _impl_focus(dimension)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+    @mcp.tool()
+    def clear_practice_focus() -> dict:
+        """Clear your explicit practice focus."""
+        return _impl_unfocus()
+
 
 def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add `skill-gaps` to an argparse subparsers.
@@ -499,16 +836,23 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     own dispatch table (cli.py-style).
     """
     p = subparsers.add_parser("skill-gaps", help="Analyze and close skill gaps.")
-    p.add_argument("action", help="One of: analyze, plan, mark.")
+    p.add_argument(
+        "action",
+        help=("One of: analyze, plan, mark, observe, progress, recommend, "
+              "focus, unfocus."),
+    )
     p.add_argument("--jobs", default="", help="analyze: path to JSON list of job dicts.")
     p.add_argument(
         "--profile", default="", help="analyze: path to profile JSON (default: saved profile)."
     )
-    p.add_argument("--skill", default="", help="mark: the gap skill.")
+    p.add_argument("--skill", default="", help="mark: the gap skill; focus: the dimension.")
     p.add_argument("--status", default="", help="mark: planned | practicing | closed.")
     p.add_argument(
         "--evidence", default=None, help="mark: one-line evidence note (required to close)."
     )
+    p.add_argument("--window", default="3", help="observe: recent sessions to consider.")
+    p.add_argument("--repeat", default="2", help="observe: minimum sessions below threshold.")
+    p.add_argument("--threshold", default="70", help="observe: per-dimension meets score.")
     p.add_argument("--json", action="store_true", help="Machine-readable JSON output.")
     return {"skill-gaps": cmd_skill_gaps}
 

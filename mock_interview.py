@@ -38,6 +38,23 @@ Honesty rules (fail closed on facts):
   - STAR story hints shown with questions come only from
     ``briefs._star_stories(profile)`` (profile data); with no experience
     on file the hints are empty, never fabricated.
+
+Initiative 06 (interview lab):
+  - ``mode`` selects a disclosed interviewer persona: "recruiter",
+    "hiring_manager", "peer", "executive", or "adversarial" (see
+    ``initiatives.i06.modes``). Each mode publishes its persona, round
+    shape, and rubric weights before the round starts. ``mode=None``
+    keeps the classic question bank for backward compatibility.
+  - Every answer is also scored against the disclosed rubric
+    (``initiatives.i06.rubric``: structure, evidence, clarity,
+    trade-offs, question quality). The legacy 0-100 craft score is
+    unchanged; rubric scores are added, never substituted.
+  - Completed sessions are recorded to the longitudinal practice
+    history (``initiatives.i06.longitudinal``) so repeated gaps can be
+    observed across sessions. Recording is best-effort and never
+    breaks answering.
+  - ``input_modality`` ("text" default, "voice" via the optional voice
+    mode) is recorded per answer for the privacy ledger.
 """
 
 from __future__ import annotations
@@ -51,6 +68,12 @@ from pathlib import Path
 from typing import Any
 
 import briefs
+
+# Initiative 06 lab engines (same repo; hard import is fine — the
+# initiatives package ships with the project).
+from initiatives.i06 import longitudinal as _i06_longitudinal
+from initiatives.i06 import modes as _i06_modes
+from initiatives.i06 import rubric as _i06_rubric
 
 log = logging.getLogger("job-apply-mcp.mock_interview")
 
@@ -288,6 +311,7 @@ def start_mock_interview(
     profile: dict[str, Any] | None = None,
     channel: str = "chat",
     job_id: str | None = None,
+    mode: str | None = None,
 ) -> dict[str, Any]:
     """Start a 5-question mock interview session.
 
@@ -301,21 +325,29 @@ def start_mock_interview(
             reused from ``briefs.prep_interview``'s likely_questions
             (already tailored to the posting); otherwise the
             deterministic role-based question bank is used.
+        mode: Optional interviewer persona — one of "recruiter",
+            "hiring_manager", "peer", "executive", "adversarial" (see
+            ``initiatives.i06.modes``). Selects mode-flavored questions
+            and mode-specific rubric weights, and returns a disclosed
+            ``mode_card`` describing the persona before the round
+            starts. ``None`` (default) keeps the classic question bank
+            for backward compatibility.
 
     Returns:
         For channel="chat": {"session_id", "session", "channel",
-        "first_question", "note"}. For channel="whatsapp":
-        {"session_id", "channel", "deliverable_in",
-        "outbound_message", "note"} -- the message is handed to the
-        caller for delivery; this function never sends anything.
+        "first_question", "mode", "mode_card", "note"}. For
+        channel="whatsapp": {"session_id", "channel", "deliverable_in",
+        "outbound_message", "mode", "note"} -- the message is handed to
+        the caller for delivery; this function never sends anything.
 
     Raises:
-        ValueError: for an unknown channel.
+        ValueError: for an unknown channel or an unknown mode.
     """
     channel = (channel or "chat").strip().lower()
     if channel not in ("chat", "whatsapp"):
         raise ValueError(
             f"Unknown channel {channel!r}; expected 'chat' or 'whatsapp'")
+    mode_name = _i06_modes.validate_mode(mode) if mode else None
     if profile is None:
         profile = {}
     if not isinstance(profile, dict):
@@ -337,7 +369,13 @@ def start_mock_interview(
             if questions:
                 source = "prep_interview"
     if questions is None:
-        questions = _bank_questions(company, role)
+        if mode_name:
+            questions = _i06_modes.build_mode_questions(
+                mode_name, company, role,
+                technical=_role_technical_questions(role))
+            source = f"mode_bank:{mode_name}"
+        else:
+            questions = _bank_questions(company, role)
 
     # Honest STAR story hints: profile data only, [] when nothing on file.
     try:
@@ -346,7 +384,8 @@ def start_mock_interview(
         star_hints = []
 
     numbered = [
-        {"id": f"q{i}", "kind": q["kind"], "question": q["question"]}
+        {"id": f"q{i}", "kind": q["kind"], "question": q["question"],
+         "mode": q.get("mode") or mode_name or "classic"}
         for i, q in enumerate(questions, start=1)
     ]
     session = {
@@ -356,6 +395,7 @@ def start_mock_interview(
         "job_id": job_id or "",
         "question_source": source,
         "channel": channel,
+        "mode": mode_name or "classic",
         "questions": numbered,
         "answers": {},
         "star_story_hints": star_hints,
@@ -368,12 +408,14 @@ def start_mock_interview(
 
     first = {"id": numbered[0]["id"], "kind": numbered[0]["kind"],
              "question": numbered[0]["question"]}
+    mode_card = (_i06_modes.mode_card(mode_name) if mode_name else None)
     if channel == "whatsapp":
         return {
             "session_id": session["session_id"],
             "channel": "whatsapp",
             "deliverable_in": "whatsapp_side_chat",
             "outbound_message": _build_outbound_message(session),
+            "mode": session["mode"],
             "note": (
                 "WhatsApp is the only proactive channel and this message "
                 "can only be sent from the WhatsApp side chat (link once: "
@@ -386,6 +428,8 @@ def start_mock_interview(
         "session": session,
         "channel": "chat",
         "first_question": first,
+        "mode": session["mode"],
+        "mode_card": mode_card,
         "note": (
             "Ask the first question in the current chat; record answers "
             "with mock_answer (answer_mock_question)."
@@ -503,19 +547,35 @@ def _score_feedback(answer: str,
     return score, feedback
 
 
-def answer_mock_question(session_id: str, answer: str) -> dict[str, Any]:
+def answer_mock_question(
+    session_id: str,
+    answer: str,
+    input_modality: str = "text",
+    candidate_questions: list[str] | None = None,
+) -> dict[str, Any]:
     """Score the session's next unanswered question.
 
     Args:
         session_id: The session id from start_mock_interview.
         answer: The candidate's answer text.
+        input_modality: How the answer was provided — "text" (default)
+            or "voice" (via the optional voice mode; see
+            ``initiatives.i06.voice``). Recorded per answer for the
+            privacy ledger.
+        candidate_questions: The candidate's own questions to the
+            interviewer (for the rubric's ``question_quality``
+            dimension). When omitted the dimension is unscored, never
+            zero.
 
     Returns:
         {"session_id", "question_id", "question_index" (1-based),
         "question", "length_words", "star" ({group: bool, ...,
-        "coverage": "3/4"}), "has_numbers", "overall" (0-100),
-        "feedback" ([str]), "answered", "total", "complete",
-        "next_question" ({"id","kind","question"} or None)}.
+        "coverage": "3/4"}), "has_numbers", "overall" (0-100, legacy
+        craft score), "feedback" ([str]), "rubric" ({"dimensions":
+        {dim: {"score", "signals", "feedback"}}, "overall", "weights",
+        "unscored"} — the disclosed rubric), "input_modality",
+        "answered", "total", "complete", "next_question" ({"id","kind",
+        "question"} or None)}.
 
     Raises:
         ValueError: unknown session, or every question already answered.
@@ -536,6 +596,16 @@ def answer_mock_question(session_id: str, answer: str) -> dict[str, Any]:
     overall, feedback = _score_feedback(answer, coverage)
     words = len(_WORD_RE.findall(answer or ""))
 
+    # Initiative 06 rubric: disclosed weights, mode-specific when the
+    # session runs in a mode; classic sessions use the rubric defaults.
+    session_mode = session.get("mode") or "classic"
+    rubric_weights = (_i06_modes.mode_weights(session_mode)
+                      if session_mode != "classic" else None)
+    rubric = _i06_rubric.score_answer(
+        answer, weights=rubric_weights,
+        candidate_questions=candidate_questions)
+    rubric_flat = {d: r["score"] for d, r in rubric["dimensions"].items()}
+
     answers[current["id"]] = {
         "answer": str(answer or ""),
         "overall": overall,
@@ -543,10 +613,20 @@ def answer_mock_question(session_id: str, answer: str) -> dict[str, Any]:
         "has_numbers": bool(_NUMBER_RE.search(answer or "")),
         "length_words": words,
         "feedback": feedback,
+        "rubric": {
+            "dimension_scores": rubric_flat,
+            "overall": rubric["overall"],
+            "weights": rubric["weights"],
+            "unscored": rubric["unscored"],
+        },
+        "input_modality": input_modality or "text",
     }
     answered = len(answers)
     session["complete"] = answered == len(questions)
     _save_sessions(sessions)
+
+    if session["complete"]:
+        _record_longitudinal_result(session)
 
     remaining = [q for q in questions if q["id"] not in answers]
     nxt = remaining[0] if remaining else None
@@ -561,6 +641,13 @@ def answer_mock_question(session_id: str, answer: str) -> dict[str, Any]:
         "has_numbers": bool(_NUMBER_RE.search(answer or "")),
         "overall": overall,
         "feedback": feedback,
+        "rubric": {
+            "dimension_scores": rubric_flat,
+            "overall": rubric["overall"],
+            "weights": rubric["weights"],
+            "unscored": rubric["unscored"],
+        },
+        "input_modality": input_modality or "text",
         "answered": answered,
         "total": len(questions),
         "complete": session["complete"],
@@ -569,6 +656,47 @@ def answer_mock_question(session_id: str, answer: str) -> dict[str, Any]:
              "question": nxt["question"]} if nxt else None
         ),
     }
+
+
+def _record_longitudinal_result(session: dict[str, Any]) -> None:
+    """Best-effort: log a completed session to the practice history.
+
+    Never raises — answering must work even if the history store is
+    unavailable. Tests can redirect via ``_LONGITUDINAL_HISTORY_PATH``.
+    """
+    try:
+        dim_totals: dict[str, list[int]] = {}
+        rubric_overalls: list[int] = []
+        for entry in session.get("answers", {}).values():
+            rub = entry.get("rubric") or {}
+            for dim, score in (rub.get("dimension_scores") or {}).items():
+                if score is not None:
+                    dim_totals.setdefault(dim, []).append(score)
+            if rub.get("overall") is not None:
+                rubric_overalls.append(rub["overall"])
+        dimension_scores = {
+            d: round(sum(v) / len(v)) for d, v in dim_totals.items() if v
+        }
+        for dim in _i06_rubric.DIMENSIONS:
+            dimension_scores.setdefault(dim, None)
+        _i06_longitudinal.record_result(
+            source="mock_interview",
+            label=f"{session.get('mode', 'classic')} @ "
+                  f"{session.get('company', '')}",
+            dimension_scores=dimension_scores,
+            overall=(round(sum(rubric_overalls) / len(rubric_overalls))
+                     if rubric_overalls else None),
+            mode=session.get("mode", "classic"),
+            session_id=session.get("session_id", ""),
+            job_id=session.get("job_id", ""),
+            history_path=_LONGITUDINAL_HISTORY_PATH,
+        )
+    except Exception as exc:  # noqa: BLE001 - history is best-effort
+        log.warning("longitudinal record failed: %s", exc)
+
+
+#: Tests redirect the longitudinal history here; None = default path.
+_LONGITUDINAL_HISTORY_PATH: Path | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -682,15 +810,33 @@ def mock_summary(session_id: str) -> dict[str, Any]:
     overall_score = round(sum(scored) / len(scored)) if scored else 0
     tips = _top_tips(per_question)
 
+    # Initiative 06: per-dimension rubric averages across answered
+    # questions (unscored dimensions stay None, never 0).
+    rubric_averages: dict[str, int | None] = {}
+    for dim in _i06_rubric.DIMENSIONS:
+        dim_scores = [
+            answers[q["id"]]["rubric"]["dimension_scores"][dim]
+            for q in questions
+            if q["id"] in answers
+            and dim in (answers[q["id"]].get("rubric") or {}).get(
+                "dimension_scores", {})
+            and answers[q["id"]]["rubric"]["dimension_scores"][dim]
+            is not None
+        ]
+        rubric_averages[dim] = (round(sum(dim_scores) / len(dim_scores))
+                                if dim_scores else None)
+
     summary: dict[str, Any] = {
         "session_id": session_id,
         "company": session.get("company", ""),
         "role": session.get("role", ""),
+        "mode": session.get("mode", "classic"),
         "answered": answered_n,
         "total": len(questions),
         "complete": bool(session.get("complete")),
         "per_question": per_question,
         "overall_score": overall_score,
+        "rubric_averages": rubric_averages,
         "top_tips": tips,
         "unanswered": [p["question_id"] for p in per_question
                        if not p["answered"]],
@@ -700,16 +846,47 @@ def mock_summary(session_id: str) -> dict[str, Any]:
     return summary
 
 
+def show_rubric() -> dict[str, Any]:
+    """Return the disclosed interview rubric and interview modes.
+
+    Everything the lab scores against is public: dimension weights,
+    what each measures, how it is scored, and each mode's persona and
+    scoring weights. No hidden factors.
+    """
+    return {
+        "rubric": _i06_rubric.DISCLOSED_RUBRIC,
+        "meets_threshold_default": _i06_rubric.MEETS_THRESHOLD,
+        "threshold_note": (
+            "Default threshold; the final threshold is approved by Paul "
+            "and the independent framework reviewer (roadmap Q1 gate)."),
+        "modes": {
+            name: {
+                "label": spec["label"],
+                "persona": spec["persona"],
+                "round_shape": spec["round_shape"],
+                "weights": spec["weights"],
+            }
+            for name, spec in _i06_modes.MODES.items()
+        },
+        "markdown": _i06_rubric.rubric_card(),
+    }
+
+
 def _summary_markdown(summary: dict[str, Any]) -> str:
     """Human-readable summary for chat/WhatsApp display."""
     lines = [
         f"# Mock interview summary: {summary['role']} @ {summary['company']}",
         "",
+        f"**Mode:** {summary.get('mode', 'classic')}",
         f"**Score:** {summary['overall_score']}/100 "
         f"({summary['answered']}/{summary['total']} answered)",
         "",
-        "## Per-question scores",
+        "## Rubric averages (disclosed rubric)",
     ]
+    for dim, avg in (summary.get("rubric_averages") or {}).items():
+        mark = f"{avg}/100" if avg is not None else "unscored"
+        lines.append(f"- {dim.replace('_', ' ')}: {mark}")
+    lines += ["", "## Per-question scores"]
     for p in summary["per_question"]:
         mark = p["overall"] if p["answered"] else "--"
         lines.append(
@@ -750,6 +927,7 @@ def cmd_mock_start(args: Any) -> int:
             args.company, args.role, profile,
             channel=getattr(args, "channel", "chat") or "chat",
             job_id=getattr(args, "job_id", None),
+            mode=getattr(args, "mode", None),
         )
     except ValueError as exc:
         print(f"error: {exc}")
@@ -783,26 +961,47 @@ def cmd_mock_summary(args: Any) -> int:
     return 0
 
 
+def cmd_mock_rubric(args: Any) -> int:
+    """CLI handler for `mock-rubric` (disclosed rubric + modes)."""
+    result = show_rubric()
+    if getattr(args, "json", False):
+        _print_result(result, True)
+    else:
+        print(result["markdown"])
+        for name, spec in result["modes"].items():
+            print(f"--- {name}: {spec['label']} ---")
+            print(spec["persona"])
+    return 0
+
+
 def register_tools(mcp: Any) -> None:
     """Register the mock-interview MCP tools on an MCP server instance."""
     _impl_start = globals()["start_mock_interview"]
     _impl_answer = globals()["answer_mock_question"]
     _impl_summary = globals()["mock_summary"]
+    _impl_rubric = globals()["show_rubric"]
 
     @mcp.tool()
     def start_mock_interview(company: str, role: str,
-                             channel: str = "chat") -> dict:
+                             channel: str = "chat",
+                             mode: str = "hiring_manager") -> dict:
         """Start a 5-question mock interview for a role at a company.
 
         Mixes behavioral (STAR), role-specific technical, and
         company-specific questions. With channel="whatsapp" returns a
         ready-to-send message for the WhatsApp side chat to deliver;
-        nothing is ever sent by this tool.
+        nothing is ever sent by this tool. Every answer is scored
+        against the disclosed interview rubric (structure, evidence,
+        clarity, trade-offs, question quality).
 
         Args:
             company: Company name, e.g. "Stripe".
             role: Role title, e.g. "Senior Backend Engineer".
             channel: "chat" (default) or "whatsapp".
+            mode: Interviewer persona — "recruiter",
+                "hiring_manager" (default), "peer", "executive", or
+                "adversarial". The persona, round shape, and scoring
+                weights are disclosed in the returned mode_card.
         """
         try:
             from server import _load_saved_profile as _load  # lazy, no cycle
@@ -811,24 +1010,36 @@ def register_tools(mcp: Any) -> None:
         except Exception:  # noqa: BLE001 - server may be unavailable
             profile = {}
         try:
-            return _impl_start(company, role, profile, channel=channel)
+            return _impl_start(company, role, profile, channel=channel,
+                               mode=mode)
         except ValueError as exc:
             return {"error": str(exc)}
 
     @mcp.tool()
-    def answer_mock_question(session_id: str, answer: str) -> dict:
+    def answer_mock_question(session_id: str, answer: str,
+                             input_modality: str = "text",
+                             candidate_questions: list | None = None
+                             ) -> dict:
         """Score the next unanswered mock-interview question.
 
         Deterministic heuristics: STAR structure coverage, specificity
-        (numbers present?), length sanity, and "I vs we" ownership. No
-        LLM; feedback never invents facts about the candidate.
+        (numbers present?), length sanity, and "I vs we" ownership —
+        plus the disclosed rubric (structure, evidence, clarity,
+        trade-offs, question quality). No LLM; feedback never invents
+        facts about the candidate.
 
         Args:
             session_id: The session id from start_mock_interview.
             answer: The candidate's answer text.
+            input_modality: "text" (default) or "voice" — recorded per
+                answer for the privacy ledger.
+            candidate_questions: The candidate's own questions to the
+                interviewer, for the question-quality dimension.
         """
         try:
-            return _impl_answer(session_id, answer)
+            return _impl_answer(session_id, answer,
+                                input_modality=input_modality,
+                                candidate_questions=candidate_questions)
         except ValueError as exc:
             return {"error": str(exc)}
 
@@ -843,6 +1054,15 @@ def register_tools(mcp: Any) -> None:
             return _impl_summary(session_id)
         except ValueError as exc:
             return {"error": str(exc)}
+
+    @mcp.tool()
+    def mock_rubric() -> dict:
+        """Show the disclosed interview rubric and interview modes.
+
+        Everything the lab scores against is public: dimension
+        weights, scoring rules, and each mode's persona and weights.
+        """
+        return _impl_rubric()
 
 
 def register_cli(subparsers: Any) -> dict[str, Any]:
@@ -862,6 +1082,12 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
         "--job-id", default=None,
         help="Optional search_jobs job id: reuse its tailored questions.")
     p_start.add_argument(
+        "--mode", default=None,
+        choices=["recruiter", "hiring_manager", "peer", "executive",
+                 "adversarial"],
+        help=("Interviewer persona: mode-flavored questions and disclosed "
+              "mode-specific rubric weights (default: classic bank)."))
+    p_start.add_argument(
         "--json", action="store_true", help="Machine-readable JSON output.")
 
     p_answer = subparsers.add_parser(
@@ -879,8 +1105,15 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     p_summary.add_argument(
         "--json", action="store_true", help="Machine-readable JSON output.")
 
+    p_rubric = subparsers.add_parser(
+        "mock-rubric",
+        help="Show the disclosed interview rubric and modes.")
+    p_rubric.add_argument(
+        "--json", action="store_true", help="Machine-readable JSON output.")
+
     return {
         "mock-start": cmd_mock_start,
         "mock-answer": cmd_mock_answer,
         "mock-summary": cmd_mock_summary,
+        "mock-rubric": cmd_mock_rubric,
     }
