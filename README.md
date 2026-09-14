@@ -43,6 +43,49 @@ bots skip.
 
 The full policy: [`docs/compliance.md`](docs/compliance.md).
 
+## Submission requires your explicit confirmation
+
+This software can fill application forms, but it never submits
+them. You review the completed form and click submit yourself.
+Application packets are built and reviewed separately from
+submission; the packet builder has no submit capability at all,
+enforced by test.
+
+You are the applicant. You are responsible for the accuracy of
+every claim in anything submitted and for the volume of what you
+send.
+
+## Runs on your machine — nothing reaches the author
+
+Veto runs on your own computer. Sitting idle, the web UI and the
+MCP server open zero outbound connections
+([capability report](docs/capability-report.md) §1a, §1c). When you
+ask it to search, it contacts only the public job-board APIs you
+asked it to search, and makes no connections it wasn't asked to
+make (report §1–§2, §8). Optional notifications (ntfy, webhook) are
+off by default and send nothing until you configure them (report
+§4). Gmail access goes through your own Gmail connection — Veto
+never sees, stores, or transmits your Google tokens (report §7).
+Tokens and credentials it does hold live only in files only you can
+read (mode `0600`, report §6). The author operates no service and
+receives nothing: no copy of your resume, application history,
+credentials, or correspondence ever reaches the author (report §9.4).
+
+## Third-party services
+
+Veto talks to other companies' services: public job-board APIs
+(Greenhouse, Lever, Ashby, Adzuna), DuckDuckGo for company research
+you request, Gmail through your own connected account, and —
+only if you configure them — ntfy.sh or a webhook you chose.
+Each of those services has its own terms of use, and some of them
+restrict automation — you are responsible for complying with them.
+The author is not affiliated with, endorsed by, or authorized by
+any of them. Veto does not try to defeat or work around access
+controls, bot detection, or login walls: it identifies itself with
+an honest `veto/<version>` User-Agent and never imitates a browser
+(report §2), obeys robots.txt fail-closed (report §3), and never
+operates a logged-in session on your behalf (report §9.2).
+
 ## Quickstart
 
 ```bash
@@ -332,14 +375,15 @@ auto-discovered location.
 
 **Phase 2 (browser automation):** `browser_apply.py` implements Playwright-based
 form filling. It detects visible inputs/textareas/selects/file-uploads,
-fills them from a `profile` dict, uploads the resume, screenshots the form,
-and — only with `confirm=True` — clicks the submit button. Without
-`confirm=True` it fills + screenshots and returns `submitted=False`.
+fills them from a `profile` dict, uploads the resume, screenshots the
+completed form, and stops. It never clicks submit — in a headed browser
+the window stays open on the completed form so you review it and click
+submit yourself.
 
 ## Phase 2: browser automation
 
-`browser_apply.py` (Playwright, sync API) fills and submits application
-forms in headless Chromium:
+`browser_apply.py` (Playwright, sync API) fills application forms in
+headless Chromium. It never submits:
 
 - `extract_form_fields(page)` → list of `{name, label, type, selector}`
   for visible inputs / textareas / selects / file inputs.
@@ -350,9 +394,9 @@ forms in headless Chromium:
   for the human.
 - `apply_via_browser(apply_url, profile, resume_path, headless=True, confirm=False)`
   → `{ok, submitted, fields_filled, fields_detected, screenshot,
-  screenshot_after_submit, final_url, error}`. It **never clicks submit
-  unless `confirm=True`**. Cookie/consent banners are dismissed
-  best-effort; failures return error dicts, never exceptions.
+  final_url, error}`. It **never clicks submit** — `confirm` is accepted
+  for compatibility but does nothing. Cookie/consent banners are
+  dismissed best-effort; failures return error dicts, never exceptions.
 
 ### Enabling Phase 2
 
