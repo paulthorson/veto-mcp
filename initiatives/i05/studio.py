@@ -46,7 +46,10 @@ def _p(path: str | None) -> Path | None:
 # ---------------------------------------------------------------- variants
 
 def cmd_variant_create(a: argparse.Namespace) -> int:
-    profile = _load_json(a.profile)
+    # NOTE: the variant-create parser defines no --profile (and
+    # create_variant takes no profile): branches start empty and are
+    # filled by variant-tailor. Use create_base via the Python API when
+    # a base rendered from a profile is wanted.
     variant = versions.create_variant(
         a.name, job_id=a.job_id, variants_dir=_p(a.variants_dir))
     print(f"variant {variant['variant_id']} created")
@@ -87,11 +90,27 @@ def cmd_variant_restore(a: argparse.Namespace) -> int:
 
 
 def cmd_variant_trace(a: argparse.Namespace) -> int:
+    # trace_report returns {"statements", "unapproved", "unknown"} —
+    # per-statement evidence_status is joined here for the summary
+    # counts (there are no top-level "profile"/"approved" keys).
+    version_id = a.version
+    if version_id is None:
+        variant = versions.get_variant(
+            a.variant, variants_dir=_p(a.variants_dir))
+        if variant is None:
+            raise KeyError(f"unknown variant: {a.variant}")
+        version_id = variant.get("current_version")
     items = evidence_library.list_items(library_dir=_p(a.library_dir))
     report = versions.trace_report(
-        a.variant, a.version, items, variants_dir=_p(a.variants_dir))
-    print(f"profile-backed: {len(report['profile'])}")
-    print(f"approved: {len(report['approved'])}")
+        a.variant, version_id, items, variants_dir=_p(a.variants_dir))
+    profile_backed = sum(
+        1 for st in report["statements"]
+        if any(s == "profile" for s in st["evidence_status"].values()))
+    approved = sum(
+        1 for st in report["statements"]
+        if any(s == "approved" for s in st["evidence_status"].values()))
+    print(f"profile-backed statements: {profile_backed}")
+    print(f"statements with approved evidence: {approved}")
     print(f"unapproved: {report['unapproved'] or '(none)'}")
     print(f"unknown: {report['unknown'] or '(none)'}")
     return 0
@@ -119,12 +138,16 @@ def cmd_evidence_list(a: argparse.Namespace) -> int:
 
 
 def cmd_evidence_approve(a: argparse.Namespace) -> int:
-    if evidence_library.approve_item(a.evidence_id,
-                                     library_dir=_p(a.library_dir)):
-        print(f"approved {a.evidence_id}")
-        return 0
-    print(f"unknown evidence id: {a.evidence_id}")
-    return 1
+    # approve_item raises KeyError on unknown ids (it never returns a
+    # falsy value), so the "unknown" branch must catch, not test.
+    try:
+        evidence_library.approve_item(a.evidence_id,
+                                      library_dir=_p(a.library_dir))
+    except KeyError:
+        print(f"unknown evidence id: {a.evidence_id}")
+        return 1
+    print(f"approved {a.evidence_id}")
+    return 0
 
 
 # --------------------------------------------------------------------- ats

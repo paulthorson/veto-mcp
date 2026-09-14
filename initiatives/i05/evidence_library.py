@@ -16,8 +16,38 @@ Hard rules:
   Only ``approved=True`` items may back a tailored statement (see
   :func:`contracts.approved_evidence`). Editing an approved item's text
   resets approval — approval is of the exact wording.
-* Storage is a single JSON file with atomic tmp+rename writes, inside a
-  gitignored directory (evidence text is the user's personal data).
+* Storage is a single JSON file with atomic tmp+rename writes (fsync
+  before rename), inside a gitignored directory (evidence text is the
+  user's personal data).
+
+Trust model (see DECISIONS.md D6b):
+
+* Every item carries ``origin``: ``"derived"`` means the item was built
+  by :func:`build_from_profile` — text copied verbatim from the
+  profile, source reference generated from the same profile.
+  ``"asserted"`` means a caller supplied the text and source through
+  :func:`add_item`; the library does NOT vouch that it is true.
+* When :func:`add_item` is given the ``profile``, the ``source``
+  reference must resolve to a real value in that profile AND the text
+  must match that value verbatim — otherwise :class:`ValueError`.
+  Without a profile the source cannot be checked, so the item is
+  stored as ``origin="asserted"``: labeled, never presented as a
+  profile fact. A fabricated source therefore can never look identical
+  to a profile-derived item.
+* Retrieval (:func:`find_for_requirement`, :func:`links_for_job`)
+  returns only approved items; every returned item carries its
+  ``origin`` so consumers see asserted vs derived. Derived items rank
+  ahead of asserted ones on equal relevance.
+
+Corrupt-store policy: if ``library.json`` exists but is unreadable,
+malformed, or carries a different schema version, :func:`_load` raises
+:class:`CorruptStoreError` LOUDLY — reads and writes both refuse.
+The corrupt bytes are left untouched for manual recovery. The library
+never warns-and-proceeds and never overwrites user data it could not
+read.
+
+``build_from_profile`` is idempotent: items are deduplicated on the
+stable key ``(kind, text, source)``.
 
 Portfolio links come from the profile's own URL fields; metrics are
 bullets containing numbers, quoted verbatim.
@@ -44,7 +74,25 @@ _LIBRARY_FILE = "library.json"
 
 KINDS = ("achievement", "metric", "portfolio_link", "approved_phrase")
 
+ORIGIN_DERIVED = "derived"
+ORIGIN_ASSERTED = "asserted"
+
 _NUMBER_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?")
+_URL_RE = re.compile(r"https?://\S+")
+_SOURCE_REF_RE = re.compile(
+    r"^(experience|skills)\[(\d+)\](?:\.(bullets)\[(\d+)\])?$"
+)
+_TOP_LEVEL_SOURCE_KEYS = ("linkedin_url", "website")
+
+
+class CorruptStoreError(RuntimeError):
+    """The evidence store file exists but cannot be loaded safely.
+
+    Raised for unreadable JSON, wrong payload shape, or a schema
+    version mismatch. The raw bytes are left on disk untouched —
+    recover or delete the file manually before the library will
+    operate on that directory again.
+    """
 
 
 def _utcnow() -> str:
@@ -63,28 +111,94 @@ def _lib_path(library_dir: Path | None, create: bool) -> Path:
 
 
 def _load(library_dir: Path | None) -> dict[str, Any]:
+    """Load the store payload.
+
+    Raises :class:`CorruptStoreError` when the store file exists but
+    is unreadable, malformed, or stamped with a different schema
+    version — never returns an empty library over corrupt bytes.
+    """
     path = _lib_path(library_dir, create=False)
     if not path.is_file():
         return {"schema": CONTRACT_VERSION, "items": []}
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-    except (json.JSONDecodeError, OSError) as exc:
-        log.warning("ignoring unreadable evidence library %s: %s", path, exc)
-        return {"schema": CONTRACT_VERSION, "items": []}
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        raise CorruptStoreError(
+            f"evidence store {path} is unreadable ({exc}); refusing to "
+            f"operate — the raw bytes were left untouched for manual "
+            f"recovery"
+        ) from exc
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-        return {"schema": CONTRACT_VERSION, "items": []}
+        raise CorruptStoreError(
+            f"evidence store {path} is malformed (expected a dict with "
+            f"an 'items' list); refusing to operate — the raw bytes were "
+            f"left untouched for manual recovery"
+        )
+    if data.get("schema") != CONTRACT_VERSION:
+        raise CorruptStoreError(
+            f"evidence store {path} has schema {data.get('schema')!r}, "
+            f"expected {CONTRACT_VERSION!r}; refusing to operate rather "
+            f"than misread fields"
+        )
     return data
 
 
 def _save(library_dir: Path | None, payload: dict[str, Any]) -> None:
+    payload = dict(payload)
+    payload["schema"] = CONTRACT_VERSION
     path = _lib_path(library_dir, create=True)
     tmp = path.with_name(
         path.name + f".{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp")
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2, ensure_ascii=False)
         fh.write("\n")
+        fh.flush()
+        os.fsync(fh.fileno())
     os.replace(tmp, path)
+
+
+# ---------------------------------------------------------------------------
+# Source-reference resolution (honesty anchor)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_source(profile: dict[str, Any], source: str) -> str | None:
+    """Resolve a source reference against a profile.
+
+    Returns the referenced value as a stripped string, or ``None``
+    when the reference does not resolve to a real value. Accepted
+    forms: ``experience[i].bullets[j]``, ``skills[i]``,
+    ``linkedin_url``, ``website``.
+    """
+    if not isinstance(profile, dict):
+        return None
+    m = _SOURCE_REF_RE.match(source)
+    if m:
+        section, i, _, j = m.group(1), int(m.group(2)), m.group(3), m.group(4)
+        seq = profile.get(section)
+        if not isinstance(seq, list) or not 0 <= i < len(seq):
+            return None
+        entry = seq[i]
+        if j is not None:  # experience[i].bullets[j]
+            if not isinstance(entry, dict):
+                return None
+            bullets = entry.get("bullets")
+            jj = int(j)
+            if not isinstance(bullets, list) or not 0 <= jj < len(bullets):
+                return None
+            value = bullets[jj]
+        else:  # skills[i]
+            if isinstance(entry, dict):
+                value = entry.get("name")
+            else:
+                value = entry
+        value = str(value or "").strip()
+        return value or None
+    if source in _TOP_LEVEL_SOURCE_KEYS:
+        value = str(profile.get(source) or "").strip()
+        return value or None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -92,31 +206,28 @@ def _save(library_dir: Path | None, payload: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def add_item(
+def _store_item(
     kind: str,
     text: str,
     source: str,
-    library_dir: Path | None = None,
+    origin: str,
+    library_dir: Path | None,
 ) -> dict[str, Any]:
-    """Record a new evidence item as a draft (``approved=False``).
-
-    ``text`` is stored verbatim — this function never generates or
-    embellishes content. ``source`` names the profile fact it came from
-    (e.g. ``experience[0].bullets[2]``); empty source is rejected.
-    Raises :class:`ValueError` on contract violations.
-    """
     text = str(text or "").strip()
     source = str(source or "").strip()
     if not text:
         raise ValueError("evidence text must not be empty")
     if not source:
         raise ValueError("evidence source must name the profile fact")
+    if origin not in (ORIGIN_DERIVED, ORIGIN_ASSERTED):
+        raise ValueError(f"unknown origin: {origin!r}")
     item = normalize_evidence(
         {
             "evidence_id": _new_id(),
             "kind": kind,
             "text": text,
             "source": source,
+            "origin": origin,
             "approved": False,
             "created_at": _utcnow(),
             "used_in": [],
@@ -126,6 +237,45 @@ def add_item(
     lib["items"].append(item)
     _save(library_dir, lib)
     return item
+
+
+def add_item(
+    kind: str,
+    text: str,
+    source: str,
+    library_dir: Path | None = None,
+    profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Record a new evidence item as a draft (``approved=False``).
+
+    ``text`` is stored verbatim — this function never generates or
+    embellishes content. The item is tagged ``origin="asserted"``: the
+    caller asserts the text and source; the library does not vouch for
+    them.
+
+    When ``profile`` is supplied, the ``source`` reference is resolved
+    against it and must both resolve to a real value AND match ``text``
+    verbatim, otherwise :class:`ValueError`. This is what stops a
+    fabricated claim from borrowing fake provenance. Without a
+    profile the source cannot be checked, so the item is stored
+    labeled as asserted — it can never look identical to a
+    profile-derived item.
+    Raises :class:`ValueError` on contract violations.
+    """
+    if profile is not None:
+        source = str(source or "").strip()
+        resolved = _resolve_source(profile, source)
+        if resolved is None:
+            raise ValueError(
+                f"source {source!r} does not resolve against the "
+                f"provided profile"
+            )
+        if str(text or "").strip() != resolved:
+            raise ValueError(
+                f"text does not match the profile value at {source!r} "
+                f"verbatim"
+            )
+    return _store_item(kind, text, source, ORIGIN_ASSERTED, library_dir)
 
 
 def get_item(
@@ -159,7 +309,9 @@ def approve_item(
 ) -> dict[str, Any]:
     """Approve an item's exact current text for use in tailoring.
 
-    Raises :class:`KeyError` when unknown.
+    Approval is the human gate: the approver vouches for the item,
+    including its ``origin`` label. Raises :class:`KeyError` when
+    unknown.
     """
     lib = _load(library_dir)
     for item in lib["items"]:
@@ -179,7 +331,10 @@ def update_item(
     """Replace an item's text. Approval resets to ``False``.
 
     Approval is of the exact wording — an edited item must be
-    re-approved before it can back a statement again.
+    re-approved before it can back a statement again. Editing
+    downgrades the item's ``origin`` to ``"asserted"``: the Trust model
+    defines ``"derived"`` as text copied verbatim from the profile, and
+    caller-supplied text no longer satisfies that definition.
     """
     text = str(text or "").strip()
     if not text:
@@ -189,6 +344,7 @@ def update_item(
         if item.get("evidence_id") == evidence_id:
             item["text"] = text
             item["approved"] = False
+            item["origin"] = ORIGIN_ASSERTED
             item.pop("approved_at", None)
             _save(library_dir, lib)
             return item
@@ -245,17 +401,32 @@ def build_from_profile(
     * every skill -> ``approved_phrase``;
     * linkedin/website URLs -> ``portfolio_link``.
 
-    All items start unapproved. Nothing is generated: text is copied
-    verbatim from the profile with its source reference. Returns the
-    created items.
+    All items start unapproved and are tagged ``origin="derived"``.
+    Nothing is generated: text is copied verbatim from the profile
+    with its source reference.
+
+    Idempotent: items are deduplicated on the stable key
+    ``(kind, text, source)`` — re-running against the same profile
+    creates nothing new. Returns only the newly created items.
     """
     created: list[dict[str, Any]] = []
+    seen = {
+        (i.get("kind"), i.get("text"), i.get("source"))
+        for i in _load(library_dir)["items"]
+    }
 
     def _add(kind: str, text: str, source: str) -> None:
+        key = (kind, text, source)
+        if key in seen:
+            return
         try:
-            created.append(add_item(kind, text, source, library_dir))
+            item = _store_item(kind, text, source, ORIGIN_DERIVED,
+                               library_dir)
         except ValueError as exc:
             log.warning("skipping evidence item: %s", exc)
+            return
+        seen.add(key)
+        created.append(item)
 
     for i, exp in enumerate(profile.get("experience", []) or []):
         if not isinstance(exp, dict):
@@ -297,8 +468,12 @@ def find_for_requirement(
     """Rank approved items against a requirement by token overlap.
 
     Only ``approved=True`` items are ever returned — drafts can never
-    back a tailored statement. Returns at most ``limit`` items, best
-    first; empty when nothing relevant is approved yet.
+    back a tailored statement. Every returned item carries its
+    ``origin`` label: ``asserted`` items are caller-supplied claims the
+    human approver vouched for, never profile facts; ``derived`` items
+    win ties over ``asserted`` ones on equal relevance. Returns at
+    most ``limit`` items, best first; empty when nothing relevant is
+    approved yet.
     """
     need = _tokens(requirement_text)
     if not need:
@@ -308,6 +483,51 @@ def find_for_requirement(
         have = _tokens(item.get("text", ""))
         overlap = need & have
         if overlap:
-            scored.append((len(overlap), item))
-    scored.sort(key=lambda pair: -pair[0])
-    return [item for _, item in scored[:limit]]
+            derived_first = 0 if item.get("origin") == ORIGIN_DERIVED else 1
+            scored.append((derived_first, -len(overlap), item))
+    scored.sort(key=lambda pair: (pair[0], pair[1]))
+    return [item for _, _, item in scored[:limit]]
+
+
+def links_for_job(
+    job_id: str,
+    library_dir: Path | None = None,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Return approved portfolio links for a job's tailor run.
+
+    Called by the studio's ``variant-tailor`` path with the job id; the
+    returned links are handed to the tailor as candidate portfolio
+    URLs. Only ``approved=True`` items of kind ``portfolio_link`` are
+    returned, each as::
+
+        {"evidence_id", "url", "label", "text", "source", "origin",
+         "job_id"}
+
+    ``url`` is the raw URL extracted from the item text; ``label`` is
+    the profile field label (e.g. ``"LinkedIn"``). ``origin`` is always
+    present so the tailor path can distinguish profile-derived links
+    from caller-asserted ones. Read-only: no state is mutated.
+    """
+    job_id = str(job_id or "").strip()
+    out = []
+    for item in list_items(kind="portfolio_link", approved_only=True,
+                           library_dir=library_dir):
+        text = str(item.get("text") or "")
+        match = _URL_RE.search(text)
+        url = match.group(0).rstrip(").,;") if match else text.strip()
+        label = text[: match.start()].strip().rstrip(":") if match else ""
+        out.append(
+            {
+                "evidence_id": item.get("evidence_id"),
+                "url": url,
+                "label": label,
+                "text": item.get("text"),
+                "source": item.get("source"),
+                "origin": item.get("origin", ORIGIN_ASSERTED),
+                "job_id": job_id,
+            }
+        )
+        if len(out) >= limit:
+            break
+    return out

@@ -15,9 +15,19 @@ Storage layout (JSON, atomic tmp+rename writes)::
 
 A version carries ``provenance`` — job id, matched/missing skills, a
 ``statement_map`` of ``{"statement", "evidence_ids", "link_ids"}``
-entries, and an approval flag. Drafts are drafts until
-:func:`approve_version` is called; only approved versions may be used
-in an application packet.
+entries, and an approval flag. The approval flag is a human judgment
+marker recorded by :func:`approve_version`; it verifies nothing by
+itself. Mechanical verification lives in :func:`trace_report`, whose
+per-statement ``evidence_status`` mapping is the source of truth: a
+clean report (empty ``unapproved`` and ``unknown``) means every
+statement classified ``profile`` (the user's own words),
+``system`` (renderer-composed text, disclosed, never approved), or
+``approved`` (backed by approved evidence) — it does NOT mean every
+line traces to approved evidence, since system-composed lines never
+do. The packet checklist (:mod:`initiatives.i05.packet`) consumes this
+same mapping. Whether a clean mechanical report must precede the
+approval flag is an open product decision, not something this module
+enforces.
 
 Honesty contract: versions store rendered text only. They never invent
 facts — provenance records *which* evidence justified each statement
@@ -83,9 +93,38 @@ def _read_json(path: Path) -> dict[str, Any] | None:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, OSError) as exc:
+        _read_failures[str(path)] = f"{type(exc).__name__}: {exc}"
         log.warning("ignoring unreadable variant file %s: %s", path, exc)
         return None
-    return data if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        _read_failures[str(path)] = (
+            f"expected a JSON object, got {type(data).__name__}")
+        log.warning("ignoring malformed variant file %s: not an object",
+                    path)
+        return None
+    return data
+
+
+#: Last read failure per store path, so callers can raise an honest
+#: error (path + cause) instead of the misleading "unknown variant"
+#: when a store file exists but is corrupt.
+_read_failures: dict[str, str] = {}
+
+
+def _must_read_variant(path: Path, variant_id: str) -> dict[str, Any]:
+    """Read a variant store, or raise an honest :class:`KeyError`.
+
+    A missing file raises ``unknown variant``; an existing-but-unreadable
+    file raises a KeyError naming the path and the corruption cause —
+    never the misleading "unknown variant".
+    """
+    variant = _read_json(path)
+    if variant is None:
+        if path.is_file():
+            cause = _read_failures.get(str(path), "unreadable file")
+            raise KeyError(f"corrupt variant store {path}: {cause}")
+        raise KeyError(f"unknown variant: {variant_id}")
+    return variant
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +143,12 @@ def create_base(
     byte-identical in format to tailored branches. The profile is the
     only fact source — nothing is invented. The first version's
     statement_map records every rendered line as profile-sourced so
-    the base is fully traceable from birth.
+    the base is fully traceable from birth, with one exception: the
+    renderer-composed Summary fallback (used when the profile has no
+    summary) is system phrasing, not the user's words, so it is tagged
+    ``system:template`` (the MAJOR-3 guard, same as in
+    ``tailor_with_provenance``) and classifies as ``system`` in
+    :func:`trace_report`, never as ``profile``.
     """
     import sys
 
@@ -114,14 +158,29 @@ def create_base(
     import tailor as tailor_mod
 
     resume_md = tailor_mod.base_resume_md(profile)
-    statement_map = [
-        {"statement": line.strip(), "evidence_ids": ["profile:base"],
-         "link_ids": []}
-        for line in resume_md.splitlines()
-        if line.strip()
-        and not line.strip().startswith("#")
-        and "|" not in line
-    ]
+    # The renderer composes the Summary section itself ("Professional
+    # with X years...") when the profile has no summary — system
+    # phrasing, never profile-sourced. Track the section and tag those
+    # lines system:template (never profile:base) so trace_report
+    # discloses them as "system".
+    profile_has_summary = bool(str(profile.get("summary") or "").strip())
+    statement_map: list[dict[str, Any]] = []
+    in_summary_section = False
+    for line in resume_md.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("##"):
+            in_summary_section = stripped.lower() == "## summary"
+            continue
+        if not stripped or stripped.startswith("#") or "|" in stripped:
+            continue
+        if in_summary_section and not profile_has_summary:
+            evidence_ids = ["system:template"]
+        else:
+            evidence_ids = ["profile:base"]
+        statement_map.append(
+            {"statement": stripped, "evidence_ids": evidence_ids,
+             "link_ids": []}
+        )
     provenance = {
         "job_id": "",
         "matched_skills": [],
@@ -212,9 +271,7 @@ def commit_version(
     """
     d = _dir(variants_dir, create=True)
     path = _variant_path(d, variant_id)
-    variant = _read_json(path)
-    if variant is None:
-        raise KeyError(f"unknown variant: {variant_id}")
+    variant = _must_read_variant(path, variant_id)
     head = variant["current_version"]
     version = _make_version(
         resume_md=resume_md,
@@ -315,9 +372,8 @@ def restore_version(
     the exact stored rendering — restore never re-renders or edits.
     Raises :class:`KeyError` for unknown variants/versions.
     """
-    variant = get_variant(variant_id, variants_dir)
-    if variant is None:
-        raise KeyError(f"unknown variant: {variant_id}")
+    d = _dir(variants_dir)
+    variant = _must_read_variant(_variant_path(d, variant_id), variant_id)
     target = version_id or variant.get("current_version")
     version = get_version(variant_id, target, variants_dir)
     if version is None:
@@ -344,9 +400,7 @@ def checkout_version(
     """
     d = _dir(variants_dir, create=True)
     path = _variant_path(d, variant_id)
-    variant = _read_json(path)
-    if variant is None:
-        raise KeyError(f"unknown variant: {variant_id}")
+    variant = _must_read_variant(path, variant_id)
     if get_version(variant_id, version_id, variants_dir) is None:
         raise KeyError(f"unknown version {version_id} in variant {variant_id}")
     previous = variant.get("current_version")
@@ -375,15 +429,23 @@ def approve_version(
     version_id: str,
     variants_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Mark a version approved for use in an application packet.
+    """Record a human's approval of a version for use in a packet.
+
+    Approval is a human judgment flag: it records that a person
+    reviewed this version and accepts responsibility for its claims. It
+    performs NO mechanical verification — it never calls
+    :func:`trace_report` or :func:`untraced_statements`. The mechanical
+    verification of provenance lives in :func:`trace_report` (whose
+    per-statement ``evidence_status`` is the source of truth) and in
+    the packet checklist (:mod:`initiatives.i05.packet`). Whether a
+    clean mechanical report must precede this flag is an open product
+    decision, not something this function enforces.
 
     Approval is explicit and timestamped; it never alters content.
     """
     d = _dir(variants_dir, create=True)
     path = _variant_path(d, variant_id)
-    variant = _read_json(path)
-    if variant is None:
-        raise KeyError(f"unknown variant: {variant_id}")
+    variant = _must_read_variant(path, variant_id)
     for v in variant.get("versions", []):
         if v.get("version_id") == version_id:
             prov = v.setdefault("provenance", {})
@@ -452,13 +514,22 @@ def trace_report(
 
     * ``profile`` — a ``profile:*`` source reference (the user's own
       profile text; the anti-invention anchor);
-    * ``approved`` — a known item with ``approved=True``;
+    * ``system`` — a ``system:*`` source reference (renderer-composed
+      text, e.g. the template summary fallback; disclosed, not evidence,
+      never approved);
+    * ``approved`` — a known item with a truthy ``approved`` flag;
     * ``unapproved`` — a known item not yet approved;
     * ``unknown`` — referenced but not found in ``evidence_items``.
 
-    Returns ``{"statements", "unapproved", "unknown"}``. A clean report
-    (empty ``unapproved`` and ``unknown``) is the mechanical proof that
-    every tailored statement traces to approved evidence.
+    Returns ``{"statements", "unapproved", "unknown"}``. Each statement
+    carries its own ``evidence_status`` mapping (``profile`` /
+    ``system`` / ``approved`` / ``unapproved`` / ``unknown`` per
+    evidence id) — that mapping is the source of truth, not the two
+    empty lists. A clean report (empty ``unapproved`` and ``unknown``)
+    proves every statement is ``profile``, ``system``, or
+    ``approved``; it does NOT prove every line traces to approved
+    evidence, because ``system:*`` lines (renderer-composed text such
+    as the template summary fallback) are disclosed, never approved.
     """
     version = get_version(variant_id, version_id, variants_dir)
     if version is None:
@@ -476,8 +547,14 @@ def trace_report(
             eid = str(eid)
             if eid.startswith("profile:"):
                 statuses[eid] = "profile"
+            elif eid.startswith("system:"):
+                # Renderer-composed text (e.g. the template summary
+                # fallback): the system's phrasing, not user evidence.
+                # Disclosed distinctly — never mistaken for a profile
+                # claim, and never "approved" since it is not evidence.
+                statuses[eid] = "system"
             elif eid in by_id:
-                if by_id[eid].get("approved") is True:
+                if by_id[eid].get("approved"):
                     statuses[eid] = "approved"
                 else:
                     statuses[eid] = "unapproved"
