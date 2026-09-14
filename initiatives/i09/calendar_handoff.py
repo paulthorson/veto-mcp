@@ -7,8 +7,11 @@ Design (roadmap constraint 02 — humans own consequential actions):
 * ``propose_interview_prep`` / ``propose_followup_reminder`` build event
   DRAFTS only. They read application records, they change nothing, they
   touch no calendar.
-* ``confirm_and_handoff`` turns drafts into a handoff payload ONLY with
-  ``confirm=True``. Without it, the drafts are returned with instructions.
+* ``confirm_and_handoff`` turns drafts into a handoff payload ONLY after
+  the human confirms on an interactive terminal
+  (``circuit_breaker.require_action_confirmation``): ``confirm=True``
+  REQUESTS that confirmation flow — it never asserts it. Without it,
+  the drafts are returned with instructions.
 * The actual calendar write happens through the user's connected calendar
   (the google-calendar skill) at the wiring layer — this module names the
   destination explicitly and lists exactly what data the event carries, so
@@ -39,8 +42,12 @@ str; and attendees_confirmed is a strict bool — a truthy string like
 ``from_dict``; on the ``confirm_and_handoff`` path it is dropped and
 named, not raised to the caller) instead of silently keeping the
 attendee list. The ``confirm`` and ``allow_placeholders`` switches are
-strict-bool: only the literal ``True`` authorizes; any other truthy
-value fails closed.
+strict-bool: only the literal ``True`` takes effect; any other truthy
+value fails closed. And ``confirm=True`` is NOT a caller assertion —
+it only requests the human confirmation flow; the authorization is the
+human typing a per-call random confirmation value on an interactive
+terminal (``circuit_breaker.require_action_confirmation``), which
+refuses with SystemExit(2) when stdin/stdout are not both TTYs.
 """
 
 from __future__ import annotations
@@ -48,10 +55,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import secrets
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from circuit_breaker import require_action_confirmation
 from providers._contract import ConnectorManifest
 
 log = logging.getLogger("job-apply-mcp.i09.calendar")
@@ -91,8 +100,11 @@ CALENDAR_MANIFEST = ConnectorManifest(
         "Drafting sends nothing anywhere.",
     ],
     what_requires_confirmation=[
-        "Every calendar write: confirm_and_handoff refuses without "
-        "confirm=True.",
+        "Every calendar write: confirm_and_handoff hands off only after "
+        "the human types a per-call confirmation value on an interactive "
+        "terminal (circuit_breaker.require_action_confirmation). "
+        "confirm=True REQUESTS that prompt — it never asserts approval — "
+        "and non-interactive callers are refused outright.",
         "Attendee invites are never added without the user naming them "
         "explicitly.",
     ],
@@ -458,6 +470,32 @@ def _is_placeholder(draft: CalendarDraft) -> bool:
     )
 
 
+def _render_handoff_summary(events: list[dict[str, Any]], token: str) -> str:
+    """Render the human confirmation prompt for a batch of events.
+
+    Lists exactly what is about to be handed off (already
+    attendee-stripped) so the typed confirmation is informed, then
+    names the per-call random ``token`` the human must type.
+    """
+    lines = [
+        "Calendar handoff — review before confirming",
+        f"Events to hand off: {len(events)}",
+        "---",
+    ]
+    for e in events:
+        lines.append(
+            f"- {e.get('title')} @ {e.get('company')} "
+            f"({e.get('event_type')}) "
+            f"{e.get('start_iso')} -> {e.get('end_iso')}"
+        )
+    lines += [
+        "---",
+        "These events will be handed to your connected calendar.",
+        f"To confirm, type: {token}",
+    ]
+    return "\n".join(lines)
+
+
 def confirm_and_handoff(
     drafts: list[CalendarDraft | dict[str, Any]] | CalendarDraft | dict[str, Any],
     *,
@@ -465,7 +503,19 @@ def confirm_and_handoff(
     destination: str = "connected calendar (google-calendar skill)",
     allow_placeholders: bool = False,
 ) -> dict[str, Any]:
-    """Hand confirmed drafts to the calendar — ONLY with confirm=True.
+    """Hand confirmed drafts to the calendar — ONLY after the human
+    confirms on an interactive terminal.
+
+    ``confirm=True`` REQUESTS the human confirmation flow; it never
+    asserts it. After every draft passes the single validated gate
+    below, the handoff is authorized exclusively by
+    ``circuit_breaker.require_action_confirmation``: the events are
+    rendered on the terminal and the human must type a per-call random
+    confirmation value. A declined/mismatched/timed-out answer returns
+    a refusal payload; a non-interactive caller (stdin/stdout not both
+    TTYs) fails closed with SystemExit(2), which the wiring layer
+    (server/MCP) catches and converts to a refusal result — the gate's
+    own contract, not swallowed here.
 
     Accepts CalendarDraft objects or their serialized dicts (see
     ``CalendarDraft.from_dict``). EVERY input is normalized through a
@@ -487,10 +537,13 @@ def confirm_and_handoff(
     paths, not just the empty-valid branch.
 
     ``confirm`` and ``allow_placeholders`` are strict-bool switches: ONLY
-    the literal ``True`` authorizes. ``confirm="yes"``, ``confirm=1``,
+    the literal ``True`` takes effect. ``confirm="yes"``, ``confirm=1``,
     and ``confirm=[True]`` all fail closed to the review/refusal path —
     the same doctrine that rejects ``attendees_confirmed="yes"`` — and
     ``allow_placeholders="yes"`` does NOT bypass the placeholder gate.
+    Note ``confirm=True`` does not authorize anything by itself: it
+    routes to the circuit-breaker prompt, and the typed per-call value
+    is the only authorization. No caller can pre-assert it.
 
     Returns a handoff payload the wiring layer (server.py / cli.py /
     webui.py) executes against the connected calendar. This module never
@@ -545,10 +598,11 @@ def confirm_and_handoff(
                 {"index": i, "reason": str(exc), "input": _short_repr(d)}
             )
 
-    # Strict-bool gate: ONLY the literal True authorizes a handoff.
-    # confirm="yes", confirm=1, confirm=[True] all fail closed to the
-    # review path — the same doctrine that rejects
-    # attendees_confirmed="yes" one function away.
+    # Strict-bool gate: ONLY the literal True requests the human
+    # confirmation flow. confirm="yes", confirm=1, confirm=[True] all
+    # fail closed to the review path — the same doctrine that rejects
+    # attendees_confirmed="yes" one function away. Even the literal True
+    # asserts nothing: it routes to circuit_breaker below.
     if confirm is not True:
         return _with_dropped(
             {
@@ -559,7 +613,9 @@ def confirm_and_handoff(
                     "These are DRAFTS — nothing was written to any calendar. "
                     "Review each draft (title, time, description), set any "
                     "missing times, then call confirm_and_handoff with "
-                    "confirm=True to hand them to your connected calendar."
+                    "confirm=True: you will be asked to type a confirmation "
+                    "value on your terminal before anything is handed to "
+                    "your connected calendar."
                     + (
                         f" {len(dropped)} input(s) were dropped and are "
                         "named in 'dropped'."
@@ -643,6 +699,39 @@ def confirm_and_handoff(
             event["attendees_stripped"] = True
         event["idempotency_key"] = d.idempotency_key
         events.append(event)
+    # Directive §6.1 (2026-09-14): no caller-asserted confirmation. The
+    # human confirmation flow runs HERE, in this module — not deferred
+    # to wiring time. confirm=True only got us this far; the handoff is
+    # authorized exclusively by the human typing a per-call random value
+    # on an interactive terminal. The value is generated fresh per call
+    # and never leaves the TTY prompt, so no caller — and no code path
+    # wiring this payload to the google-calendar skill — can pre-assert
+    # it. Non-TTY fails closed with SystemExit(2) (propagates: the
+    # circuit-breaker contract assigns refusal conversion to the
+    # server/MCP wiring layer); decline/mismatch/timeout returns a
+    # refusal payload below.
+    _token = secrets.token_hex(3)
+    _gate = require_action_confirmation(
+        summary=_render_handoff_summary(events, _token),
+        expected_value=_token,
+        value_label="confirmation code",
+        action_label="calendar handoff",
+    )
+    if not _gate.get("ok"):
+        return _with_dropped(
+            {
+                "ok": False,
+                "handed_off": 0,
+                "drafts": [d.to_dict() for d in valid],
+                "error": _gate.get("error", "approval_declined"),
+                "instructions": (
+                    "Calendar handoff refused "
+                    f"({_gate.get('error', 'approval_declined')}): nothing "
+                    "was written to any calendar. Re-run with confirm=True "
+                    "to be prompted again."
+                ),
+            }
+        )
     note = (
         "Wiring layer: create these events through the user's connected "
         "calendar (google-calendar skill) now. Each event carries an "
