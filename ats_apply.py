@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Direct ATS application submission via official candidate APIs.
+"""Direct ATS apply-plan preview via official candidate APIs (fill-only).
 
-This module is the ToS-clean apply path: instead of scraping or driving a
-browser, it submits applications through the ATS vendor's own public
-application endpoints. Every endpoint in the registry below was verified
-on 2026-09-10 via official documentation and/or live non-mutating probes.
+This module is the ToS-clean apply-planning path: instead of scraping or
+driving a browser, it shows what a direct application through the ATS
+vendor's own public application endpoints would look like — as a
+dry-run preview only. It never submits anything. Every endpoint in the
+registry below was verified on 2026-09-10 via official documentation
+and/or live non-mutating probes.
 
 VERIFICATION RESULTS (2026-09-10)
 ---------------------------------
@@ -31,35 +33,33 @@ VERIFICATION RESULTS (2026-09-10)
   employer inside Greenhouse. A job seeker cannot obtain one, so
   Greenhouse remains browser-only.
 
-Consequence: ``can_apply_direct()`` returns False for every board today,
-and ``apply_direct()`` never performs a network submit. The ``_ENDPOINTS``
-registry documents per-board status so a future verified endpoint can be
-enabled by flipping one entry to ``"verified"`` with its field spec.
-Only ``"verified"`` entries are ever submitted to.
+Consequence: no verified anonymous submit endpoint exists for any board,
+and this module performs NO network submission at all — ``apply_direct()``
+always returns a dry-run preview (zero network calls). The ``_ENDPOINTS``
+registry below documents the 2026-09-10 verification results (status,
+reason, sources) as reference only; there is no submit path a status
+flip could enable.
 
-Only stdlib + httpx are used (httpx is already a project dependency).
+Only stdlib is used.
 """
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any
 
-import httpx
-
 import compliance
 from providers._common import decode_payload
-
-log = logging.getLogger("job-apply-mcp.ats_apply")
 
 BASE_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
 # Verified-endpoint registry.
 #
-# status: "verified"   -> endpoint proven to accept anonymous candidate
-#                        submissions; apply_direct() may POST to it.
+# status: "verified"   -> (no board holds this status) historically meant
+#                        the endpoint was proven to accept anonymous
+#                        candidate submissions. The submit path is deleted;
+#                        no registry status can re-arm submission.
 #         "unverified" -> documented or rumored, but live probes showed it
 #                        is NOT usable anonymously.
 #         "key_required" -> endpoint exists per official docs but needs an
@@ -114,18 +114,6 @@ _ENDPOINTS: dict[str, dict[str, Any]] = {
     },
 }
 
-_ERROR_BODY_LIMIT = 500
-
-
-def can_apply_direct(board: str) -> bool:
-    """True only for boards with a VERIFIED anonymous submit endpoint.
-
-    Currently False for every board (see module docstring): no verified
-    endpoint exists, so direct API apply is never attempted.
-    """
-    spec = _ENDPOINTS.get((board or "").strip().lower())
-    return bool(spec) and spec.get("status") == "verified"
-
 
 def endpoint_status(board: str) -> dict[str, Any]:
     """Return the registry entry for a board (status, reason, sources)."""
@@ -151,28 +139,20 @@ def describe_apply_path(board: str) -> dict[str, Any]:
     """
     board = (board or "").strip().lower()
     status = endpoint_status(board)
-    direct = can_apply_direct(board)
     return {
         "board": board,
-        "direct_apply_available": direct,
+        "direct_apply_available": False,
         "endpoint_status": status["status"],
         "reason": status["reason"],
         "sources": status["sources"],
         "recommended_path": (
-            "direct ATS submit (apply_via_ats)"
-            if direct
-            else "browser-assisted apply (apply_to_job): the ATS vendor's "
-                 "official interfaces do not permit anonymous direct "
-                 "submission, so Veto fills the employer's form in a "
-                 "browser you control and you confirm every submit."
+            "browser-assisted apply (apply_to_job): the ATS vendor's "
+            "official interfaces do not permit anonymous direct "
+            "submission, so Veto fills the employer's form in a "
+            "browser you control and you confirm every submit."
         ),
         "official_interface_only": True,
     }
-
-
-def _truncate(text: object, limit: int = _ERROR_BODY_LIMIT) -> str:
-    text = "" if text is None else str(text)
-    return text if len(text) <= limit else text[:limit] + "…"
 
 
 def _decode_locator(job_id: str) -> str:
@@ -229,7 +209,7 @@ def _preview(
         "mode": "preview",
         "dry_run": True,
         "network_calls": 0,
-        "direct_apply_available": can_apply_direct(board),
+        "direct_apply_available": False,
         "board": board,
         "endpoint": spec["endpoint"],
         "endpoint_status": spec["status"],
@@ -237,92 +217,16 @@ def _preview(
         "sources": list(spec["sources"]),
         "job_id": job_id,
         "locator": locator,
-        "fields_that_would_be_sent": _preview_fields(
+        "fields_for_manual_form": _preview_fields(
             applicant, cover_letter, resume_path
         ),
         "disclosure": compliance.apply_disclosure(board),
     }
-    if not can_apply_direct(board):
-        preview["note"] = (
-            "No verified anonymous submit endpoint exists for this board; "
-            "use the browser apply flow (apply_to_job) instead."
-        )
+    preview["note"] = (
+        "No verified anonymous submit endpoint exists for this board; "
+        "use the browser apply flow (apply_to_job) instead."
+    )
     return preview
-
-
-def _submit_verified(
-    board: str,
-    spec: dict[str, Any],
-    locator: str,
-    applicant: dict[str, Any],
-    resume_path: str | None,
-    cover_letter: str,
-) -> dict[str, Any]:
-    """POST an application to a VERIFIED endpoint.
-
-    Only called when can_apply_direct(board) is True. Currently unreachable
-    (no verified endpoints); kept so a future verified entry works by
-    flipping its registry status.
-    """
-    data: dict[str, str] = {
-        "name": str(applicant.get("full_name", "")),
-        "email": str(applicant.get("email", "")),
-        "phone": str(applicant.get("phone", "")),
-        "location": str(applicant.get("location", "")),
-        "comments": cover_letter or "",
-    }
-    locator_field = spec.get("locator_field")
-    if locator_field:
-        data[locator_field] = locator
-
-    files: dict[str, Any] = {}
-    if resume_path:
-        path = Path(resume_path).expanduser()
-        if not path.is_file():
-            return {"ok": False, "board": board,
-                    "error": f"Resume file not found: {resume_path}"}
-        resume_bytes = path.read_bytes()  # sent only, never logged/returned
-        files["resume"] = (path.name, resume_bytes,
-                           "application/pdf"
-                           if path.suffix.lower() == ".pdf"
-                           else "application/octet-stream")
-
-    log.info("ats_apply: submitting to %s endpoint for locator %s "
-             "(fields: %s)", board, locator, sorted(data))
-    try:
-        with httpx.Client(timeout=30, headers={
-            "User-Agent": "job-apply-mcp/ats-apply",
-        }) as client:
-            resp = client.post(spec["endpoint"], data=data, files=files or None)
-    except Exception as exc:
-        log.warning("ats_apply: %s submit failed: %s", board, exc)
-        return {"ok": False, "board": board,
-                "error": f"Submit request failed: {exc}"}
-
-    confirmation: Any = None
-    try:
-        body = resp.json()
-        if isinstance(body, dict):
-            confirmation = (body.get("applicationId") or body.get("id")
-                            or body.get("application_id"))
-    except Exception:
-        body = None
-
-    if 200 <= resp.status_code < 300:
-        return {
-            "ok": True,
-            "board": board,
-            "status_code": resp.status_code,
-            "confirmation": confirmation,
-            "disclosure": compliance.apply_disclosure(board),
-        }
-    return {
-        "ok": False,
-        "board": board,
-        "status_code": resp.status_code,
-        "error": _truncate(resp.text),
-        "confirmation": confirmation,
-    }
 
 
 def apply_direct(
@@ -334,16 +238,15 @@ def apply_direct(
     confirm: bool = False,
     dry_run: bool = True,
 ) -> dict[str, Any]:
-    """Apply via the official ATS API — preview by default, submit on confirm.
+    """Apply-plan preview via the official ATS API — preview only, never submits.
 
     ``job`` is a job dict from search (uses its ``id`` to decode the
     board-specific locator). ``applicant`` carries profile fields
     (full_name, email, phone, location, linkedin_url, website).
 
-    Without ``confirm=True`` (or with ``dry_run=True``) this returns a
-    dry-run preview and makes ZERO network calls. With ``confirm=True``
-    and ``dry_run=False`` it first enforces the compliance daily cap, then
-    POSTs to the verified endpoint and records the application on success.
+    Always returns a dry-run preview and makes ZERO network calls.
+    ``confirm`` and ``dry_run`` are accepted for signature compatibility
+    and do nothing: there is no submit path in this module.
 
     Raises:
         ValueError: If the board is not in the endpoint registry.
@@ -362,36 +265,8 @@ def apply_direct(
     except ValueError as exc:
         return {"ok": False, "board": board, "error": str(exc)}
 
-    if not confirm or dry_run:
-        return _preview(board, spec, job_id, locator, applicant,
-                        resume_path, cover_letter)
-
-    # Confirmed submit path.
-    if not can_apply_direct(board):
-        return {
-            "ok": False,
-            "direct_apply_available": False,
-            "board": board,
-            "endpoint": spec["endpoint"],
-            "endpoint_status": spec["status"],
-            "error": (
-                f"Direct API apply is not available for {board}: "
-                f"{spec['reason']} Use the browser apply flow "
-                "(apply_to_job) instead."
-            ),
-            "disclosure": compliance.apply_disclosure(board),
-        }
-
-    allowed, why = compliance.check_apply_allowed()
-    if not allowed:
-        return {"ok": False, "board": board, "error": why,
-                "disclosure": compliance.apply_disclosure(board)}
-
-    result = _submit_verified(board, spec, locator, applicant,
-                              resume_path, cover_letter)
-    if result.get("ok"):
-        compliance.record_application()
-    return result
+    return _preview(board, spec, job_id, locator, applicant,
+                    resume_path, cover_letter)
 
 
 # ---------------------------------------------------------------------------
@@ -405,25 +280,26 @@ def register_tools(mcp: Any) -> Any:
 
     @mcp.tool()
     def apply_via_ats(job_id: str, confirm: bool = False) -> dict[str, Any]:
-        """Submit a job application directly via the employer's official ATS API.
+        """Preview a direct-ATS application plan (preview only — never submits).
 
-        This is the ToS-clean apply path: it only uses official, public
-        candidate-submission endpoints — never scraping, never browser
-        automation. Endpoints are verified before use (see
-        ats_apply._ENDPOINTS); as of the last verification pass no board
+        Fill-only: this tool shows the field mapping and the endpoint
+        status for the board's official candidate-submission endpoint —
+        never scraping, never browser automation, and never a network
+        submit. As of the last verification pass (2026-09-10) no board
         exposes a usable anonymous submit endpoint (Ashby 401s, Lever
         requires a Lever-issued API key, Greenhouse requires an
-        employer-issued Job Board API key), so confirmed calls currently
-        return a clear "not available" result pointing at the browser flow.
+        employer-issued Job Board API key), and this module contains no
+        submit path at all.
 
         Args:
             job_id: The job id returned by search_jobs (e.g. "ashby:...").
-            confirm: MUST be True to attempt a real submission. Defaults to
-                False (dry-run preview only — zero network calls).
+            confirm: Accepted for signature compatibility; does nothing.
+                The tool always returns the dry-run preview.
 
         Returns:
-            Dry-run preview (no network calls), or the submission result
-            dict with ok / status_code / confirmation keys.
+            Dry-run preview dict (zero network calls): mode, board,
+            endpoint, endpoint_status, fields_for_manual_form,
+            disclosure, note.
         """
         # Lazy import: server.py owns the MCP app; importing it here would
         # be circular at module load time.
@@ -439,8 +315,6 @@ def register_tools(mcp: Any) -> Any:
             profile,
             resume_path=resume_path,
             cover_letter=profile.get("cover_letter", ""),
-            confirm=confirm,
-            dry_run=not confirm,
         )
 
     return apply_via_ats
@@ -466,19 +340,16 @@ def _cli_apply_direct(args: Any) -> int:
         profile,
         resume_path=resume_path,
         cover_letter=profile.get("cover_letter", ""),
-        confirm=args.confirm,
-        dry_run=not args.confirm,
     )
     print(_json.dumps(result, indent=2, ensure_ascii=False))
-    if result.get("mode") == "preview":
-        return 0
-    return 0 if result.get("ok") else 1
+    return 0
 
 
 def register_cli(subparsers: Any) -> dict[str, Any]:
     """Add the ``apply-direct`` command to an argparse subparsers object.
 
-    Adds ``--job-id`` (required) and ``--confirm`` flags. Returns a
+    Adds ``--job-id`` (required). The command prints the dry-run apply
+    preview (zero network calls); it never submits. Returns a
     {command: handler} mapping the caller merges into its own dispatch
     table, e.g.::
 
@@ -489,18 +360,12 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     """
     parser = subparsers.add_parser(
         "apply-direct",
-        help="Apply via the official ATS API (dry-run preview by default).",
+        help="Print the direct-ATS apply preview (never submits).",
     )
     parser.add_argument(
         "--job-id",
         required=True,
         help="Job id from the search output (e.g. 'ashby:...').",
-    )
-    parser.add_argument(
-        "--confirm",
-        action="store_true",
-        help="Actually submit via the ATS API. Without this, only a "
-             "dry-run preview is printed (zero network calls).",
     )
     parser.set_defaults(func=_cli_apply_direct)
     return {"apply-direct": _cli_apply_direct}

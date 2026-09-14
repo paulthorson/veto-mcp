@@ -391,6 +391,12 @@ def _detect_source(raw: dict[str, Any]) -> str:
     | ''). Callers may pass ``source=`` explicitly instead."""
     if "submitted" in raw or "paused" in raw:
         return "browser"
+    if (
+        "browser_open" in raw
+        or "fields_filled" in raw
+        or "fields_detected" in raw
+    ):
+        return "browser"
     if "mode" in raw or "direct_apply_available" in raw or "ok" in raw:
         return "ats"
     return ""
@@ -810,8 +816,8 @@ _register_manifest(
             "Job-id payloads (board token + job id) to fetch details.",
         ],
         what_requires_confirmation=[
-            "Browser-assisted application submit (handled by browser_apply "
-            "with confirm=True only).",
+            "Browser-assisted application fill (browser_apply is fill-only; "
+            "the user clicks submit themselves).",
         ],
         official_interface="https://developers.greenhouse.io/",
         interface_basis="Official public API; live-probed 2026-09-10.",
@@ -842,7 +848,8 @@ _register_manifest(
             "Company token + posting id to fetch details.",
         ],
         what_requires_confirmation=[
-            "Browser-assisted application submit (confirm=True only).",
+            "Browser-assisted application fill (browser_apply is fill-only; "
+            "the user clicks submit themselves).",
         ],
         official_interface="https://github.com/lever/postings-api",
         interface_basis="Official public API; live-probed 2026-09-10.",
@@ -874,7 +881,8 @@ _register_manifest(
             "Board token + posting id to fetch details.",
         ],
         what_requires_confirmation=[
-            "Browser-assisted application submit (confirm=True only).",
+            "Browser-assisted application fill (browser_apply is fill-only; "
+            "the user clicks submit themselves).",
         ],
         official_interface="https://developers.ashbyhq.com/docs/creating-a-custom-careers-page",
         interface_basis="Official public API; live-probed 2026-09-10.",
@@ -936,10 +944,10 @@ _register_manifest(
         name="ats_direct",
         connector_type="ats",
         what_it_can_do=[
-            "Registry of verified direct-submit ATS endpoints. Today the "
-            "registry is empty of verified endpoints: can_apply_direct() "
-            "returns False for every board and apply_direct() never "
-            "performs a network submit.",
+            "Registry of direct-submit ATS endpoints. Today the registry "
+            "holds no usable anonymous submit endpoint and ats_apply "
+            "contains no submit path: apply_direct() always returns a "
+            "dry-run preview and never performs a network submit.",
         ],
         why_it_may_be_blocked=[
             "Ashby applicationForm.submit: 401 Unauthorized on live probes "
