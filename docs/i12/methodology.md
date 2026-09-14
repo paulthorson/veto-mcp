@@ -48,8 +48,8 @@ including when you opt in to analytics — there is nothing to send it to.
   trigger, finding_kinds, quarantine_file or quarantine_error, status,
   never the offending content — is appended to the audit log.
   Re-enable requires, in order: a clearing entry naming the contracted
-  security/privacy specialist (a contracted role; no specialist is currently
-  named — to be filled), verification by an independent reviewer (a second
+  security/privacy specialist (a contracted role, currently unfilled —
+  no specialist has been retained), verification by an independent reviewer (a second
   person, distinct from the clearing specialist — the code rejects
   self-verification) against the quarantined payload, and no veto in force.
   The roadmap owner retains veto.
