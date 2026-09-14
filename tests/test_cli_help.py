@@ -114,7 +114,6 @@ class TestHelpGrouping(unittest.TestCase):
             "cover-letter": "TAILOR",
             "linkedin": "TAILOR",
             "apply-direct": "APPLY",
-            "easy-apply": "APPLY",
             "queue-add": "APPLY",
             "queue-list": "APPLY",
             "queue-run": "APPLY",

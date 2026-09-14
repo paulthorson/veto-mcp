@@ -127,7 +127,7 @@ logging.basicConfig(
 log = logging.getLogger("job-apply-mcp")
 
 # ---------------------------------------------------------------------------
-# Enhancement plugins (grill, email sync, briefs, ATS apply, Easy Apply,
+# Enhancement plugins (grill, email sync, briefs, ATS apply,
 # queue, analytics, doctor) and the risk/governance layer. Imported
 # defensively: the server must start even when one is missing; missing
 # pieces are skipped at registration with a warning.
@@ -169,7 +169,6 @@ except ImportError as exc:
 _PLUGIN_MODULES: list = []
 for _plugin_name in (
     "ats_apply",
-    "easy_apply",
     "apply_queue",
     "doctor",
     "analytics",

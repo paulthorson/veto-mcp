@@ -105,17 +105,6 @@ class P2CaptchaNeverBypassed(unittest.TestCase):
         self.assertNotEqual(result.status, SubmissionStatus.SUBMITTED)
         self.assertEqual(validate_submission_result(result), [])
 
-    def test_rescue_paused_easy_flow_maps_to_paused_not_submitted(self):
-        raw = {
-            "status": "rescue_paused",
-            "board": "linkedin",
-            "rescue": {"reason": "auth_loss"},
-            "error": "Paused: auth_loss — control handed to the user.",
-        }
-        result = submission_result_from(raw, connector="easy")
-        self.assertEqual(result.status, SubmissionStatus.PAUSED)
-        self.assertNotEqual(result.status, SubmissionStatus.SUBMITTED)
-
     def test_forged_bypass_status_is_rejected(self):
         forged = SubmissionResult(status="captcha_bypassed", connector="x")
         problems = validate_submission_result(forged)
