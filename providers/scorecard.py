@@ -56,7 +56,9 @@ def scoreboard(
 
     Providers with no recorded snapshot get an honest "no data yet" row
     rather than invented health — an unknown is shown as unknown, never as
-    healthy.
+    healthy. The tri-state snapshot status is rendered verbatim:
+    ``"ok"`` / ``"error"`` / ``"unknown"`` — the "unknown" state is an
+    explicit row status, never collapsed into "error".
     """
     store = store or health_contract.default_store()
     known = sorted(
@@ -86,16 +88,25 @@ def scoreboard(
                 }
             )
             continue
+        # Render the tri-state verbatim: "ok" | "error" | "unknown".
+        # Anything unexpected is an unknown, never green.
+        status = snap.status if snap.status in ("ok", "error", "unknown") else "unknown"
         rows.append(
             {
                 "provider": name,
-                "status": "ok" if snap.success else "error",
+                "status": status,
                 "freshness": "fresh" if snap.is_fresh else _age_str(snap.fetched_at),
                 "error_state": snap.error_state or "—",
                 "last_success": _iso(snap.last_success_ts),
                 "capability": snap.capability_label
                 or DEFAULT_CAPABILITY_LABELS.get(name, "unknown"),
-                "budget": f"{snap.budget_used}/{snap.budget_total or daily}",
+                # Unknown rows carry no observed outcome: render "—", not
+                # an invented "0/N" budget.
+                "budget": (
+                    "—"
+                    if status == "unknown"
+                    else f"{snap.budget_used}/{snap.budget_total or daily}"
+                ),
                 "cooldown": "cooling down"
                 if snap.is_cooling_down
                 else "—",
@@ -128,8 +139,9 @@ def render_terminal(rows: list[dict[str, Any]] | None = None) -> str:
     lines.append("")
     lines.append(
         "Health is local-first: this board reads the on-device health store "
-        "only. Rows marked 'no data' mean no fetch has been recorded yet — "
-        "they are unknowns, not healthy."
+        "only. Rows marked 'no data' mean no fetch has been recorded yet; "
+        "rows marked 'unknown' had no recognizable status. Both are "
+        "unknowns, not healthy."
     )
     return "\n".join(lines)
 

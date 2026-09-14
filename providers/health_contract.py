@@ -29,6 +29,11 @@ so the scoreboard can never render drift as green/healthy. ``unknown``
 snapshots are also never written to 03's store on the adapter write
 path: inventing a fetch we did not observe would be fabricated data.
 
+Captcha-state drift is handled strictly too: an unrecognized
+``captcha_state`` is never silently coerced to ``"none"`` (which would
+render a captcha as cleared) — it logs loudly and maps to
+``"blocking"``, the fail-safe direction.
+
 This module never edits ``provider_health.py`` (another team's file).
 """
 
@@ -38,6 +43,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -47,6 +53,10 @@ from typing import Any, Protocol
 log = logging.getLogger("job-apply-mcp.providers.health")
 
 #: Capability labels per provider (the scorecard's fourth column).
+#: Only providers with a real registered manifest/entry are listed:
+#: "linkedin"/"indeed" were aspirational (Veto has no search interface
+#: for either — no provider module, no manifest, no evidence) and have
+#: been removed; "ats_direct" is the registered submit registry.
 CAPABILITY_LABELS: dict[str, str] = {
     "greenhouse": "search+details",
     "lever": "search+details",
@@ -54,12 +64,20 @@ CAPABILITY_LABELS: dict[str, str] = {
     "adzuna": "search(key-gated)",
     "ziprecruiter": "search(scraping)",
     "glassdoor": "stub",
-    "linkedin": "fill-only(browser)",
-    "indeed": "search(scraping)",
+    "ats_direct": "submit-registry(empty)",
 }
 
 #: 03's captcha states -> this adapter's captcha states.
 _CAPTCHA_MAP = {"clear": "none", "challenged": "seen", "blocked": "blocking"}
+
+#: Default cooldown (seconds) applied on the adapter write path when a
+#: captcha/block snapshot carries no explicit future ``cooldown_until``.
+#: Documented HERE — not buried in a call site — so the write path has no
+#: silent operational effect: one hour, the circuit-breaker's base
+#: cooldown (``compliance.BLOCK_COOLDOWN_BASE_SECONDS``). Callers may
+#: override it explicitly per call via
+#: ``ProviderHealthAdapter.record(..., default_block_cooldown_s=...)``.
+DEFAULT_BLOCK_COOLDOWN_S = 3600
 
 #: The only ``provider_status()`` statuses this adapter recognizes, per
 #: 03's ``provider_status`` docstring ("ok / cooling / degraded /
@@ -75,14 +93,55 @@ FALLBACK_MAX_LINES = 1000
 
 
 def _provider_health_module() -> Any | None:
-    """Lazy import of Initiative 03's contract (repo-root module)."""
+    """Lazy import of Initiative 03's contract (repo-root module).
+
+    Catches ALL import-time failures, not just ImportError: the named
+    failure mode is a BROKEN module (SyntaxError) or changed packaging,
+    and catching only ImportError would let that crash the dashboard.
+    A broken module logs LOUDLY (error, not a whisper) and the caller
+    falls back to the local FileHealthStore.
+    """
     try:
         import provider_health  # noqa: F401
 
         return provider_health
     except ImportError as exc:
+        # Benign: 03's contract simply isn't in the tree yet.
         log.warning("provider_health (Initiative 03) not importable: %s", exc)
         return None
+    except Exception as exc:
+        log.error(
+            "provider_health (Initiative 03) FAILED TO IMPORT — broken "
+            "module, not merely absent (%s: %s). Falling back to the "
+            "local JSONL store; the scoreboard keeps working but 03's "
+            "live data is unavailable",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+
+def _map_captcha_state(value: Any) -> str:
+    """Map 03's captcha_state strictly (Rule 1 hardening).
+
+    Recognized states map exactly via ``_CAPTCHA_MAP``; a missing state
+    defaults to "none" (03's default). An UNRECOGNIZED state is drift —
+    never silently coerced to "none" (which would render a captcha as
+    cleared): it logs loudly and maps to "blocking", the fail-safe
+    direction.
+    """
+    if value is None or value == "":
+        return "none"
+    mapped = _CAPTCHA_MAP.get(str(value))
+    if mapped is not None:
+        return mapped
+    log.warning(
+        "provider_health captcha_state %r unrecognized; surfacing as "
+        "BLOCKING (fail-safe: an unreadable captcha state is never "
+        "silently rendered as cleared)",
+        value,
+    )
+    return "blocking"
 
 
 def _parse_ts(value: Any) -> float:
@@ -93,7 +152,7 @@ def _parse_ts(value: Any) -> float:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.timestamp()
-    except ValueError:
+    except (ValueError, TypeError):
         return 0.0
 
 
@@ -209,9 +268,7 @@ def snapshot_from_status(provider: str, row: dict[str, Any]) -> HealthSnapshot:
         budget_used=int(budget.get("used_today") or 0),
         budget_total=int(daily_limit) if daily_limit is not None else declared_daily,
         cooldown_until=now + float(row.get("cooldown_remaining_s") or 0),
-        captcha_state=_CAPTCHA_MAP.get(
-            str(row.get("captcha_state") or "clear"), "none"
-        ),
+        captcha_state=_map_captcha_state(row.get("captcha_state")),
         recovery_streak=int(row.get("recovery_streak_days") or 0),
         consecutive_failures=int(row.get("consecutive_failures") or 0),
         detail=str(row.get("cooldown_reason") or ""),
@@ -241,7 +298,13 @@ class ProviderHealthAdapter:
     * ``budget_total`` → ``set_budget(daily_limit)`` when > 0.
     * ``cooldown_until`` → remaining seconds passed to
       ``record_captcha(..., cooldown_seconds=...)`` for a block, or to
-      ``cooldown(seconds, reason)`` for a captcha-free cooldown.
+      ``cooldown(seconds, reason)`` for a captcha-free cooldown. When a
+      captcha/block snapshot carries no explicit future
+      ``cooldown_until``, the documented default
+      ``DEFAULT_BLOCK_COOLDOWN_S`` (1h, the circuit-breaker's base
+      cooldown) is used — overridable per call via
+      ``default_block_cooldown_s``. No silent operational effect: the
+      default is named, documented, and never buried in a call site.
     * ``captcha_state`` → ``record_captcha`` ("seen"→"challenged",
       "blocking"→"blocked"). A successful fetch already clears a
       transient challenge inside 03's ``record_fetch``.
@@ -264,7 +327,12 @@ class ProviderHealthAdapter:
       write history; they are read back via ``provider_status()``.
     """
 
-    def record(self, snapshot: HealthSnapshot) -> None:
+    def record(
+        self,
+        snapshot: HealthSnapshot,
+        *,
+        default_block_cooldown_s: float = DEFAULT_BLOCK_COOLDOWN_S,
+    ) -> None:
         ph = _provider_health_module()
         if ph is None:
             raise RuntimeError(
@@ -284,7 +352,9 @@ class ProviderHealthAdapter:
                 snapshot.provider,
                 "blocked",
                 cooldown_seconds=(
-                    max(1, int(remaining)) if remaining > 0 else 3600
+                    max(1, int(remaining))
+                    if remaining > 0
+                    else default_block_cooldown_s
                 ),
             )
         elif snapshot.captcha_state == "seen":
@@ -293,7 +363,9 @@ class ProviderHealthAdapter:
                 snapshot.provider,
                 "challenged",
                 cooldown_seconds=(
-                    max(1, int(remaining)) if remaining > 0 else 3600
+                    max(1, int(remaining))
+                    if remaining > 0
+                    else default_block_cooldown_s
                 ),
             )
         elif snapshot.cooldown_until > now:
@@ -314,16 +386,41 @@ class ProviderHealthAdapter:
         ph = _provider_health_module()
         if ph is None:
             return None
-        store = ph.load_store()
-        if provider not in store:
+        try:
+            store = ph.load_store()
+            if provider not in store:
+                return None
+            return snapshot_from_status(
+                provider, ph.provider_status(provider, store)
+            )
+        except Exception as exc:
+            # API drift (renamed load_store/provider_status, changed
+            # row shape): degrade to loud "no data", never a
+            # dashboard-crashing traceback.
+            log.error(
+                "provider_health read path failed for %s (%s: %s) — "
+                "API drift or broken store; returning NO DATA instead "
+                "of crashing the dashboard",
+                provider,
+                type(exc).__name__,
+                exc,
+            )
             return None
-        return snapshot_from_status(provider, ph.provider_status(provider, store))
 
     def providers(self) -> list[str]:
         ph = _provider_health_module()
         if ph is None:
             return []
-        return sorted(ph.load_store().keys())
+        try:
+            return sorted(ph.load_store().keys())
+        except Exception as exc:
+            log.error(
+                "provider_health providers() read path failed (%s: %s) — "
+                "returning empty provider list instead of crashing",
+                type(exc).__name__,
+                exc,
+            )
+            return []
 
 
 class FileHealthStore:
@@ -343,7 +440,11 @@ class FileHealthStore:
     RETENTION (bounded growth): the file is compacted to the most recent
     snapshot per provider once it exceeds ``FALLBACK_MAX_LINES`` lines
     (checked every 100 records). The store therefore cannot grow
-    unboundedly in the working tree.
+    unboundedly in the working tree. Compaction rewrites ATOMICALLY (temp
+    file + ``os.replace``) so a crash mid-compact can never wipe history.
+
+    COOLDOWN: a successful fetch clears ``cooldown_until`` (a recovered
+    provider is not "cooling down" anymore).
     """
 
     def __init__(self, path: Path | str) -> None:
@@ -376,6 +477,10 @@ class FileHealthStore:
             snapshot.consecutive_failures = 0
             snapshot.error_state = ""
             snapshot.captcha_state = "none"
+            # A successful fetch ends any cooldown: clear it so a stale
+            # cooldown_until can never keep the row "cooling down" after
+            # a recovery.
+            snapshot.cooldown_until = 0.0
             if was_failing:
                 # One increment per calendar day at most (03's day math).
                 if (prev.last_recovery_day if prev else "") != today:
@@ -437,9 +542,26 @@ class FileHealthStore:
                 continue
             if name:
                 latest[name] = line
+        # Atomic rewrite: the compacted file is written to a temp sibling
+        # and os.replace()d into place, so a crash mid-write cannot wipe
+        # the store's history (the old file survives until the replace).
         try:
-            with self.path.open("w", encoding="utf-8") as fh:
-                fh.writelines(latest.values())
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp_name = tempfile.mkstemp(
+                dir=str(self.path.parent),
+                prefix=self.path.name + ".",
+                suffix=".compact.tmp",
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    fh.writelines(latest.values())
+                os.replace(tmp_name, self.path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
+                raise
         except OSError as exc:
             log.warning("Could not compact health store: %s", exc)
             return

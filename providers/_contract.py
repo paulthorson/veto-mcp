@@ -31,9 +31,10 @@ This module is the single place that defines what a Veto connector *is*:
   ``validate_submission_result`` / ``conformance_suite`` — the conformance
   tests.
 
-Only stdlib is used (providers must never import ``server.py``). This
-module performs no network calls and reads no credentials: every answer
-it gives is a pure declaration.
+No hard third-party dependencies: stdlib only at module level (``compliance``
+is imported lazily inside functions). This module performs no network calls
+and reads no credentials: every answer it gives is a pure declaration.
+Providers must never import ``server.py``.
 """
 
 from __future__ import annotations
@@ -448,7 +449,9 @@ def _from_ats(raw: dict[str, Any], connector: str) -> SubmissionResult:
     }
     if raw.get("mode") == "preview" or raw.get("dry_run"):
         status = SubmissionStatus.DRAFT
-    elif raw.get("ok") is True:
+    elif raw.get("ok"):
+        # Truthiness, consistent with _from_browser: the modules report
+        # booleans, but a truthy non-bool must not silently become FAILED.
         status = SubmissionStatus.SUBMITTED
         if not confirmation:
             # A 2xx without a confirmation id is still evidence of receipt.
@@ -537,6 +540,10 @@ def _from_easy(raw: dict[str, Any], connector: str) -> SubmissionResult:
     )
 
 
+#: The documented ``source`` vocabulary for ``submission_result_from``.
+_SUBMISSION_SOURCES = ("ats", "browser", "easy")
+
+
 def submission_result_from(
     raw: dict[str, Any], *, connector: str = "", source: str = ""
 ) -> SubmissionResult:
@@ -544,16 +551,30 @@ def submission_result_from(
 
     ``source`` is one of ``"ats"`` (``ats_apply.apply_direct``),
     ``"browser"`` (``browser_apply.apply_via_browser``), ``"easy"``
-    (``easy_apply``); when omitted, the source is detected from the dict's
-    shape. Raises ``ValueError`` on an unrecognized shape or an unknown
-    native status — loud, never a silent guess — so a connector cannot
-    misreport by emitting shapes the contract does not understand.
+    (``easy_apply``). When omitted, the source is detected from the dict's
+    shape. An EXPLICIT ``source`` is validated against the vocabulary: an
+    invalid explicit source raises ``ValueError`` rather than being
+    silently re-detected — the caller's stated contract wins, so a wrong
+    explicit source can never be quietly reinterpreted into a different
+    module's semantics.
+    Raises ``ValueError`` on an unrecognized shape or an unknown native
+    status — loud, never a silent guess — so a connector cannot misreport
+    by emitting shapes the contract does not understand.
     """
     if not isinstance(raw, dict) or not raw:
         raise ValueError(
             "submission_result_from: expected a non-empty result dict"
         )
-    src = (source or _detect_source(raw)).lower()
+    if source:
+        src = str(source).lower()
+        if src not in _SUBMISSION_SOURCES:
+            raise ValueError(
+                "submission_result_from: unknown explicit source "
+                f"{source!r} (expected one of "
+                f"{list(_SUBMISSION_SOURCES)}); refusing to guess"
+            )
+    else:
+        src = _detect_source(raw)
     if src == "ats":
         return _from_ats(raw, connector)
     if src == "browser":
@@ -748,6 +769,12 @@ def validate_job_detail(raw: dict[str, Any]) -> list[str]:
 # Connector manifest — the proof-of-value declaration
 # ---------------------------------------------------------------------------
 
+#: The documented connector_type vocabulary. ``ConnectorManifest.validate``
+#: constrains ``connector_type`` to exactly this list: a typo (e.g.
+#: ``"job_providers"``) fails validation rather than silently certifying an
+#: unexamined interface.
+CONNECTOR_TYPES = frozenset({"job_provider", "ats", "channel", "calendar"})
+
 
 @dataclass
 class ConnectorManifest:
@@ -775,11 +802,21 @@ class ConnectorManifest:
 
         A manifest is complete only when all four proof-of-value sections
         are non-empty — an empty section is a missing declaration, which
-        blocks release under the Q2 gate.
+        blocks release under the Q2 gate. ``connector_type`` must be a
+        member of the documented vocabulary (``CONNECTOR_TYPES``): a typo
+        must fail validation, not silently certify an unexamined
+        interface.
         """
         problems: list[str] = []
         if not self.name:
             problems.append("manifest missing name")
+        if self.connector_type not in CONNECTOR_TYPES:
+            problems.append(
+                f"manifest connector_type {self.connector_type!r} not in "
+                "documented vocabulary ('job_provider'|'ats'|'channel'|"
+                "'calendar') — a misspelled type must not certify an "
+                "unexamined interface"
+            )
         for section in (
             "what_it_can_do",
             "why_it_may_be_blocked",
@@ -1061,7 +1098,8 @@ def conformance_suite(
        authoritative registry story).
     4. budget/cooldown follow the declared policy: connectors that cannot
        search declare zero; the rest declare enforcement's tier budget
-       (drift detection against compliance.py).
+       AND base cooldown (drift detection against compliance.py on both
+       numbers, not just the daily budget).
     5. search/detail interface callables (job providers only).
     6. search fixture rows validate against the JobPosting schema.
     7. detail fixture validates against the JobDetail schema.
@@ -1119,7 +1157,8 @@ def conformance_suite(
     # 4. Budget policy (encoded independently of budget_for's
     # implementation): connectors that cannot search declare zero; the
     # rest declare the tier budget enforcement uses — a drift detector, not
-    # a tautology.
+    # a tautology. Both daily budget AND base cooldown are compared
+    # against compliance.py.
     daily, cooldown = budget_for(name)
     budget_problems: list[str] = []
     if not isinstance(daily, int) or daily < 0:
@@ -1143,6 +1182,13 @@ def conformance_suite(
                 f"declared daily={daily} != policy expected={expected_daily} "
                 "(stubs and non-search connectors declare zero; the rest "
                 "declare enforcement's tier budget)"
+            )
+        expected_cooldown = int(compliance.BLOCK_COOLDOWN_BASE_SECONDS)
+        if cooldown != expected_cooldown:
+            budget_problems.append(
+                f"declared cooldown_s={cooldown} != policy expected="
+                f"{expected_cooldown} (enforcement's base cooldown; "
+                "contract-kit/compliance.py drift)"
             )
         budget_detail = (
             "; ".join(budget_problems)
@@ -1188,18 +1234,42 @@ def conformance_suite(
             f"n/a — {ctype} connector has no search interface",
         )
     if search_fixture:
-        posting_problems = [
-            p for row in search_fixture for p in validate_job_posting(row)
-        ]
-        record(
-            "schema.search_rows",
-            not posting_problems,
-            "; ".join(posting_problems[:5])
-            if posting_problems
-            else f"{len(search_fixture)} fixture rows conform",
-        )
+        # Malformed fixtures (e.g. [None], or a non-list) fail THIS
+        # check with a record — they must never abort the whole suite
+        # with zero records.
+        if not isinstance(search_fixture, (list, tuple)):
+            record(
+                "schema.search_rows",
+                False,
+                f"search_fixture is not a list of rows: "
+                f"{type(search_fixture).__name__}",
+            )
+        else:
+            posting_problems: list[str] = []
+            for i, row in enumerate(search_fixture):
+                try:
+                    row_problems = validate_job_posting(row)
+                except Exception as exc:
+                    row_problems = [
+                        f"row {i}: fixture malformed "
+                        f"({type(row).__name__}: {exc})"
+                    ]
+                posting_problems.extend(f"row {i}: {p}" for p in row_problems)
+            record(
+                "schema.search_rows",
+                not posting_problems,
+                "; ".join(posting_problems[:5])
+                if posting_problems
+                else f"{len(search_fixture)} fixture rows conform",
+            )
     if detail_fixture:
-        detail_problems = validate_job_detail(detail_fixture)
+        try:
+            detail_problems = validate_job_detail(detail_fixture)
+        except Exception as exc:
+            detail_problems = [
+                f"detail fixture malformed "
+                f"({type(detail_fixture).__name__}: {exc})"
+            ]
         record(
             "schema.detail",
             not detail_problems,
@@ -1247,19 +1317,25 @@ def conformance_suite(
                 "email": "fixture@example.com",
             }
         )
+        dry_result = None
+        dry_error: str | None = None
         try:
             dry_result = apply_fn(
                 job_fx, applicant_fx, confirm=False, dry_run=True
             )
         except Exception as exc:
+            dry_error = f"{type(exc).__name__}: {exc}"
+        if dry_error is not None:
+            # The dry run raised instead of returning a result: every
+            # check that needs a result fails — each recorded exactly
+            # once (an exception must not double-record the checks).
             record(
                 "submit.no_silent_drops",
                 False,
-                f"dry-run apply() raised instead of returning a result: {exc}",
+                f"dry-run apply() raised instead of returning a result: {dry_error}",
             )
             record("submit.preview_honest", False, "no result to inspect")
-            dry_result = None
-        if dry_result is None:
+        elif dry_result is None:
             # A None return is the textbook silent drop: the call
             # produced no outcome at all.
             record(
