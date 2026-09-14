@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Theme } from '@astryxdesign/core';
+import './fonts.css';
 import './vendor/tokens.css';
 import './vendor/veto-web.css';
 import '@astryxdesign/core/reset.css';
