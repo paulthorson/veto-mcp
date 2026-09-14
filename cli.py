@@ -325,6 +325,7 @@ _PLUGIN_MODULE_GROUPS = {
     "match": "FIND",
     "radar": "FIND",
     "jd_decoder": "FIND",
+    "byol": "FIND",
     "cover_letters": "TAILOR",
     "linkedin_optimizer": "TAILOR",
     "ats_apply": "APPLY",
@@ -383,6 +384,7 @@ class _GroupedHelpFormatter(argparse.HelpFormatter):
 _PLUGIN_CLI_MODULES = (
     "ats_apply",
     "apply_queue",
+    "byol",
     "doctor",
     "analytics",
     "briefs",
@@ -506,7 +508,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_search.add_argument(
         "--board",
         default="all",
-        help='Board to search: "all", "greenhouse", "lever", "ashby", "adzuna", "glassdoor" (default: all).',
+        help='Board to search: "all", "greenhouse", "lever", "ashby", "adzuna", "glassdoor", "user" (default: all). "user" searches your saved bring-your-own listings only.',
     )
     p_search.add_argument("--limit", type=int, default=10, help="Max jobs (default: 10).")
     p_search.add_argument(

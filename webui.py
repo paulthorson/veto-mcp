@@ -181,6 +181,25 @@ def _h_jd_verdict(params):
     return jd_decoder.jd_verdict(params["text"])
 
 
+# ---- FIND: byol (bring-your-own-listing, the primary listing flow) --------
+
+def _h_byol_add(params):
+    import byol
+    return byol.add_listing(
+        text=params.get("text") or "",
+        url=params.get("url") or "",
+        html_file=params.get("html_file") or "",
+        title=params.get("title") or "",
+        company=params.get("company") or "",
+        location=params.get("location") or "",
+    )
+
+
+def _h_byol_list(params):
+    import byol
+    return {"listings": byol.list_listings()}
+
+
 # ---- FIND: referrals ------------------------------------------------------
 
 def _h_referrals_find(params):
@@ -1106,6 +1125,19 @@ TOOLS = [
             _h_jd_decode, [_p("text", "string", True, help="Job description text.")]),
          _a("verdict", "Short verdict: apply / caution / skip with reasons.",
             _h_jd_verdict, [_p("text", "string", True, help="Job description text.")]),
+     ]},
+    {"id": "byol", "group": "FIND", "name": "Bring your own listing",
+     "description": "The primary listing flow: add a posting from pasted text, a URL (fetched once, parsed locally), or a saved HTML file (no network). Returns a job id for the rest of the pipeline.",
+     "actions": [
+         _a("add", "Parse and save a listing; returns the standard job dict with its id.",
+            _h_byol_add, [_p("text", "string", help="Pasted job-description text."),
+                          _p("url", "string", help="Posting URL: fetched once, parsed locally."),
+                          _p("html_file", "string", help="Saved HTML file path: parsed locally, zero network."),
+                          _p("title", "string", help="Override the auto-detected title."),
+                          _p("company", "string", help="Override the auto-detected company."),
+                          _p("location", "string", help="Override the auto-detected location.")]),
+         _a("list", "List your saved listings (newest first).",
+            _h_byol_list, []),
      ]},
     {"id": "referrals", "group": "FIND", "name": "Referral finder",
      "description": "Ranks your connections as referral prospects for target companies and drafts outreach.",
