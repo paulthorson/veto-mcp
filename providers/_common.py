@@ -22,22 +22,27 @@ from bs4 import BeautifulSoup
 
 log = logging.getLogger("job-apply-mcp.providers")
 
-USER_AGENTS = [
-    
-    "VETO-REDACTED-UA"
-    "",
-    "VETO-REDACTED-UA"
-    "",
-    "VETO-REDACTED-UA",
-    "VETO-REDACTED-UA"
-    "",
-]
+#: Project version, matching the ``vX.Y.Z`` git tags and the ``__version__``
+#: declarations in the initiatives packages. The repo has no pyproject.toml
+#: or setup.py, so this is the canonical version used by the User-Agent.
+_VETO_VERSION = "0.1.0"
+
+#: The single honest User-Agent sent on every outbound HTTP request.
+#: Defined ONCE here and imported by ``server.py``, ``briefs.py``, and
+#: ``browser_apply.py`` so it cannot drift. It identifies the tool and
+#: never imitates a browser.
+VETO_USER_AGENT = (
+    f"veto/{_VETO_VERSION} (+https://github.com/paulthorson/job-apply-mcp)"
+)
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def sanitize_proxy_env() -> None:
     """Drop no_proxy entries that httpx cannot parse.
+
+    This function never sets or selects a proxy; it only prunes malformed
+    ``no_proxy`` entries.
 
     Some environments ship entries like ``*[::1]`` or bracketed IPv6
     (``[::1]``). httpx turns any entry it doesn't recognize as IPv4/IPv6
@@ -62,10 +67,10 @@ sanitize_proxy_env()
 
 
 def make_client(timeout: float = 20.0) -> httpx.Client:
-    """Return an httpx client with a rotated user agent."""
+    """Return an httpx client that identifies with the single honest Veto User-Agent."""
     return httpx.Client(
         headers={
-            "User-Agent": random.choice(USER_AGENTS),
+            "User-Agent": VETO_USER_AGENT,
             "Accept": "application/json,text/html,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         },

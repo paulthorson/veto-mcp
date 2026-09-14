@@ -47,7 +47,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import compliance
-from providers._common import decode_payload
+from providers._common import VETO_USER_AGENT, decode_payload
 
 log = logging.getLogger("job-apply-mcp.briefs")
 
@@ -59,12 +59,6 @@ UNVERIFIED = "unverified"
 
 #: A search result: {"title": ..., "url": ..., "snippet": ...}.
 FetchFn = Callable[[str], list[dict[str, str]]]
-
-_USER_AGENT = (
-    "VETO-REDACTED-UA"
-    ""
-    ""
-)
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +125,7 @@ def default_fetch(query: str) -> list[dict[str, str]]:
         {"q": query}
     )
     request = urllib.request.Request(
-        endpoint, headers={"User-Agent": _USER_AGENT}
+        endpoint, headers={"User-Agent": VETO_USER_AGENT}
     )
     try:
         with urllib.request.urlopen(request, timeout=15) as resp:  # noqa: S310

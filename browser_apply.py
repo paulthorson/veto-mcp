@@ -166,6 +166,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 from providers import session_rescue
+from providers._common import VETO_USER_AGENT
 
 # NIT 6 (round 6): the approval-prompt body cap is defined ONCE, in
 # email_sync (the send-path module); this import alias replaces the old
@@ -3832,11 +3833,7 @@ def apply_via_browser(
             browser = launcher.launch(headless=headless, args=launch_args)
             context_kwargs: dict[str, Any] = {
                 "viewport": {"width": 1366, "height": 900},
-                "user_agent": (
-                    "VETO-REDACTED-UA"
-                    ""
-                    ""
-                ),
+                "user_agent": VETO_USER_AGENT,
             }
             if storage_state:
                 context_kwargs["storage_state"] = storage_state
