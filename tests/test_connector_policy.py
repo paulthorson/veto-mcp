@@ -137,14 +137,18 @@ class P3ConfirmationGates(unittest.TestCase):
         self.assertEqual(out["network_calls"], 0)
         self.assertFalse(out["direct_apply_available"])
 
-    def test_ats_apply_confirmed_without_endpoint_refuses(self):
+    def test_ats_apply_confirmed_is_still_preview_only(self):
+        # Legal-hardening commit 6 deleted the submit path: even a
+        # confirmed call returns the dry-run preview, never a refusal
+        # dict and never a network submit.
         from providers._common import make_job_id
         job_id = make_job_id("greenhouse", "tok:1")
         out = ats_apply.apply_direct(
             "greenhouse", {"id": job_id}, {"full_name": "Test"},
             confirm=True, dry_run=False,
         )
-        self.assertFalse(out["ok"])
+        self.assertEqual(out["mode"], "preview")
+        self.assertEqual(out["network_calls"], 0)
         self.assertFalse(out["direct_apply_available"])
 
     def test_calendar_handoff_needs_confirm(self):
