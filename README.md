@@ -90,7 +90,7 @@ operates a logged-in session on your behalf (report §9.2).
 
 ```bash
 git clone https://github.com/paulthorson/job-apply-mcp
-cd job-apply-mcp
+cd job-apply-mcp   # the directory you cloned it into, if named otherwise
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # 1. Onboarding: profile, LinkedIn import, channel choice, risk acknowledgment
@@ -233,9 +233,21 @@ it to the agent.
 ## Setup
 
 ```bash
-cd ~/workspace/job-apply-mcp
+cd job-apply-mcp   # the directory you cloned it into, if named otherwise
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+```
+
+## Web site
+
+The repo also ships a React/Vite site in `site/` (marketing pages and
+docs). Its design-system CSS is vendored in `site/src/vendor/` — no
+sibling checkout or private package needed. Build it with:
+
+```bash
+cd site
+npm install
+npm run build   # tsc -b && vite build → site/dist/
 ```
 
 ## Run
