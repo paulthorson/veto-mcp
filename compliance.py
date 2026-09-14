@@ -56,6 +56,12 @@ RISK_TIER: dict[str, str] = {
     "ashby": "official",
     "adzuna": "official",
     "glassdoor": "scraping",
+    # Bring-your-own-listing (legal-hardening commit 7, spec section 5.2):
+    # the user pasted the text, supplied the URL, or saved the file
+    # themselves. Nothing is scraped and no board is queried, so this is
+    # neither "official" nor "scraping" — it gets its own tier with its
+    # own notices.
+    "user": "user",
 }
 
 OFFICIAL_BOARDS = {b for b, t in RISK_TIER.items() if t == "official"}
@@ -65,7 +71,9 @@ MODES = ("strict", "standard")
 
 #: Max searches per board per day. Scraping-tier budgets are deliberately
 #: small: politeness delays reduce load but do not make scraping compliant.
-DEFAULT_SEARCH_BUDGET = {"official": 1000, "scraping": 40}
+#: The "user" budget is a formality: searching saved listings is local
+#: only and puts no load on any third party.
+DEFAULT_SEARCH_BUDGET = {"official": 1000, "scraping": 40, "user": 1000}
 
 #: Max recorded/submitted applications per day across all boards.
 DEFAULT_DAILY_APPLY_CAP = 5
@@ -93,6 +101,10 @@ TIER_NOTICES = {
         "or show CAPTCHAs at any time, and logged-in automation risks "
         "account restrictions. Verify details on the live posting."
     ),
+    "user": (
+        "Supplied by you (pasted text, a URL you gave, or a file you "
+        "saved). Nothing was scraped; no job board was queried."
+    ),
 }
 
 APPLY_DISCLOSURES = {
@@ -107,6 +119,10 @@ APPLY_DISCLOSURES = {
         "explicit confirmation required, one application per action, "
         "human-paced daily cap, and fill-only mode — the final submit "
         "click is always yours."
+    ),
+    "user": (
+        "This listing was supplied by you. Veto never submits: the final "
+        "submit click is always yours."
     ),
 }
 
@@ -215,11 +231,15 @@ def is_board_allowed(board: str, state: dict | None = None) -> tuple[bool, str]:
     """Mode gate: strict mode allows only official-tier boards."""
     state = state if state is not None else load_state()
     tier = board_tier(board)
-    if get_mode(state) == "strict" and tier != "official":
+    # Strict mode allows official APIs plus the bring-your-own-listing
+    # board: "user" listings were supplied by the user (paste / URL /
+    # saved file), so no third-party fetch is involved at all.
+    if get_mode(state) == "strict" and tier not in ("official", "user"):
         return False, (
             f"Board '{board}' is scraping-tier and compliance mode is "
-            f"'strict' (official APIs only). Switch to 'standard' mode "
-            f"with explicit risk acknowledgment to enable it."
+            f"'strict' (official APIs and user-supplied listings only). "
+            f"Switch to 'standard' mode with explicit risk acknowledgment "
+            f"to enable it."
         )
     return True, ""
 
