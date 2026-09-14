@@ -42,6 +42,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Initiative 06 AI proficiency lab (same repo).
+from initiatives.i06 import ai_lab as _i06_ai_lab
+from initiatives.i06 import longitudinal as _i06_longitudinal
+
 log = logging.getLogger("job-apply-mcp.ai_proficiency")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1775,6 +1779,142 @@ def progress() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Initiative 06 — AI proficiency lab: ethics, evaluation, failure analysis
+# ---------------------------------------------------------------------------
+#
+# ``lab_tracks()`` lists role tracks and their exercise types.
+# ``lab_exercise(track, exercise_type)`` opens a session (brief + task
+# disclosed; the check spec stays server-side).
+# ``submit_lab_exercise(session_id, response)`` checks the response
+# deterministically. Passing records a lab completion (practice only, not
+# a formal qualification) and appends to the longitudinal practice
+# history (best-effort; submitting never breaks if the store is
+# unavailable).
+
+#: Tests redirect the longitudinal history here; None = default path.
+_LAB_LONGITUDINAL_HISTORY_PATH: Path | None = None
+
+
+def lab_tracks() -> list[dict[str, Any]]:
+    """Role tracks offering lab exercises (ethics / evaluation /
+    failure_analysis per track)."""
+    return _i06_ai_lab.lab_tracks()
+
+
+def lab_exercise(track: str, exercise_type: str) -> dict[str, Any]:
+    """Start a lab exercise session.
+
+    Args:
+        track: Role track, e.g. "engineer".
+        exercise_type: "ethics" | "evaluation" | "failure_analysis".
+
+    Returns {"session_id", "track", "exercise_type", "brief", "task",
+    "good_looks_like", "min_words"} — the check rubric stays
+    server-side. Submit the response via submit_lab_exercise.
+    """
+    try:
+        shown = _i06_ai_lab.get_lab_exercise(track, exercise_type)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    session_id = "lab_" + uuid.uuid4().hex[:10]
+    store = _load_store()
+    store.setdefault("lab_sessions", {})[session_id] = {
+        "track": shown["track"],
+        "exercise_type": shown["exercise_type"],
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "submitted": False,
+    }
+    _save_store(store)
+    return {"session_id": session_id, **shown}
+
+
+def submit_lab_exercise(
+    session_id: str,
+    response: str,
+    input_modality: str = "text",
+) -> dict[str, Any]:
+    """Check a lab exercise response deterministically.
+
+    Args:
+        session_id: From lab_exercise.
+        response: The learner's response text.
+        input_modality: "text" (default) or "voice" — recorded per
+            answer for the privacy ledger.
+
+    Returns {"passed", "score", "feedback", "groups_hit",
+    "groups_total", "input_modality"}. Passing records a lab
+    completion (practice logged, not a credential).
+    """
+    store = _load_store()
+    session = store.setdefault("lab_sessions", {}).get(session_id)
+    if not session:
+        return {"error": f"Unknown lab session {session_id!r}. Start one "
+                         "with the lab exercise tool first."}
+    if session.get("submitted"):
+        return {"error": "This lab exercise was already submitted."}
+    check = _i06_ai_lab.check_lab_exercise(
+        session["track"], session["exercise_type"], response)
+    session["submitted"] = True
+    session["score"] = check["score"]
+    session["passed"] = check["passed"]
+    session["input_modality"] = input_modality or "text"
+
+    if check["passed"]:
+        store["completions"].append({
+            "track": session["track"],
+            "lesson_id": f"lab:{session['exercise_type']}",
+            "kind": "lab",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "score": check["score"],
+        })
+        feedback = (
+            f"Passed ({check['groups_hit']}/{check['groups_total']} "
+            f"concept groups, {check['words']} words). Logged as "
+            f"practice — not a credential.")
+    else:
+        feedback = (
+            f"Not quite ({check['groups_hit']}/{check['groups_total']} "
+            f"concept groups). Needs >= "
+            f"{_i06_ai_lab.EXERCISES[session['track']][session['exercise_type']]['check']['min_groups']} "
+            f"groups and {check['min_words']}+ words — revisit the task "
+            f"prompt and cover more of the considerations.")
+    _save_store(store)
+    _record_lab_longitudinal(session)
+    log.info("lab exercise %s submitted: passed=%s", session_id,
+             check["passed"])
+    return {
+        "session_id": session_id,
+        "track": session["track"],
+        "exercise_type": session["exercise_type"],
+        "passed": check["passed"],
+        "score": check["score"],
+        "feedback": feedback,
+        "groups_hit": check["groups_hit"],
+        "groups_total": check["groups_total"],
+        "input_modality": session["input_modality"],
+    }
+
+
+def _record_lab_longitudinal(session: dict[str, Any]) -> None:
+    """Best-effort longitudinal record; never raises."""
+    try:
+        _i06_longitudinal.record_result(
+            source="ai_lab",
+            label=f"{session['track']}:{session['exercise_type']}",
+            dimension_scores={"evidence": round(session["score"] * 100),
+                              "clarity": None, "structure": None,
+                              "trade_offs": None,
+                              "question_quality": None},
+            overall=round(session["score"] * 100),
+            mode=session["exercise_type"],
+            session_id="",
+            history_path=_LAB_LONGITUDINAL_HISTORY_PATH,
+        )
+    except Exception as exc:  # noqa: BLE001 - history is best-effort
+        log.warning("ai-lab longitudinal record failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Plugin wiring
 # ---------------------------------------------------------------------------
 
@@ -1878,6 +2018,43 @@ def register_tools(mcp: Any) -> None:
         certification.
         """
         return _impl["progress"]()
+
+    @mcp.tool()
+    def ai_lab_tracks() -> list[dict[str, Any]]:
+        """Role tracks offering practical lab exercises (ethics,
+        evaluation, failure_analysis per track)."""
+        return _impl["lab_tracks"]()
+
+    @mcp.tool()
+    def ai_lab_exercise(track: str, exercise_type: str) -> dict[str, Any]:
+        """Start a practical lab exercise for a role track.
+
+        Args:
+            track: Role track, e.g. "engineer". exercise_type:
+                "ethics" | "evaluation" | "failure_analysis".
+
+        Returns:
+            {"session_id", "brief", "task", "good_looks_like",
+            "min_words"}. Submit the learner's response via
+            ai_lab_submit.
+        """
+        return _impl["lab_exercise"](track, exercise_type)
+
+    @mcp.tool()
+    def ai_lab_submit(session_id: str, response: str,
+                      input_modality: str = "text") -> dict[str, Any]:
+        """Check a lab exercise response deterministically.
+
+        Args:
+            session_id: From ai_lab_exercise. response: The learner's
+                answer. input_modality: "text" (default) or "voice".
+
+        Returns:
+            {"passed", "score", "feedback"}. Passing records a lab
+            completion (practice logged, not a credential).
+        """
+        return _impl["submit_lab_exercise"](
+            session_id, response, input_modality=input_modality)
 
 
 def _print_json_or(data: Any, as_json: bool, fallback: str = "") -> None:
@@ -2021,6 +2198,44 @@ def cmd_ai_skills(args: Any) -> int:
             print(f"\nNote: {res['note']}")
         return 0
 
+    if action == "lab-tracks":
+        res = lab_tracks()
+        if as_json:
+            print(json.dumps(res, indent=2))
+        else:
+            for t in res:
+                print(f"{t['track']:12} {', '.join(t['exercise_types'])}")
+        return 0
+
+    if action == "lab-exercise":
+        res = lab_exercise(args.track, args.exercise_type)
+        if "error" in res:
+            print(res["error"])
+            return 1
+        if as_json:
+            print(json.dumps(res, indent=2))
+        else:
+            print(f"Session: {res['session_id']} "
+                  f"[{res['track']}/{res['exercise_type']}]")
+            print(f"Brief: {res['brief']}")
+            print(f"Task: {res['task']}")
+            print(f"Good looks like: {res['good_looks_like']}")
+            print(f"\nSubmit with: ai-skills lab-submit {res['session_id']} "
+                  "--response \"...\"")
+        return 0
+
+    if action == "lab-submit":
+        res = submit_lab_exercise(args.session_id, args.response)
+        if "error" in res:
+            print(res["error"])
+            return 1
+        if as_json:
+            print(json.dumps(res, indent=2))
+        else:
+            print("PASSED" if res["passed"] else "TRY AGAIN")
+            print(res["feedback"])
+        return 0
+
     print(f"Unknown action {action!r}.")
     return 1
 
@@ -2038,11 +2253,14 @@ def register_cli(subparsers: Any) -> dict[str, Any]:
     p.add_argument(
         "action",
         choices=["tracks", "diagnose", "answer", "plan", "lesson",
-                 "exercise", "submit", "progress"],
+                 "exercise", "submit", "progress",
+                 "lab-tracks", "lab-exercise", "lab-submit"],
         help="What to do.",
     )
     p.add_argument("--track", default="",
                    help="Track id, e.g. engineer.")
+    p.add_argument("--exercise-type", default="",
+                   help="ethics|evaluation|failure_analysis (lab only).")
     p.add_argument("--lesson-id", default="", help="Lesson id.")
     p.add_argument("--session-id", default="", help="Exercise session id.")
     p.add_argument("--level", default=None,
