@@ -1,7 +1,14 @@
 # Veto Terms of Use (plain English)
 
-*Last updated: 2026-09-14. This is a plain-English summary of the deal. It is not
-legal advice, and a lawyer should review it before Veto's public launch.*
+*Last updated: 2026-09-14. Written in plain English on purpose. It is not legal
+advice, and a lawyer should review it before Veto's public launch.*
+
+## Accepting these terms
+
+By using Veto, you agree to these terms. We don't hide that in a footer link —
+on first launch you'll see this deal and check a box that says "I agree to the
+Terms of Use" before Veto starts. We keep a record of when you agreed (timestamp,
+version of the terms). No checkbox, no Veto.
 
 ## The deal
 
@@ -39,12 +46,28 @@ individuals. We don't sell your data. There is no advertising in Veto.
 
 ## Your control
 
-- You see the full terms and accept them before first use. No silent opt-in.
 - You can view every report Veto has sent from your machine, any time, in Settings.
 - Telemetry is part of the free deal and can't be turned off while using the free
   version. (If that changes, these terms will change first, and you'll be told.)
 
-## If the deal changes
+## The legal part, still in plain English
 
-We'll update this file and tell you in the app before the new terms apply. Continued
-use after that means you accept the new deal.
+- **Limitation of liability.** Veto is provided as-is, free of charge. If something
+  goes wrong — a missed application, a lost file, bad advice — our liability is
+  limited to what you paid us, which is $0. Use Veto at your own risk; always review
+  anything it drafts or fills before it matters.
+- **Intellectual property.** Veto's name, logos, and designs belong to us. The
+  application's source code license will be stated in a LICENSE file (to be added
+  before public launch).
+- **Termination.** We can suspend or end your access to Veto services at any time,
+  for any reason — for example, abuse, or attempts to extract other users' data.
+- **Governing law.** [Paul to confirm: state/country, e.g. Pennsylvania, USA.]
+- **Disputes.** If we have a legal dispute, we'll first try to resolve it directly.
+  If that fails, disputes go to binding arbitration (a private process, not a
+  public courtroom), under the rules of [arbitration provider TBD at legal review].
+
+## If these terms change
+
+We'll notify you in the app and, for material changes, ask you to accept the new
+terms before continuing to use Veto. The version you accepted and when are always
+visible in Settings.
