@@ -5,7 +5,7 @@ Boards are classified into risk tiers:
 
   official  - public or official APIs (Greenhouse, Lever, Ashby, Adzuna).
               ToS-friendly; always preferred.
-  scraping   - HTML or guest-endpoint scraping (LinkedIn, Indeed,
+  scraping   - HTML or guest-endpoint scraping (Indeed,
               Glassdoor, ZipRecruiter). Works until it doesn't: it can
               violate the site's Terms of Service and trigger HTTP 403/429,
               CAPTCHAs, IP rate-limiting, or account restrictions.
@@ -55,7 +55,6 @@ RISK_TIER: dict[str, str] = {
     "lever": "official",
     "ashby": "official",
     "adzuna": "official",
-    "linkedin": "scraping",
     "indeed": "scraping",
     "glassdoor": "scraping",
     "ziprecruiter": "scraping",
@@ -246,7 +245,7 @@ def check_search_allowed(board: str, state: dict | None = None,
         return False, (
             "Scraping-tier boards require explicit ToS-risk acknowledgment. "
             "Run the wizard (or call acknowledge_risks) to confirm you "
-            "understand the risk before searching LinkedIn/Indeed."
+            "understand the risk before searching scraping-tier boards."
         )
 
     info = _block_info(state, board)
