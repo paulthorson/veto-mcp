@@ -6,12 +6,15 @@ to a temp dir — the real ``resume_variants/`` tree is never touched.
 
 from __future__ import annotations
 
+import argparse
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
 
 import tailor
-from initiatives.i05 import versions
+from initiatives.i05 import evidence_library, studio, versions
 
 
 def _profile() -> dict:
@@ -241,6 +244,64 @@ class ClaimTracingTest(unittest.TestCase):
         self.assertNotIn("profile:skills",
                          summary_lines[0]["evidence_ids"])
 
+    def test_create_base_template_summary_is_tagged_system(self):
+        # RE-review MAJOR: create_base must carry the MAJOR-3 guard over
+        # from tailor_with_provenance — the renderer-composed summary
+        # fallback ("Professional with X years...") is system phrasing,
+        # never profile:base. Fails on the old code (which stamped every
+        # line profile:base) and passes on the fix.
+        profile = {
+            "full_name": "Synthetic Fixture",
+            "email": "fixture@example.com",
+            "years_experience": 8,
+            "skills": ["Python"],
+            "experience": [{
+                "title": "Backend Engineer",
+                "company": "FixtureCorp",
+                "dates": "2020 - 2024",
+                "bullets": ["Shipped Python services."],
+            }],
+        }
+        base = versions.create_base(profile, variants_dir=self.dir)
+        entries = base["versions"][0]["provenance"]["statement_map"]
+        summaries = [e for e in entries
+                     if e["statement"].startswith("Professional with")]
+        self.assertTrue(summaries,
+                        "expected a renderer-composed summary line")
+        for entry in summaries:
+            self.assertEqual(entry["evidence_ids"], ["system:template"])
+            self.assertNotIn("profile:base", entry["evidence_ids"])
+        # ... and trace_report must classify it "system", never "profile".
+        vid = base["versions"][0]["version_id"]
+        report = versions.trace_report(
+            base["variant_id"], vid, [], variants_dir=self.dir)
+        for st in report["statements"]:
+            if st["statement"].startswith("Professional with"):
+                self.assertEqual(st["evidence_status"],
+                                 {"system:template": "system"})
+        self.assertEqual(report["unapproved"], [])
+        self.assertEqual(report["unknown"], [])
+        # Every other line in the base is still genuinely profile-sourced.
+        self.assertFalse(
+            any(e["evidence_ids"] == ["system:template"]
+                for e in entries
+                if not e["statement"].startswith("Professional with")),
+            "system tag must not leak onto profile-sourced lines")
+
+    def test_create_base_user_written_summary_stays_profile(self):
+        # The guard is conditional: when the profile HAS a summary, the
+        # base's Summary lines stay profile-sourced.
+        base = versions.create_base(_profile(), variants_dir=self.dir)
+        entries = base["versions"][0]["provenance"]["statement_map"]
+        summaries = [e for e in entries
+                     if "synthetic fixture profile" in e["statement"].lower()]
+        self.assertTrue(summaries)
+        for entry in summaries:
+            self.assertIn("profile:base", entry["evidence_ids"])
+        self.assertFalse(
+            any("system:template" in e["evidence_ids"] for e in entries),
+            "no system:template anywhere when the profile has a summary")
+
     def test_base_is_fully_traceable(self):
         base = versions.create_base(_profile(), variants_dir=self.dir)
         vid = base["versions"][0]["version_id"]
@@ -298,6 +359,228 @@ class ClaimTracingTest(unittest.TestCase):
             variants_dir=self.dir)
         self.assertIn("ev_draft", rep2["unapproved"])
         self.assertIn("ev_ghost", rep2["unknown"])
+
+
+class ProvenanceHonestyTest(unittest.TestCase):
+    """MAJOR-1/MAJOR-3 regression tests: the headline guarantees."""
+
+    def test_bullet_attribution_is_precise(self):
+        # MAJOR-1: the per-bullet anchor was dead code — the renderer
+        # emits bullets as "- {text}" but the lookup key kept no list
+        # marker stripping, so every bullet degraded to profile:base.
+        # This test fails on the old code and passes on the fix.
+        result = tailor.tailor_with_provenance(_profile(), _job())
+        by_statement = {e["statement"]: e
+                        for e in result["provenance"]["statement_map"]}
+        entry = by_statement[
+            "- Shipped Python services handling 1M requests a day."]
+        self.assertIn("profile:experience[0].bullets[0]",
+                      entry["evidence_ids"])
+
+    def test_template_summary_fallback_is_tagged_system(self):
+        # MAJOR-3: the renderer-composed summary fallback is system
+        # phrasing, not the user's words — it must be tagged
+        # system:template, never stamped profile:base.
+        profile = {
+            "full_name": "Synthetic Fixture",
+            "email": "fixture@example.com",
+            "skills": ["Python"],
+            "experience": [{
+                "title": "Backend Engineer",
+                "company": "FixtureCorp",
+                "dates": "2020 - 2024",
+                "bullets": ["Shipped Python services."],
+            }],
+        }
+        job = {"id": "j", "title": "Backend Engineer",
+               "description": "We need Python experience."}
+        result = tailor.tailor_with_provenance(profile, job)
+        summaries = [e for e in result["provenance"]["statement_map"]
+                     if e["statement"].startswith("Professional with")]
+        self.assertTrue(summaries, "expected a composed summary line")
+        for entry in summaries:
+            self.assertIn("system:template", entry["evidence_ids"])
+            self.assertNotIn("profile:base", entry["evidence_ids"])
+
+    def test_user_written_summary_stays_profile_sourced(self):
+        # The user's own summary text is profile-sourced — only the
+        # renderer-composed fallback gets the system tag.
+        result = tailor.tailor_with_provenance(_profile(), _job())
+        summaries = [e for e in result["provenance"]["statement_map"]
+                     if "synthetic fixture profile" in e["statement"].lower()]
+        self.assertTrue(summaries)
+        for entry in summaries:
+            self.assertIn("profile:base", entry["evidence_ids"])
+            self.assertNotIn("system:template", entry["evidence_ids"])
+
+    def test_link_matching_is_word_bounded(self):
+        # Safe minor: link attribution used substring matching, so skill
+        # "go" attached to links whose text merely contained "good".
+        profile = {
+            "full_name": "Synthetic Fixture",
+            "skills": ["Python", "Go"],
+            "experience": [{
+                "title": "Engineer", "company": "FixtureCorp",
+                "dates": "2021",
+                "bullets": ["Shipped Go services.", "Wrote Python tools."],
+            }],
+        }
+        job = {"id": "j", "title": "Engineer",
+               "description": "We need go and python developers."}
+        links = [
+            {"link_id": "lnk_synth_substring",
+             "requirement_id": "req_goodness",
+             "evidence_id": "ev_sub",
+             "quote": "good team player", "confidence": 0.8},
+            {"link_id": "lnk_synth_exact",
+             "requirement_id": "req_go",
+             "evidence_id": "ev_exact",
+             "quote": "shipped go services", "confidence": 0.9},
+        ]
+        result = tailor.tailor_with_provenance(profile, job, links)
+        by_statement = {e["statement"]: e
+                        for e in result["provenance"]["statement_map"]}
+        go_entry = by_statement["- Shipped Go services."]
+        self.assertIn("lnk_synth_exact", go_entry["link_ids"])
+        self.assertNotIn("lnk_synth_substring", go_entry["link_ids"])
+
+
+class TraceReportSemanticsTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _report_for(self, statement_map, items):
+        v = versions.create_variant(
+            "b", variants_dir=self.dir, initial_resume_md="x",
+            provenance={"statement_map": statement_map})
+        return versions.trace_report(
+            v["variant_id"], v["versions"][0]["version_id"], items,
+            variants_dir=self.dir)
+
+    def test_approved_accepts_truthy(self):
+        # Safe minor: `is True` identity rejected truthy-but-not-True
+        # flags; the schema treats approved as a truthy gate.
+        report = self._report_for(
+            [{"statement": "x", "evidence_ids": ["ev_yes", "ev_no"],
+              "link_ids": []}],
+            [{"evidence_id": "ev_yes", "approved": 1},
+             {"evidence_id": "ev_no", "approved": 0}])
+        st = report["statements"][0]
+        self.assertEqual(st["evidence_status"]["ev_yes"], "approved")
+        self.assertEqual(st["evidence_status"]["ev_no"], "unapproved")
+        self.assertEqual(report["unapproved"], ["ev_no"])
+        self.assertEqual(report["unknown"], [])
+
+    def test_system_template_classifies_as_system(self):
+        # MAJOR-3 support: system:template is disclosed distinctly —
+        # never mistaken for a profile claim, never "approved", and
+        # never "unknown" (it must not block the packet checklist).
+        report = self._report_for(
+            [{"statement": "Professional with X.",
+              "evidence_ids": ["system:template"], "link_ids": []}],
+            [])
+        st = report["statements"][0]
+        self.assertEqual(st["evidence_status"],
+                         {"system:template": "system"})
+        self.assertEqual(report["unknown"], [])
+        self.assertEqual(report["unapproved"], [])
+
+    def test_corrupt_store_keyerror_names_path_and_cause(self):
+        # Safe minor: a corrupt store file raised the misleading
+        # "unknown variant"; the error must name the path and cause.
+        v = versions.create_variant("b", variants_dir=self.dir,
+                                    initial_resume_md="x")
+        path = versions._variant_path(self.dir, v["variant_id"])
+        path.write_text("not json{{{", encoding="utf-8")
+        with self.assertRaises(KeyError) as ctx:
+            versions.commit_version(v["variant_id"], "v2",
+                                    variants_dir=self.dir)
+        msg = str(ctx.exception)
+        self.assertIn("corrupt", msg)
+        self.assertIn(str(path), msg)
+
+    def test_missing_variant_still_says_unknown(self):
+        with self.assertRaises(KeyError) as ctx:
+            versions.commit_version("var_nope", "v2",
+                                    variants_dir=self.dir)
+        self.assertIn("unknown variant", str(ctx.exception))
+
+
+class StudioCallerTest(unittest.TestCase):
+    """Regression tests for the studio.py caller bugs (review routing)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.libdir = self.dir / "lib"
+        self.libdir.mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_variant_create_does_not_read_undefined_profile(self):
+        # The variant-create parser never defined --profile; the old
+        # code raised AttributeError on a.profile.
+        ns = argparse.Namespace(name="repro", job_id=None,
+                                variants_dir=str(self.dir))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = studio.cmd_variant_create(ns)
+        self.assertEqual(rc, 0)
+        self.assertIn("created", out.getvalue())
+        self.assertEqual(
+            len(versions.list_variants(variants_dir=self.dir)), 1)
+
+    def test_variant_trace_reads_real_report_keys(self):
+        # trace_report returns {"statements","unapproved","unknown"};
+        # the old code read report["profile"]/report["approved"] and
+        # crashed with KeyError.
+        result = tailor.tailor_with_provenance(_profile(), _job())
+        variant = versions.create_variant(
+            "trace-repro", job_id="job-synth-1",
+            initial_resume_md=result["resume_md"],
+            provenance=result["provenance"], variants_dir=self.dir)
+        ns = argparse.Namespace(variant=variant["variant_id"],
+                                version=None,
+                                library_dir=str(self.libdir),
+                                variants_dir=str(self.dir))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = studio.cmd_variant_trace(ns)
+        self.assertEqual(rc, 0)
+        text = out.getvalue()
+        self.assertIn("profile-backed statements:", text)
+        self.assertIn("statements with approved evidence:", text)
+        self.assertIn("unapproved:", text)
+        self.assertIn("unknown:", text)
+
+    def test_evidence_approve_unknown_id_returns_1(self):
+        # approve_item raises KeyError on unknown ids (never returns a
+        # falsy value); the old falsy check was dead code.
+        ns = argparse.Namespace(evidence_id="ev_nope",
+                                library_dir=str(self.libdir))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = studio.cmd_evidence_approve(ns)
+        self.assertEqual(rc, 1)
+        self.assertIn("unknown evidence id: ev_nope", out.getvalue())
+
+    def test_evidence_approve_known_id_returns_0(self):
+        items = evidence_library.build_from_profile(
+            _profile(), library_dir=self.libdir)
+        self.assertTrue(items)
+        ns = argparse.Namespace(evidence_id=items[0]["evidence_id"],
+                                library_dir=str(self.libdir))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = studio.cmd_evidence_approve(ns)
+        self.assertEqual(rc, 0)
+        self.assertIn(f"approved {items[0]['evidence_id']}",
+                      out.getvalue())
 
 
 if __name__ == "__main__":

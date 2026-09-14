@@ -76,6 +76,31 @@ an `ops_goal` naming a metric and direction (Rule 4).
 - `schedule_driven`: false. `ops_goal`: "invented-fact incidents from
   derivation — zero".
 
+### D6b: evidence trust model + corrupt-store handling (2026-09-13, blind-review rework)
+- **Chosen: two-origin tagging (`derived` vs `asserted`) + profile-ref
+  validation when a profile is supplied + loud refusal on a corrupt store.**
+  - Trades away add_item signature simplicity to get a machine-checked
+    honesty anchor: `add_item(..., profile=...)` rejects sources that
+    don't resolve and text that isn't verbatim; without a profile the
+    item is labeled `asserted` and can never look identical to a
+    profile-derived one; retrieval surfaces `origin` and ranks derived
+    first on ties. A corrupt `library.json` raises `CorruptStoreError`
+    on reads AND writes, leaving the bytes untouched for manual
+    recovery. `build_from_profile` dedups on `(kind, text, source)`;
+    writes fsync before the atomic rename; `_load` enforces the
+    contracts.py schema-version promise.
+- **Rejected: convention-only source strings (any non-empty string).**
+  - Trades away the honesty guarantee to get a one-arg-fewer API —
+    rejected: the blind review demonstrated a stored fabrication with
+    fake `experience[0].bullets[0]` provenance that looked identical
+    to a derived item.
+- **Rejected: backup-then-proceed on a corrupt store.**
+  - Trades away the fail-loud guarantee to get uninterrupted operation
+    — rejected: silently continuing normalizes data loss; the corrupt
+    bytes stay exactly where they are until a human recovers them.
+- `schedule_driven`: false. `ops_goal`: "fabricated-source incidents
+  reaching the tailor path — zero".
+
 ## WS3 — ATS readiness check (2026-09-13)
 
 ### D7: copy safety mechanism
@@ -136,3 +161,11 @@ an `ops_goal` naming a metric and direction (Rule 4).
 ### Known accepted limitations
 - Concurrent writers can lose an update (last-write-wins; tmp+rename
   guarantees no torn writes). Single-user local tool at v1.
+- Packet `ats-ready` checklist copy overclaims (2026-09-14 final-mile
+  close-out; post-review docs-only addition, no behavior change). The
+  label reads "ATS readiness check passes (no failures)" and the pending
+  detail reports "N failing check(s)", but since the Epic 3 honest-verdict
+  fix, blocking *warnings* (e.g. `length_warn`) also hold `ready=False` —
+  so a resume can show "0 failing check(s)" while still pending. Accepted
+  at close; reword tracked as follow-up F2 (UX copy review + blind
+  re-review).

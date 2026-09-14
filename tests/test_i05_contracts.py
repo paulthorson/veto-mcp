@@ -111,6 +111,19 @@ class EvidenceContractTest(unittest.TestCase):
         out = contracts.approved_evidence(items)
         self.assertEqual([i["evidence_id"] for i in out], ["ok"])
 
+    def test_approved_evidence_uses_truthy_gate(self):
+        # RE-review MINOR: approved_evidence used `is True` identity
+        # while trace_report uses a truthy gate — an item with
+        # approved=1 was "approved" in trace_report but dropped here.
+        # Both gates are now truthy.
+        items = [
+            _evidence(evidence_id="int_one", approved=1),
+            _evidence(evidence_id="int_zero", approved=0),
+            _evidence(evidence_id="empty_str", approved=""),
+        ]
+        out = contracts.approved_evidence(items)
+        self.assertEqual([i["evidence_id"] for i in out], ["int_one"])
+
     def test_normalize_rejects_bad_item(self):
         with self.assertRaises(ValueError):
             contracts.normalize_evidence({"evidence_id": "x"})
@@ -123,6 +136,38 @@ class ProvenanceContractTest(unittest.TestCase):
     def test_missing_fields_reported(self):
         problems = contracts.validate_provenance({"score_id": "x"})
         self.assertTrue(any("factors" in p for p in problems))
+
+
+class SchemaPinningTest(unittest.TestCase):
+    """The module contract promises a schema bump "fails loudly instead
+    of misreading fields" — the validators now enforce the stamp."""
+
+    def test_schema_mismatch_fails_loudly(self):
+        self.assertTrue(any("schema" in p for p in
+                            contracts.validate_link(
+                                _link(schema="other/9"))))
+        self.assertTrue(any("schema" in p for p in
+                            contracts.validate_evidence(
+                                _evidence(schema="other/9"))))
+        self.assertTrue(any("schema" in p for p in
+                            contracts.validate_provenance(
+                                _provenance(schema="other/9"))))
+
+    def test_normalize_rejects_mismatched_schema(self):
+        with self.assertRaises(ValueError):
+            contracts.normalize_link(_link(schema="other/9"))
+
+    def test_unstamped_records_still_pass(self):
+        # A1/A2: plain dicts from teams that have not landed yet carry
+        # no stamp and must keep validating.
+        self.assertEqual(contracts.validate_link(_link()), [])
+        self.assertEqual(contracts.validate_evidence(_evidence()), [])
+        self.assertEqual(contracts.validate_provenance(_provenance()), [])
+
+    def test_current_schema_stamp_passes(self):
+        self.assertEqual(
+            contracts.validate_link(
+                _link(schema=contracts.CONTRACT_VERSION)), [])
 
 
 if __name__ == "__main__":
