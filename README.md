@@ -17,8 +17,11 @@ bots skip.
    public or official APIs only — plus your own saved listings. Deduped,
    tier-tagged, and ranked.
 2. **Grill.** Before anything is submitted, it interrogates *you* —
-   missing skills, unquantified experience, salary, logistics — over chat,
-   WhatsApp, or Gmail. Answer on your phone; the application waits.
+   missing skills, unquantified experience, salary, logistics — over chat
+   or WhatsApp. Answer on your phone; the application waits. (A Gmail
+   grill channel also exists, but it needs `hatch_gws_cli` — an external
+   Gmail CLI that is not publicly distributed — so it is non-functional
+   on a clean install.)
 3. **Tailor.** Resume bullets front-loaded with the posting's keywords,
    cover letter referencing the actual role. It never invents experience
    — gaps are reported, not padded.
@@ -66,8 +69,10 @@ ask it to search, it contacts only the public job-board APIs you
 asked it to search, and makes no connections it wasn't asked to
 make (report §1–§2, §8). Optional notifications (ntfy, webhook) are
 off by default and send nothing until you configure them (report
-§4). Gmail access goes through your own Gmail connection — Veto
-never sees, stores, or transmits your Google tokens (report §7).
+§4). Gmail features need the external `hatch_gws_cli` Gmail CLI, which is
+not publicly distributed — they are non-functional on a clean install
+without it. Where Gmail works, Veto never sees, stores, or transmits
+your Google tokens (report §7).
 Tokens and credentials it does hold live only in files only you can
 read (mode `0600`, report §6). The author operates no service and
 receives nothing: no copy of your resume, application history,
@@ -77,7 +82,8 @@ credentials, or correspondence ever reaches the author (report §9.4).
 
 Veto talks to other companies' services: public job-board APIs
 (Greenhouse, Lever, Ashby, Adzuna), DuckDuckGo for company research
-you request, Gmail through your own connected account, and —
+you request, Gmail (only via the external `hatch_gws_cli` CLI, which is
+not publicly distributed), and —
 only if you configure them — ntfy.sh or a webhook you chose.
 Each of those services has its own terms of use, and some of them
 restrict automation — you are responsible for complying with them.
@@ -133,10 +139,10 @@ risk-sensitive path is adjudicated by the risk policy (see
 
 | Area | Tools | What it does |
 |---|---|---|
-| **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Channels: chat (default), WhatsApp, Gmail — chosen in the onboarding wizard. Gmail replies are matched by a `[grill:<id>]` subject tag and ingested automatically. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
+| **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Channels: chat (default), WhatsApp, Gmail — chosen in the onboarding wizard. The Gmail channel requires `hatch_gws_cli` (external, not publicly distributed) and is non-functional without it. Gmail replies are matched by a `[grill:<id>]` subject tag and ingested automatically. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
 | **Direct ATS apply** | `apply_via_ats` | Official ATS application endpoints only (Greenhouse/Lever/Ashby with employer-issued keys). Investigated honestly: no verified anonymous endpoint exists, so the tool returns a dry-run preview (zero network calls) and never submits. |
 | **Drip queue** | `queue_add`, `queue_list` (+ `queue-run` CLI) | Persistent, paced application queue. Respects the daily cap, pauses 2–7 minutes between applications, and adjudicates the whole run before starting. |
-| **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
+| **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | **Requires `hatch_gws_cli`** — an external Gmail CLI that is not publicly distributed; without it these tools report the CLI as missing. Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
 | **Interview prep** | `company_brief`, `prep_interview` | Company briefs (facts marked `unverified` when unfetched; no invented funding/headcount) and STAR stories built only from real profile achievements with metrics preserved verbatim. |
 | **Analytics** | `application_analytics` | Funnel, response rate by board, median time to response, stale applications. |
 | **Doctor** | `doctor` | Health check: profile, compliance acknowledgment, Playwright, sessions, preferences, boards. |
