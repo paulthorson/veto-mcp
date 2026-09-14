@@ -141,7 +141,7 @@ so text stays exact). Layout: `--bg` with dot grid + scanlines, 10px
 `--line` frame, pixel-X logo block, `VETO_` in Press Start 2P 92px,
 `THE JOB BOT THAT SAYS NO.` in VT323 54px (NO. in veto red), terminal
 strip with the veto line. Meta: `og:*` + `twitter: summary_large_image`,
-absolute `https://job-apply-mcp.vercel.app/og.png` URLs.
+absolute `https://www.vetomcp.com/og.png` URLs.
 
 ## Responsive
 
