@@ -18,6 +18,15 @@ class SandboxViolation(PermissionError):
     """An extension attempted filesystem access outside its declared roots."""
 
 
+class QuotaExceeded(PermissionError):
+    """An extension exceeded its bounded filesystem write quota."""
+
+
+#: Bounded blast radius: per-file and per-extension (session) write caps.
+MAX_WRITE_BYTES_PER_FILE = 1 * 1024 * 1024  # 1 MiB
+MAX_WRITE_BYTES_TOTAL = 10 * 1024 * 1024  # 10 MiB per loaded extension
+
+
 class SandboxFS:
     """Root-scoped file access for one loaded extension."""
 
@@ -31,6 +40,7 @@ class SandboxFS:
             self._roots.append(candidate)
         # Private per-extension data dir is always available.
         self._data_dir = (self._ext_dir / ".data").resolve()
+        self._bytes_written = 0
 
     @staticmethod
     def _assert_inside(path: Path, root: Path, message: str) -> None:
@@ -67,21 +77,36 @@ class SandboxFS:
             f"{[str(r) for r in self._roots]}"
         )
 
+    def _check_quota(self, nbytes: int) -> None:
+        if nbytes > MAX_WRITE_BYTES_PER_FILE:
+            raise QuotaExceeded(
+                f"single write of {nbytes} bytes exceeds the per-file cap "
+                f"({MAX_WRITE_BYTES_PER_FILE})")
+        if self._bytes_written + nbytes > MAX_WRITE_BYTES_TOTAL:
+            raise QuotaExceeded(
+                f"extension write quota exceeded "
+                f"({MAX_WRITE_BYTES_TOTAL} bytes total per load)")
+
     def read_text(self, rel: str | Path) -> str:
         return self._resolve(rel).read_text(encoding="utf-8")
 
     def write_text(self, rel: str | Path, content: str) -> None:
+        data = content.encode("utf-8")
+        self._check_quota(len(data))
         target = self._resolve(rel, write=True)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target.write_bytes(data)
+        self._bytes_written += len(data)
 
     def read_bytes(self, rel: str | Path) -> bytes:
         return self._resolve(rel).read_bytes()
 
     def write_bytes(self, rel: str | Path, content: bytes) -> None:
+        self._check_quota(len(content))
         target = self._resolve(rel, write=True)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+        self._bytes_written += len(content)
 
     def exists(self, rel: str | Path) -> bool:
         try:

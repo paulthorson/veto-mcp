@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
-"""Append-only extension audit log. Host-only writes.
+"""Hash-chained extension audit log.
 
-Every extension action the host brokers — data reads, drafts, network
-calls, confirmation requests, grants, denials, sandbox violations — is
-appended here as one JSON object per line. Extension code is NEVER given
-a write handle to this log; the ``ExtensionAudit`` instance lives in the
-host and is not exposed through the extension context.
+Every brokered action appends an entry chained to the previous entry's
+hash, so tampering with history breaks the chain. Extension code gets a
+read-only view of its own entries (``entries_for`` returns plain data —
+never a write handle); only the Host holds the append path.
 
-Integrity: each entry chains to the previous entry's hash
-(``prev_hash``), so tampering with history breaks the chain. ``verify()``
-recomputes the chain; a broken chain is a program-level incident.
+Append is O(1): the previous entry's hash is cached in memory and
+recovered by reading only the last file line at startup, instead of
+re-scanning the whole file per append. Size caps bound unbounded
+growth; a capped append returns an entry dict with an ``"error"`` key
+and never raises.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+#: Bounded blast radius: per-host caps on audit growth.
+MAX_AUDIT_ENTRIES = 100_000
+MAX_AUDIT_BYTES = 20 * 1024 * 1024  # 20 MiB
 
 
 def _utcnow() -> str:
@@ -28,35 +34,55 @@ def _utcnow() -> str:
 class ExtensionAudit:
     def __init__(self, log_path: str | Path) -> None:
         self._path = Path(log_path)
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        if not self._path.exists():
-            self._path.write_text("", encoding="utf-8")
-
-    def _last_hash(self) -> str:
-        last = "GENESIS"
         try:
-            with self._path.open("r", encoding="utf-8") as fh:
-                for line in fh:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    last = entry.get("entry_hash", last)
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            if not self._path.exists():
+                self._path.touch()
         except OSError:
             pass
-        return last
+        # O(1) recovery: read only the last line, never the whole file.
+        self._last = "GENESIS"
+        self._count = 0
+        try:
+            size = self._path.stat().st_size
+        except OSError:
+            size = 0
+        if size:
+            try:
+                with self._path.open("rb") as fh:
+                    fh.seek(0, os.SEEK_END)
+                    pos = fh.tell()
+                    chunk = b""
+                    while pos > 0 and b"\n" not in chunk:
+                        step = min(4096, pos)
+                        pos -= step
+                        fh.seek(pos)
+                        chunk = fh.read(step) + chunk
+                    lines = chunk.rsplit(b"\n", 2)
+                    tail = lines[-1] if lines[-1] else lines[-2]
+                    entry = json.loads(tail.decode("utf-8"))
+                    self._last = entry.get("entry_hash", "GENESIS")
+            except (OSError, ValueError, IndexError):
+                self._last = "GENESIS"
 
-    def append(self, ext_id: str, event: str, detail: dict[str, Any] | None = None) -> dict[str, Any]:
+    def append(self, ext_id: str, event: str,
+               detail: dict[str, Any] | None = None) -> dict[str, Any]:
         """Append one audit entry. Host-only; never raises."""
-        entry = {
+        if self._count >= MAX_AUDIT_ENTRIES:
+            return {"ok": False, "error": "audit entry cap reached",
+                    "extension": ext_id, "event": event}
+        try:
+            if self._path.stat().st_size >= MAX_AUDIT_BYTES:
+                return {"ok": False, "error": "audit byte cap reached",
+                        "extension": ext_id, "event": event}
+        except OSError:
+            pass
+        entry: dict[str, Any] = {
             "ts": _utcnow(),
             "extension": ext_id,
             "event": event,
             "detail": detail or {},
-            "prev_hash": self._last_hash(),
+            "prev_hash": self._last,
         }
         body = json.dumps(entry, sort_keys=True, separators=(",", ":"))
         entry["entry_hash"] = hashlib.sha256(body.encode("utf-8")).hexdigest()
@@ -65,6 +91,9 @@ class ExtensionAudit:
                 fh.write(json.dumps(entry, sort_keys=True) + "\n")
         except OSError:
             pass  # audit write failure must not break the action it records
+        else:
+            self._last = entry["entry_hash"]
+            self._count += 1
         return entry
 
     def verify(self) -> dict[str, Any]:
