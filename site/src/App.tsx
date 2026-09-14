@@ -478,7 +478,7 @@ const GROUPS = [
 const FAQS = [
   {
     q: 'What are the playbooks?',
-    a: 'Eighteen modules grouped by job-hunt phase. FIND scores postings, decodes JDs, and traces referral paths. TAILOR does resume diffs, cover letters, and LinkedIn. TRAIN runs mock interviews, negotiation sims, AI proficiency, and mentors. WIN compares offers, drafts follow-ups, runs the network CRM, autopsies rejections, plans skill gaps, and tracks streaks. GOVERN is the AI crew: every plan reviewed, every veto logged. The engine searches and fills; the playbooks cover everything around it.',
+    a: 'Seventeen modules grouped by job-hunt phase. FIND scores postings, decodes JDs, and traces referral paths. TAILOR does resume diffs, cover letters, and LinkedIn. TRAIN runs mock interviews, negotiation sims, AI proficiency, and mentors. WIN compares offers, drafts follow-ups, runs the network CRM, autopsies rejections, plans skill gaps, and tracks streaks. GOVERN is the AI crew: every plan reviewed, every veto logged. The engine searches and fills; the playbooks cover everything around it.',
   },
   {
     q: 'Does it submit applications by itself?',
@@ -844,7 +844,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
               </Heading>
               <p className="hero-sub">
                 <strong>Veto</strong> plugs your AI assistant into 4 job
-                boards (Greenhouse, Lever, Ashby, Adzuna). 26 modules handle the rest: fit scoring, radar charts,
+                boards (Greenhouse, Lever, Ashby, Adzuna). Its modules handle the rest: fit scoring, radar charts,
                 tailored resumes, cover letters, mock interviews, brutal
                 negotiation sims, offer comparison, streaks, and a governed AI
                 crew. It fills the forms. You click submit. Nothing ships
@@ -862,7 +862,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 {'>'} works with Claude Desktop, Cursor, Muse CLI, any MCP client_
               </p>
               <p className="hero-note">
-                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in 30 seconds&nbsp;{'>'}</a>
+                <a href="#/demo" className="demo-docs">or skip ahead: get vetoed in the demo&nbsp;{'>'}</a>
               </p>
               <p className="hero-note">
                 {'>'} it won&rsquo;t apply while you sleep, and it won&rsquo;t get you hired. It does the homework.
@@ -928,7 +928,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
           <div className="wrap">
             <PxTag variant="amber">The playbooks</PxTag>
             <Heading level={2} className="section-title">
-              18 more modules. One job hunt.
+              17 more modules. One job hunt.
             </Heading>
             <p className="section-sub">
               The engine finds jobs and files applications. The playbooks are

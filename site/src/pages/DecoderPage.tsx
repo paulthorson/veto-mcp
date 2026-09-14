@@ -94,8 +94,9 @@ function ShareLink({ result, text }: { result: JdVerdict; text: string }) {
     <div className="jdtry-panel">
       <h3 className="jdtry-panel-title px-font">Share this decode</h3>
       <p className="jdtry-line">
-        The link carries scores, verdict, and flags only. Your posting text
-        stays in this browser.
+        The link carries scores, the verdict, flags, and short evidence
+        quotes taken from your posting. Your full posting text stays in
+        this browser.
       </p>
       <label className="jdshare-opt" htmlFor="jdshare-excerpt">
         <input
