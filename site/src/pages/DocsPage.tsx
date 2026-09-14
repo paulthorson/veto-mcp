@@ -198,7 +198,7 @@ const TROUBLESHOOTING = [
 const FAQS = [
   {
     q: 'What is Veto?',
-    a: 'A governed 26-module job-search machine that finds, tailors, applies, and tracks. Find: one search across every enabled board, deduped and ranked. Tailor: per-job resumes and cover letters grounded in your real profile. Apply: human-paced, confirm-gated, and always fill-only — the software never submits. Track: applications.json holds your pipeline, and the analytics module reads it. The governance is the product: budgets, circuit breakers, honesty checks, and consent gates run in code, not in prompts.',
+    a: 'A governed job-search machine that finds, tailors, applies, and tracks. Find: one search across every enabled board, deduped and ranked. Tailor: per-job resumes and cover letters grounded in your real profile. Apply: human-paced, confirm-gated, and always fill-only — the software never submits. Track: applications.json holds your pipeline, and the analytics module reads it. The governance is the product: budgets, circuit breakers, honesty checks, and consent gates run in code, not in prompts.',
   },
   {
     q: 'What is Veto not?',
