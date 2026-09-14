@@ -355,7 +355,6 @@ _PLUGIN_MODULE_GROUPS = {
     "email_sync": "WIN",
     "crew": "GOVERN",
     "streaks": "GOVERN",
-    "contribute": "GOVERN",
     "doctor": "UTILITIES",
 }
 
@@ -407,7 +406,6 @@ _PLUGIN_CLI_MODULES = (
     "soft_skills",
     "ai_proficiency",
     "mentors",
-    "contribute",
     "offer_compare",
     "skill_gaps",
     "cover_letters",
