@@ -77,18 +77,54 @@ def describe_apply_path(board: str) -> dict:
 
 ### 1d. Channel + calendar tools (consent-gated)
 
+**STATUS: HELD — open veto.** Channel *enablement* is under the open
+Rule 1 veto (`init-09-comms-rereview`; see
+`initiatives/i09/channels/DECISIONS.md`). Until it clears, this section
+wires NO enablement/handoff behavior. Specifically:
+
+* The MCP surface must NOT pass a caller-asserted `confirm` through to
+  `enable_channel`: an MCP agent can always self-assert `confirm=True`,
+  so a caller-asserted boolean can never evidence user opt-in.
+* The `via="api"` allowlist entry must NOT be treated as a user opt-in
+  source for agent-driven calls — `via="api"` records that the CALL
+  came over the MCP API, not that a human opted in.
+
+**Required interactive enablement ceremony** (what the wired tool must
+do once the veto clears — this is the ceremony, specified now, wired
+later):
+
+1. The tool presents the channel's full ConnectorManifest to the user
+   (four proof-of-value sections), on the user's own screen.
+2. The USER — never the calling agent — completes the opt-in: types
+   `enable <channel>` at an interactive terminal or taps "Enable" in
+   the web UI.
+3. Only that interactive event may call
+   `enable_channel(channel, confirm=True, via="cli-wizard"|"web-ui")`.
+   `via="api"` is never accepted for enablement from an agent call.
+
+Wire-ready (read-only / fail-safe) tools:
+
 ```python
 from initiatives.i09.channels import registry as _i09_channels
-from initiatives.i09 import calendar_handoff as _i09_cal
 
 @mcp.tool()
-def channel_enable(channel: str, confirm: bool = False) -> dict:
-    """Enable a communication channel. Explicit opt-in only: without
-    confirm=True nothing changes and the manifest is returned for review."""
-    return _i09_channels.enable_channel(channel, confirm=confirm, via="api")
+def channel_enable(channel: str) -> dict:
+    """HELD pending the open enablement veto: no caller-asserted confirm
+    may authorize opt-in, so there is no wired behavior. Returns
+    instructions for the interactive path."""
+    return {"ok": False, "enabled": False,
+            "error": "enablement_ceremony_undecided",
+            "instructions": (
+                "Channel enablement over MCP is held pending the open "
+                "Rule 1 veto (initiatives/i09/channels/DECISIONS.md). A "
+                "caller-asserted confirm cannot authorize opt-in and "
+                "via='api' is not evidence of user consent. Use the "
+                "interactive wizard (cli) or web UI, where the user "
+                "enables the channel themselves.")}
 
 @mcp.tool()
 def channel_disable(channel: str) -> dict:
+    # Disable is the fail-safe direction: always permitted, even by agents.
     return _i09_channels.disable_channel(channel, via="api")
 
 @mcp.tool()
@@ -110,12 +146,25 @@ def calendar_propose(kind: str, application: dict, when: str = "",
             "note": "Draft only — nothing written. Confirm via calendar_handoff."}
 
 @mcp.tool()
-def calendar_handoff(drafts: list, confirm: bool = False) -> dict:
-    """Hand confirmed drafts to the connected calendar. Refuses without
-    confirm=True. The wiring layer executes the returned payload through
-    the google-calendar skill."""
-    parsed = [_i09_cal.CalendarDraft(**d) for d in drafts]
-    return _i09_cal.confirm_and_handoff(parsed, confirm=confirm)
+def calendar_handoff(drafts: list) -> dict:
+    """HELD pending the open enablement veto: no caller-asserted
+    ``confirm`` passthrough. An agent could self-assert it, so until the
+    interactive handoff ceremony (present drafts, user confirms each one
+    individually) is specified and reviewed, this tool presents the
+    drafts with instructions and hands off NOTHING."""
+    # HELD: answer BEFORE touching the payload. A malformed draft must
+    # yield the held instructions — never an exception from parsing
+    # CalendarDraft(**d) first.
+    count = len(drafts) if isinstance(drafts, list) else 0
+    return {"ok": False, "handed_off": 0,
+            "error": "handoff_ceremony_undecided",
+            "draft_count": count,
+            "instructions": (
+                "Calendar handoff over MCP is held pending the open "
+                "veto. Present each draft to the user; only an "
+                "interactive user confirmation (one per draft, in the "
+                "wizard or web UI) may call "
+                "calendar_handoff.confirm_and_handoff(confirm=True).")}
 ```
 
 ### 1e. Record provider health on every fetch (one line per provider call)
@@ -227,9 +276,16 @@ def _cli_connector(a):
 p.set_defaults(func=_cli_connector)
 
 p = subparsers.add_parser("channel", help="Explicit channel opt-in/out.")
-p.add_argument("action", choices=["enable", "disable", "status"])
+p.add_argument("action", choices=["enable", "disable", "status", "repair"])
 p.add_argument("name", nargs="?")
 p.add_argument("--confirm", action="store_true")
+p.add_argument("--force", action="store_true",
+               help="repair: confirm quarantining the ENTIRE consent log "
+                    "when every line fails verification (e.g. after a key "
+                    "rotation with no backup to restore). Without --force "
+                    "the repair refuses loudly and advises restoring the "
+                    "key backup first — quarantined entries can never be "
+                    "re-trusted.")
 def _cli_channel(a):
     import json as _j
     if a.action == "status":
@@ -237,6 +293,13 @@ def _cli_channel(a):
     elif a.action == "enable":
         print(_j.dumps(_i09_channels.enable_channel(
             a.name, confirm=a.confirm, via="cli-wizard"), indent=2))
+    elif a.action == "repair":
+        # Audit-preserving repair for a torn/tampered consent log
+        # (RECOVERY.md Procedure B): bad lines are MOVED to
+        # channel_consent.quarantine.jsonl (never deleted); the repair
+        # itself is a signed consent_quarantine entry in the log.
+        print(_j.dumps(_i09_channels.quarantine_consent_log(force=a.force),
+                       indent=2))
     else:
         print(_j.dumps(_i09_channels.disable_channel(a.name, via="cli-wizard"), indent=2))
 p.set_defaults(func=_cli_channel)
@@ -290,6 +353,14 @@ note verbatim from `session_rescue.refusal_note()`.
 
 ## 5. What NOT to wire (deliberate)
 
+* MCP `channel_enable` with a caller-asserted `confirm` passthrough:
+  held under the open Rule 1 enablement veto (section 1d). No `confirm`
+  may flow from an MCP call into `enable_channel`, and `via="api"` must
+  never be read as user opt-in, until the veto clears and the
+  interactive enablement ceremony is wired.
+* MCP `calendar_handoff` with a caller-asserted `confirm` passthrough:
+  same veto, same reason — the interactive per-draft confirmation
+  ceremony is specified but not yet wired.
 * WhatsApp/Discord/Messenger channels: declaration + registry only. No
   transport is wired until the corresponding skill is connected AND the
   user explicitly enables the channel. Do not add send paths for them in
