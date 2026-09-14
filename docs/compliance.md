@@ -47,9 +47,9 @@ preview shows the risk disclosure for its board.
 Automation may **fill** an application form on a scraping-tier board but
 must **never** perform the final submit click. The human reviews and
 submits. Full browser submission on a scraping-tier board is blocked by
-policy - the code refuses it (`risk_policy.adjudicate_apply` returns
-`allowed: False` for `via="browser"` on scraping boards). Use the
-fill-only Easy Apply flow or an official ATS endpoint instead.
+policy - the code refuses it (`governance/risk_policy.py`'s `adjudicate_apply`
+returns `allowed: False` for `via="browser"` on scraping boards). Use the
+fill-only browser hook or an official ATS endpoint instead.
 
 ## What the gates check, in order
 
