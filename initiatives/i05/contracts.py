@@ -43,8 +43,8 @@ LINK_SCHEMA: dict[str, Any] = {
 
 #: Evidence-store item (Initiatives 01–02 contract). ``kind`` is one of
 #: ``achievement`` | ``metric`` | ``portfolio_link`` | ``approved_phrase``.
-#: ``approved`` gates use: only ``approved=True`` items may back a
-#: tailored statement. ``source`` names the profile field the item was
+#: ``approved`` is a truthy gate: only truthy-``approved`` items may
+#: back a tailored statement. ``source`` names the profile field the item was
 #: derived from (e.g. ``experience[0].bullets[2]``) — the anti-invention
 #: anchor.
 EVIDENCE_SCHEMA: dict[str, Any] = {
@@ -67,15 +67,30 @@ def _missing(record: dict[str, Any], schema: dict[str, Any]) -> list[str]:
     return [f for f in schema["required"] if f not in record]
 
 
+def _schema_problem(record: dict[str, Any]) -> list[str]:
+    # The module contract promises a future contract bump "fails loudly
+    # instead of misreading fields": a stamped record on a different
+    # schema version is a violation. Unstamped records (the A1/A2 plain
+    # dicts the studio accepts until the owning teams land) pass.
+    schema_val = record.get("schema")
+    if schema_val is None:
+        return []
+    if schema_val != CONTRACT_VERSION:
+        return [f"schema mismatch: {schema_val!r} != {CONTRACT_VERSION!r}"]
+    return []
+
+
 def validate_link(link: dict[str, Any]) -> list[str]:
     """Return a list of schema violations for a requirement→evidence link.
 
     Empty means the link satisfies the Initiative 04 contract. Also
-    rejects out-of-range ``confidence`` values when present.
+    rejects out-of-range ``confidence`` values when present, and a
+    ``schema`` stamp that does not match :data:`CONTRACT_VERSION`.
     """
     if not isinstance(link, dict):
         return ["link must be a dict"]
-    problems = [f"missing required field: {f}" for f in _missing(link, LINK_SCHEMA)]
+    problems = _schema_problem(link)
+    problems += [f"missing required field: {f}" for f in _missing(link, LINK_SCHEMA)]
     conf = link.get("confidence")
     if conf is not None:
         try:
@@ -87,10 +102,15 @@ def validate_link(link: dict[str, Any]) -> list[str]:
 
 
 def validate_evidence(item: dict[str, Any]) -> list[str]:
-    """Return schema violations for an evidence-store item (01–02 contract)."""
+    """Return schema violations for an evidence-store item (01–02 contract).
+
+    Also fails loudly on a ``schema`` stamp that does not match
+    :data:`CONTRACT_VERSION`.
+    """
     if not isinstance(item, dict):
         return ["evidence item must be a dict"]
-    problems = [f"missing required field: {f}" for f in _missing(item, EVIDENCE_SCHEMA)]
+    problems = _schema_problem(item)
+    problems += [f"missing required field: {f}" for f in _missing(item, EVIDENCE_SCHEMA)]
     kind = item.get("kind")
     if kind is not None and kind not in {
         "achievement", "metric", "portfolio_link", "approved_phrase",
@@ -100,13 +120,19 @@ def validate_evidence(item: dict[str, Any]) -> list[str]:
 
 
 def validate_provenance(record: dict[str, Any]) -> list[str]:
-    """Return schema violations for a score-provenance record (02 contract)."""
+    """Return schema violations for a score-provenance record (02 contract).
+
+    Also fails loudly on a ``schema`` stamp that does not match
+    :data:`CONTRACT_VERSION`.
+    """
     if not isinstance(record, dict):
         return ["provenance record must be a dict"]
-    return [
+    problems = _schema_problem(record)
+    problems += [
         f"missing required field: {f}"
         for f in _missing(record, PROVENANCE_SCHEMA)
     ]
+    return problems
 
 
 def normalize_link(link: dict[str, Any]) -> dict[str, Any]:
@@ -154,12 +180,16 @@ def approved_evidence(
 ) -> list[dict[str, Any]]:
     """Return only schema-valid, approved evidence items.
 
-    Unapproved or invalid items can never back a tailored statement.
+    The approval gate is truthy (consistent with
+    ``versions.trace_report``, which also classifies on a truthy
+    ``approved`` flag) — an item with ``approved=1`` counts as
+    approved. Unapproved or invalid items can never back a tailored
+    statement.
     """
     out = []
     for item in items or []:
         if validate_evidence(item):
             continue
-        if item.get("approved") is True:
+        if item.get("approved"):
             out.append(item)
     return out

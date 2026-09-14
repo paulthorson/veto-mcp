@@ -10,8 +10,11 @@ messages and in module prose outside the contract-definition block.
 from __future__ import annotations
 
 import re
+import sys
+import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from initiatives.i05 import ats_check
 
@@ -42,21 +45,51 @@ def _profile() -> dict:
 
 
 def _resume_md() -> str:
+    # A genuinely complete resume: comfortably inside the module's own
+    # 80-1600 word heuristic so the "good resume is ready" tests are
+    # honest about what the module claims.
     return (
         "# Synthetic Fixture\n"
         "fixture@example.com | 555-010-2030 | New York, NY\n"
         "https://example.com/in/fixture\n"
         "\n"
         "## Summary\n"
-        "Synthetic fixture profile for tests.\n"
+        "Synthetic fixture backend engineer with six years building "
+        "Python services, PostgreSQL schemas, and deployment pipelines "
+        "for high-traffic products.\n"
         "\n"
         "## Experience\n"
         "### Backend Engineer — FixtureCorp\n"
         "*2020 - 2024*\n"
         "- Shipped Python services handling 1M requests a day.\n"
+        "- Cut p99 latency in half by tuning PostgreSQL indexes and "
+        "connection pooling.\n"
+        "- Led the migration from cron scripts to a scheduled task "
+        "runner with full observability.\n"
+        "\n"
+        "### Junior Developer — FixtureLabs\n"
+        "*2016 - 2020*\n"
+        "- Built internal dashboards used by forty engineers every week.\n"
+        "- Wrote integration tests that caught regressions before release.\n"
         "\n"
         "## Skills\n"
-        "Python, PostgreSQL\n"
+        "Python, PostgreSQL, Docker, CI pipelines\n"
+    )
+
+
+def _parser_hostile_md() -> str:
+    """Blind-review probe: tables detected, zero contact info, 2019
+    words, no bullets, no date lines. Returned ready=True before the
+    rework; must not after it."""
+    filler = ("word " * 2001).strip()
+    return (
+        "# Probe Candidate\n"
+        "## Experience\n"
+        "| Role | Years |\n"
+        "|---|---|\n"
+        "| Engineer | 5 |\n"
+        "## Skills\n"
+        + filler + "\n"
     )
 
 
@@ -75,7 +108,9 @@ class CopyContractTest(unittest.TestCase):
             _resume_md(),
             "",
             "# Name Only\n",
-            _resume_md().replace("## Skills\nPython, PostgreSQL\n", ""),
+            _resume_md().replace("## Skills\nPython, PostgreSQL, Docker, "
+                                 "CI pipelines\n", ""),
+            _parser_hostile_md(),
         ]
         for md in resumes:
             report = ats_check.ats_readiness_check(md, _job(), _profile())
@@ -131,6 +166,75 @@ class StructureCheckTest(unittest.TestCase):
         self.assertFalse(
             [f for f in findings if "Tables were detected" in f["message"]])
 
+    def test_no_date_lines_is_honest_skip(self):
+        # Date lines in a format the check cannot see must not earn a
+        # "consistent" verdict.
+        md = _resume_md().replace("*2020 - 2024*", "2020 - 2024").replace(
+            "*2016 - 2020*", "2016 - 2020")
+        findings = ats_check.check_structure(md)
+        skipped = [f for f in findings if f["key"] == "dates_none"]
+        self.assertEqual(len(skipped), 1)
+        self.assertEqual(skipped[0]["severity"], "warn")
+        self.assertIn("skipped", skipped[0]["message"])
+        self.assertNotIn("consistent", skipped[0]["message"])
+        self.assertFalse(skipped[0]["blocking"])
+
+    def test_date_lines_examined_can_still_pass(self):
+        findings = ats_check.check_structure(_resume_md())
+        ok = [f for f in findings if f["key"] == "dates_ok"]
+        self.assertEqual(len(ok), 1)
+        self.assertEqual(ok[0]["severity"], "pass")
+
+    def test_bad_date_lines_warn(self):
+        md = _resume_md().replace("*2020 - 2024*", "*sometime*")
+        findings = ats_check.check_structure(md)
+        warned = [f for f in findings if f["key"] == "dates_warn"]
+        self.assertEqual(len(warned), 1)
+        self.assertEqual(warned[0]["severity"], "warn")
+        self.assertTrue(warned[0]["blocking"])
+
+
+class ReadinessVerdictTest(unittest.TestCase):
+    def test_probe_fixture_is_2019_words(self):
+        self.assertEqual(len(_parser_hostile_md().split()), 2019)
+
+    def test_parser_hostile_probe_is_not_ready(self):
+        # The blind-review blocker: tables + no contact + 2019 words +
+        # no bullets + all fields missing returned ready=True before
+        # the rework. The verdict must never claim readiness for it.
+        report = ats_check.ats_readiness_check(
+            _parser_hostile_md(), None, {})
+        self.assertFalse(report["ready"])
+        text = ats_check.render_report_text(report)
+        self.assertIn("needs attention", text)
+        self.assertNotIn("— ready", text)
+        blocking_keys = {f["key"] for f in report["findings"]
+                         if f["blocking"]}
+        self.assertTrue(
+            {"tables_found", "contact_missing", "length_warn",
+             "bullets_missing", "field_partial"} <= blocking_keys)
+
+    def test_advisory_warnings_alone_do_not_block_ready(self):
+        # A skipped date check is inconclusive, not evidence of a bad
+        # document — the verdict stays honest either way.
+        md = _resume_md().replace("*2020 - 2024*", "2020 - 2024").replace(
+            "*2016 - 2020*", "2016 - 2020")
+        report = ats_check.ats_readiness_check(md, _job(), _profile())
+        self.assertTrue(report["ready"])
+        self.assertTrue(
+            any(f["key"] == "dates_none" for f in report["findings"]))
+
+    def test_good_resume_is_ready(self):
+        report = ats_check.ats_readiness_check(
+            _resume_md(), _job(), _profile())
+        self.assertTrue(report["ready"])
+        text = ats_check.render_report_text(report)
+        self.assertIn("ATS readiness check", text)
+        # Summary counts add up.
+        s = report["summary"]
+        self.assertEqual(
+            s["pass"] + s["warn"] + s["fail"], len(report["findings"]))
+
 
 class KeywordCoverageTest(unittest.TestCase):
     def test_full_coverage_passes(self):
@@ -143,11 +247,27 @@ class KeywordCoverageTest(unittest.TestCase):
         findings = ats_check.check_keyword_coverage(md, _job(), _profile())
         self.assertEqual(findings[0]["severity"], "warn")
         self.assertIn("PostgreSQL", findings[0]["message"])
+        # Content matching is advisory — it never gates readiness.
+        self.assertFalse(findings[0]["blocking"])
 
     def test_no_keywords_is_not_a_failure(self):
         findings = ats_check.check_keyword_coverage(
             _resume_md(), {"title": "x"}, _profile())
         self.assertEqual(findings[0]["severity"], "pass")
+
+    def test_broken_tailor_does_not_kill_report(self):
+        bad = types.ModuleType("tailor")
+
+        def _boom(job_details, profile):
+            raise RuntimeError("synthetic tailor failure")
+
+        bad.extract_job_keywords = _boom
+        with mock.patch.dict(sys.modules, {"tailor": bad}):
+            findings = ats_check.check_keyword_coverage(
+                _resume_md(), _job(), _profile())
+        self.assertEqual(findings[0]["severity"], "warn")
+        self.assertIn("skipped", findings[0]["message"])
+        self.assertFalse(findings[0]["blocking"])
 
 
 class FieldCompletenessTest(unittest.TestCase):
@@ -171,6 +291,20 @@ class ExportCheckTest(unittest.TestCase):
         self.assertEqual(findings[0]["severity"], "pass")
         self.assertTrue(
             any("PDF backend" in f["message"] for f in findings))
+
+    def test_export_claim_is_scoped_to_the_profile(self):
+        # Blind-review major: the check renders the profile, so the
+        # copy must never imply the resume markdown was rendered.
+        findings = ats_check.check_exports(_profile())
+        self.assertIn("Profile", findings[0]["message"])
+        self.assertNotIn("resume", findings[0]["message"].lower())
+
+    def test_empty_profile_export_check_is_skipped(self):
+        # Rendering an empty profile says nothing — say so honestly.
+        findings = ats_check.check_exports({})
+        self.assertEqual(findings[0]["severity"], "pass")
+        self.assertIn("skipped", findings[0]["message"])
+        self.assertIn("profile", findings[0]["message"].lower())
 
     def test_report_ready_flag(self):
         report = ats_check.ats_readiness_check(
