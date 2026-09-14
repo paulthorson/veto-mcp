@@ -995,6 +995,65 @@ def _apply_via_browser_and_record(
             "error": f"browser hook crashed: {exc}",
         }
 
+    # Legal-hardening commit 8 (spec §6, plan §10.3): the per-action
+    # circuit breaker. The form is filled (fill-only — Veto never
+    # submits); before the filled form is handed back for the user's own
+    # submit click, the user must type the company name exactly as shown
+    # in the summary. Non-TTY refuses with a nonzero exit (SystemExit(2)
+    # from the gate); the server/MCP context catches it and converts it
+    # to a refusal result — a refused action must not kill the server.
+    # A declined/mismatched answer also refuses: nothing is recorded and
+    # the compliance budget is not spent.
+    import circuit_breaker as _circuit_breaker
+
+    _gate_summary = _circuit_breaker.render_application_summary(
+        company=str(preview.get("company") or ""),
+        title=str(preview.get("title") or ""),
+        fields_filled=browser_result.get("fields_filled") or {},
+        destination_url=str(browser_result.get("final_url") or url),
+        board=board,
+    )
+    try:
+        _gate = _circuit_breaker.require_action_confirmation(
+            summary=_gate_summary,
+            expected_value=str(preview.get("company") or ""),
+            value_label="company name",
+            action_label="application",
+        )
+    except SystemExit as exc:
+        # Non-interactive refuse (spec §6.3). Convert to a result dict:
+        # the MCP server and the apply queue must survive a refusal.
+        # The CLI maps this status to a nonzero exit (see cmd_apply).
+        log.info("Phase 2 apply refused (non-interactive) for %s.", job_id)
+        return {
+            "ok": False,
+            "status": "refused",
+            "error": "not_interactive",
+            "exit_code": int(exc.code or 2),
+            "instructions": (
+                "Refused: confirming this application requires a human at "
+                "an interactive terminal (stdin and stdout must both be "
+                "TTYs). There is no environment variable, flag, or config "
+                "that overrides this. Run the apply command from a real "
+                "terminal."
+            ),
+        }
+    if not _gate.get("ok"):
+        log.info(
+            "Phase 2 apply refused (%s) for %s.",
+            _gate.get("error"), job_id,
+        )
+        return {
+            "ok": False,
+            "status": "refused",
+            "error": _gate.get("error", "approval_declined"),
+            "instructions": _gate.get(
+                "instructions",
+                "Refused: the typed value did not match. Nothing was "
+                "recorded; re-run to try again.",
+            ),
+        }
+
     entry = {
         "job_id": job_id,
         "board": board,

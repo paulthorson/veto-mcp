@@ -174,6 +174,15 @@ def cmd_apply(args: argparse.Namespace) -> int:
     if status == "error":
         return _fail(str(result.get("error", "unknown error")))
 
+    if status == "refused":
+        # Legal-hardening commit 8 (spec §6.3): the per-action circuit
+        # breaker refused — e.g. no interactive terminal. Nonzero exit.
+        print(
+            f"Refused: {result.get('instructions') or result.get('error')}",
+            file=sys.stderr,
+        )
+        return 2
+
     if status == "dry_run":
         preview = result.get("preview", {})
         print("DRY RUN — nothing was submitted or recorded.\n")
@@ -534,9 +543,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_apply.add_argument(
         "--confirm",
         action="store_true",
-        help="Record the application (Phase 1 log, or Phase 2 browser "
-        "submit when JOB_MCP_BROWSER_APPLY=1). Without it, only a dry-run "
-        "preview is printed.",
+        help="Record the application (Phase 1 local log, or Phase 2 "
+        "fill-only browser flow when JOB_MCP_BROWSER_APPLY=1). Phase 2 "
+        "always requires the per-action circuit breaker: you type the "
+        "company name exactly as shown at an interactive terminal — "
+        "--confirm alone authorizes nothing. Without --confirm, only a "
+        "dry-run preview is printed.",
     )
 
     p_apps = sub.add_parser("applications", help="List recorded applications.")
