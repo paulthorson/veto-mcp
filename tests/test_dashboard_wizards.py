@@ -395,13 +395,16 @@ class WfApplyTests(unittest.TestCase):
         self.assertIn("Removed greenhouse:one from the queue", out)
 
     def test_queue_run_needs_explicit_consent(self):
+        # Hardened behavior (post 2026-09-14 public release): the dashboard
+        # never submits. Queue runs are dry-run/fill-only and require an
+        # explicit yes; a "no" cancels with nothing filled or recorded.
         queued = [{"job_id": "greenhouse:one", "status": "queued",
                    "attempts": 0}]
         self._queue_base(queued)
         with mock.patch.object(
             dashboard, "ask_choice",
             side_effect=["official ATS (direct API)",
-                         "run the queue (submit real applications)"]
+                         "run the queue (fill + record due applications)"]
         ), mock.patch.object(
             dashboard, "ask", side_effect=["greenhouse:abc123", "", ""]
         ), mock.patch.object(
@@ -411,21 +414,27 @@ class WfApplyTests(unittest.TestCase):
         ) as run:
             out = _run(dashboard.wf_apply)
         run.assert_not_called()
-        self.assertIn("Queue run cancelled. Nothing was submitted.", out)
+        self.assertIn(
+            "Queue run cancelled. Nothing was filled or recorded.", out)
 
-    def test_queue_run_with_consent_applies_via_confirmed_engine(self):
+    def test_queue_run_with_consent_runs_fill_only_via_confirmed_engine(self):
+        # Hardened behavior: even with consent the queue run is fill-only —
+        # the engine's confirm flow prepares the application for the user's
+        # own submit click. run_queue is called once; the runner's apply_fn
+        # goes through the engine's own confirm flow (confirm=True) and the
+        # output reports "filled + recorded", never "applied"/submitted.
         queued = [{"job_id": "greenhouse:one", "status": "queued",
                    "attempts": 0}]
         self._queue_base(queued)
         fake_server = types.ModuleType("server")
         fake_server.apply_to_job = mock.Mock(
-            return_value={"status": "applied"})
+            return_value={"status": "filled"})
         sys.modules["server"] = fake_server
         self.addCleanup(sys.modules.pop, "server", None)
         with mock.patch.object(
             dashboard, "ask_choice",
             side_effect=["official ATS (direct API)",
-                         "run the queue (submit real applications)"]
+                         "run the queue (fill + record due applications)"]
         ), mock.patch.object(
             dashboard, "ask", side_effect=["greenhouse:abc123", "", ""]
         ), mock.patch.object(
@@ -444,7 +453,8 @@ class WfApplyTests(unittest.TestCase):
         apply_fn("greenhouse:one")
         _, kwargs = fake_server.apply_to_job.call_args
         self.assertTrue(kwargs["confirm"])
-        self.assertIn("1 applied", out)
+        self.assertIn("1 filled + recorded", out)
+        self.assertNotIn("submitted", out)
 
 
 # ---------------------------------------------------------------------------
