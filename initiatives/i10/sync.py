@@ -11,7 +11,10 @@ the user explicitly runs ``enable`` with a passphrase. When enabled:
 * Merge is deterministic and offline-safe:
   - ``outcome-event`` / ``evidence-store`` (append-only JSONL): union by
     record id (``event_id`` / ``record_id``), never duplicated.
-  - ``profile`` files: last-writer-wins by embedded ``updated_at``.
+  - ``profile`` files: last-writer-wins by embedded ``updated_at``;
+    equal timestamps break the tie deterministically (the
+    lexicographically greater canonical serialization wins on every
+    device), so divergent profiles converge instead of flip-flopping.
 * Sync moves ONLY the named stable schemas from ``schemas.py``.
 
 Passphrase handling (i10-wide convention — NEVER argv):
@@ -722,8 +725,10 @@ def _merge_lww_file(
 ) -> dict:
     """Merge one document file of an LWW dataset (no ``record_key``).
 
-    Last-writer-wins by embedded ``updated_at`` (timezone-aware). A
-    corrupt local document is reported, not silently replaced.
+    Last-writer-wins by embedded ``updated_at`` (timezone-aware), with a
+    deterministic tiebreak on equal timestamps (lexicographically greater
+    canonical serialization wins, computed identically on both devices).
+    A corrupt local document is reported, not silently replaced.
     """
     if not isinstance(payload, dict):
         return {
@@ -758,15 +763,26 @@ def _merge_lww_file(
         local = {}
     lts = local.get("updated_at")
     rts = payload.get("updated_at")
-    if _ts_order_key(rts) >= _ts_order_key(lts):
-        if local == payload:
-            # No-op merge: identical document — skip snapshot and rewrite
-            # so unchanged merges don't churn the snapshot history.
-            return {"replaced": False, **_cap_dropped(dropped)}
-        _snapshot_before_merge(data_dir, rel, snap_state)
-        dest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        return {"replaced": True, **_cap_dropped(dropped)}
-    return {"replaced": False, **_cap_dropped(dropped)}
+    rkey, lkey = _ts_order_key(rts), _ts_order_key(lts)
+    # On equal timestamps the lexicographically greater canonical
+    # serialization wins. This is a deterministic tiebreak both devices
+    # compute identically: with the old ``>=`` comparison the remote won
+    # every tie, so each sync round replaced the local profile with the
+    # peer's and two divergent profiles flip-flopped forever instead of
+    # converging.
+    remote_wins = rkey > lkey or (
+        rkey == lkey
+        and json.dumps(payload, sort_keys=True) > json.dumps(local, sort_keys=True)
+    )
+    if not remote_wins:
+        return {"replaced": False, **_cap_dropped(dropped)}
+    if local == payload:
+        # No-op merge: identical document — skip snapshot and rewrite
+        # so unchanged merges don't churn the snapshot history.
+        return {"replaced": False, **_cap_dropped(dropped)}
+    _snapshot_before_merge(data_dir, rel, snap_state)
+    dest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return {"replaced": True, **_cap_dropped(dropped)}
 
 
 def merge_envelope(data_dir: str | Path, envelope: Envelope, own_device_id: str) -> dict:
