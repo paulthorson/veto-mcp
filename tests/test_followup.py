@@ -249,6 +249,30 @@ class SendGateTests(unittest.TestCase):
             self.assertEqual(bad_subj["error"], "bad_subject")
             mock_send.assert_not_called()
 
+    def test_overlong_body_refused_without_prompt_or_send(self):
+        """S4 (round 5): followup.send_followup inherits the approval
+        display-cap refusal from the email_sync send boundary — no
+        prompt, no send, instructions name the 4000-char cap and the
+        named preview file ("preview another way")."""
+        result = followup.send_followup(
+            "linkedin:abc123", "sam@acme.example", "Subject",
+            "x" * 4001, confirmed=True,
+        )
+        self.assertFalse(result["sent"])
+        self.assertEqual(result["error"], "body_exceeds_approval_display_cap")
+        self.assertIn("4000", result["instructions"])
+        # "Preview another way": the full body was saved to the named file.
+        preview = Path(
+            result["instructions"].split("saved to ")[1].split(" — ")[0]
+        )
+        try:
+            self.assertEqual(
+                preview.read_text(encoding="utf-8"), "x" * 4001
+            )
+        finally:
+            if preview.exists():
+                preview.unlink()
+
     def test_confirmed_send_delegates_to_email_sync(self):
         with mock.patch(
             "followup.email_sync.send_followup",

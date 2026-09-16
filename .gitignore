@@ -44,6 +44,10 @@ offers.json
 offer_weights.json
 skill_gaps.json
 outcomes.json
+outcomes.jsonl
+outcomes_meta.json
+outcomes_canonical.jsonl
+outcomes_migration.jsonl
 streaks.json
 network.json
 cover_letters/
@@ -58,3 +62,8 @@ tailored/
 # machine-local; never commit).
 channel_consent.jsonl
 channel_consent.key
+
+# Initiative 07 warm-path drafts: real contact names live outside the repo
+# tree by default (~/.local/share/veto/), but never commit a stray copy.
+draft_outbox.jsonl
+warm_path_drafts.jsonl
