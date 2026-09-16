@@ -246,7 +246,8 @@ class TestPluginWiring(unittest.TestCase):
         ap.register_tools(FakeMCP())
         for name in ("ai_tracks", "ai_diagnose", "ai_submit_diagnosis",
                      "ai_plan", "ai_lesson", "ai_exercise",
-                     "ai_submit_exercise", "ai_progress"):
+                     "ai_submit_exercise", "ai_progress",
+                     "ai_lab_tracks", "ai_lab_exercise", "ai_lab_submit"):
             self.assertIn(name, registered)
 
     def test_register_cli(self):
