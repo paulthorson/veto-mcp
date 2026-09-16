@@ -93,16 +93,29 @@ class HealthStoreTests(unittest.TestCase):
         self.assertEqual(latest.consecutive_failures, 1)
         self.assertEqual(latest.recovery_streak, 0)
 
-    def test_scoreboard_never_renders_unknown_as_healthy(self):
+    def test_scoreboard_renders_unknown_as_unknown(self):
+        # Rule 1 fail-safe: the tri-state renders verbatim — "unknown"
+        # is an explicit row status, never collapsed into "error".
         unknown = HealthSnapshot(
             provider="greenhouse", fetched_at=time.time(), success=False,
             status="unknown", error_state="unknown:status=None")
         self.store.record(unknown)
         rows = scorecard.scoreboard(self.store)
         gh = next(r for r in rows if r["provider"] == "greenhouse")
+        self.assertEqual(gh["status"], "unknown")
         self.assertNotEqual(gh["status"], "ok")
-        # Fail-safe today: renders "error" until scorecard.py adds an
-        # explicit "unknown" row status (flagged to its owner).
+
+    def test_unknown_row_budget_renders_dash_not_invented(self):
+        # An unknown row carries no observed outcome: the budget column
+        # must not invent "0/N".
+        unknown = HealthSnapshot(
+            provider="lever", fetched_at=time.time(), success=False,
+            status="unknown", error_state="unknown:status=None")
+        self.store.record(unknown)
+        rows = scorecard.scoreboard(self.store)
+        lv = next(r for r in rows if r["provider"] == "lever")
+        self.assertEqual(lv["status"], "unknown")
+        self.assertEqual(lv["budget"], "—")
 
     def test_record_fetch_derives_status(self):
         ok = record_fetch(self.store, "greenhouse", success=True)
