@@ -245,6 +245,27 @@ class ManifestTests(unittest.TestCase):
         problems = bad.validate()
         self.assertTrue(any("why_it_may_be_blocked" in p for p in problems))
 
+    def test_connector_type_typo_fails_validation(self):
+        # A misspelled connector_type must fail, not silently certify an
+        # unexamined interface.
+        bad = ConnectorManifest(
+            name="x", connector_type="job_providers",
+            what_it_can_do=["a"], why_it_may_be_blocked=["b"],
+            what_data_it_sends=["c"], what_requires_confirmation=["d"],
+        )
+        problems = bad.validate()
+        self.assertTrue(any("connector_type" in p for p in problems))
+
+    def test_connector_type_vocabulary_accepted(self):
+        # All four documented types pass the vocabulary check.
+        for ctype in ("job_provider", "ats", "channel", "calendar"):
+            good = ConnectorManifest(
+                name="x", connector_type=ctype,
+                what_it_can_do=["a"], why_it_may_be_blocked=["b"],
+                what_data_it_sends=["c"], what_requires_confirmation=["d"],
+            )
+            self.assertEqual(good.validate(), [], ctype)
+
 
 class SubmissionContractTests(unittest.TestCase):
     """Headline property: no silent drops, no misreported status."""
@@ -467,6 +488,42 @@ class SubmissionContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             submission_result_from({"frobnicate": True}, connector="x")
 
+    def test_explicit_source_is_validated_against_vocabulary(self):
+        # An invalid explicit source raises loudly instead of being
+        # silently re-detected into a different module's semantics.
+        with self.assertRaises(ValueError):
+            submission_result_from(
+                {"ok": True, "board": "ashby"}, source="definitely_new"
+            )
+
+    def test_explicit_source_wins_over_detection(self):
+        # The caller's stated contract wins: source="ats" on a dict whose
+        # shape would otherwise detect as browser.
+        result = submission_result_from(
+            {"ok": True, "submitted": False, "board": "ashby",
+             "status_code": 200},
+            connector="ats_direct",
+            source="ats",
+        )
+        self.assertEqual(result.status, SubmissionStatus.SUBMITTED)
+        self.assertEqual(result.confirmation, "http-200")
+
+    def test_explicit_source_case_insensitive(self):
+        result = submission_result_from(
+            {"mode": "preview", "dry_run": True, "board": "ashby"},
+            source="ATS",
+        )
+        self.assertEqual(result.status, SubmissionStatus.DRAFT)
+
+    def test_ats_ok_truthiness_matches_browser(self):
+        # _from_ats and _from_browser agree: truthy "ok" is success, not
+        # a silent FAILED (was: `is True` in ats vs truthiness in browser).
+        result = submission_result_from(
+            {"ok": 1, "board": "ashby", "status_code": 200},
+            connector="ats_direct",
+        )
+        self.assertEqual(result.status, SubmissionStatus.SUBMITTED)
+
     def test_source_auto_detection(self):
         # NOTE (legal-hardening commit 3): the old {"status": "preview"}
         # easy_apply shape is gone with easy_apply.py — only ats/browser
@@ -541,6 +598,75 @@ class ConformanceSuiteTests(unittest.TestCase):
         self.assertFalse(suite_passed(results))
         failed = [r["check"] for r in results if not r["passed"]]
         self.assertIn("schema.search_rows", failed)
+
+    def test_suite_survives_malformed_fixture_rows(self):
+        # Malformed fixtures (e.g. [None]) must FAIL the relevant check
+        # with a record — never abort the suite with zero records.
+        results = conformance_suite(
+            greenhouse.GreenhouseProvider(tokens=[]),
+            search_fixture=[None],
+            detail_fixture="not-a-dict",
+        )
+        self.assertTrue(results, "suite aborted instead of recording")
+        by_check = {r["check"]: r for r in results}
+        self.assertFalse(by_check["schema.search_rows"]["passed"])
+        self.assertIn("malformed", by_check["schema.search_rows"]["detail"])
+        self.assertFalse(by_check["schema.detail"]["passed"])
+        self.assertIn("malformed", by_check["schema.detail"]["detail"])
+
+    def test_suite_survives_non_list_search_fixture(self):
+        results = conformance_suite(
+            greenhouse.GreenhouseProvider(tokens=[]),
+            search_fixture={"id": "x"},
+        )
+        self.assertTrue(results, "suite aborted instead of recording")
+        by_check = {r["check"]: r for r in results}
+        self.assertFalse(by_check["schema.search_rows"]["passed"])
+
+    def test_suite_flags_cooldown_drift(self):
+        # The budget drift check compares cooldown too, not just daily:
+        # simulate budget_for drifting from compliance's base cooldown.
+        import compliance
+        from unittest import mock
+
+        expected = int(compliance.BLOCK_COOLDOWN_BASE_SECONDS)
+        with mock.patch.object(
+            _contract, "budget_for", return_value=(500, expected + 1)
+        ):
+            results = conformance_suite(
+                greenhouse.GreenhouseProvider(tokens=[])
+            )
+        by_check = {r["check"]: r for r in results}
+        self.assertFalse(by_check["budget.declared"]["passed"])
+        self.assertIn("cooldown", by_check["budget.declared"]["detail"])
+
+    def test_suite_budget_check_passes_when_policy_matches(self):
+        results = conformance_suite(
+            greenhouse.GreenhouseProvider(tokens=[])
+        )
+        by_check = {r["check"]: r for r in results}
+        self.assertTrue(
+            by_check["budget.declared"]["passed"],
+            by_check["budget.declared"]["detail"],
+        )
+
+    def test_suite_records_dry_run_exception_exactly_once(self):
+        # A dry run that raises must fail the affected checks — each
+        # recorded exactly once, never duplicated.
+        class AtsStub:
+            name = "ats_direct"
+
+        def _raises(job, applicant, *, confirm=False, dry_run=True):
+            raise RuntimeError("boom")
+
+        results = conformance_suite(AtsStub(), apply=_raises)
+        checks = [r["check"] for r in results]
+        self.assertEqual(len(checks), len(set(checks)),
+                         "duplicate check records on dry-run exception")
+        by_check = {r["check"]: r for r in results}
+        self.assertFalse(by_check["submit.no_silent_drops"]["passed"])
+        self.assertFalse(by_check["submit.preview_honest"]["passed"])
+        self.assertFalse(suite_passed(results))
 
     def test_suite_flags_unregistered_provider(self):
         class Mystery:

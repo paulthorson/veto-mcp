@@ -302,7 +302,8 @@ class TestWiring(MockInterviewTestCase):
         mock_interview.register_tools(FakeMCP())
         self.assertEqual(
             set(registered),
-            {"start_mock_interview", "answer_mock_question", "mock_summary"})
+            {"start_mock_interview", "answer_mock_question", "mock_summary",
+             "mock_rubric"})
 
         # Tools call the real implementations (bound at registration time,
         # same pattern as briefs.py/grill.py).
@@ -322,7 +323,7 @@ class TestWiring(MockInterviewTestCase):
         handlers = mock_interview.register_cli(sub)
         self.assertEqual(
             set(handlers),
-            {"mock-start", "mock-answer", "mock-summary"})
+            {"mock-start", "mock-answer", "mock-summary", "mock-rubric"})
         args = parser.parse_args(
             ["mock-start", "Acme", "Backend Engineer",
              "--channel", "whatsapp", "--job-id", "lever:abc"])

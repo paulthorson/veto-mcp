@@ -160,7 +160,10 @@ class SkillGapsTest(unittest.TestCase):
 
         skill_gaps.register_tools(FakeMCP())
         self.assertEqual(
-            set(seen), {"analyze_skill_gaps", "skill_gap_plan", "mark_gap_progress"}
+            set(seen), {"analyze_skill_gaps", "skill_gap_plan", "mark_gap_progress",
+                        "practice_observed_gaps", "practice_progress",
+                        "recommend_next_drill", "select_practice_focus",
+                        "clear_practice_focus"}
         )
         # Functional behavior of the tools is covered by the
         # direct-function tests above.
