@@ -142,6 +142,13 @@ def load_framework() -> types.ModuleType:
         )
     _install_fastmcp_shim()
     mcp_dir = str(root / "mcp")
+    # Snapshot sys.path: importing the framework executes its own
+    # module-level code, which may permanently insert framework-internal
+    # directories into sys.path (e.g. the framework's setup_wizard inserts
+    # its own package dir so its sibling imports work). Any such entry
+    # shadows the product's own top-level modules (notably server.py) for
+    # the rest of the process — the finally block below scrubs them.
+    pre_path = list(sys.path)
     added = mcp_dir not in sys.path
     if added:
         sys.path.insert(0, mcp_dir)
@@ -161,6 +168,28 @@ def load_framework() -> types.ModuleType:
                 sys.path.remove(mcp_dir)
             except ValueError:
                 pass
+        # Scrub framework-internal sys.path entries the framework's own
+        # import machinery added during this call. Only entries under the
+        # framework root that were not present before are removed; anything
+        # the caller had there beforehand is left alone.
+        #
+        # Selective scrub (not `sys.path[:] = pre_path`): the host process
+        # or the shim above may legitimately own entries added around this
+        # call — only framework-added entries are dropped, never restored
+        # over.
+        root_str = str(root)
+        before = set(pre_path)
+
+        def _framework_added(entry) -> bool:
+            # sys.path entries are normally strings, but import hooks can
+            # insert arbitrary objects — never touch those.
+            if not isinstance(entry, str):
+                return False
+            if entry in before:
+                return False
+            return entry == root_str or entry.startswith(root_str + os.sep)
+
+        sys.path[:] = [p for p in sys.path if not _framework_added(p)]
     for name in ("check_veto", "run_review", "record_verdict"):
         if not callable(getattr(module, name, None)):
             raise GovernanceUnavailable(
