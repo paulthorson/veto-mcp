@@ -31,7 +31,9 @@ verify_extension -> RevocationList.is_revoked -> load_extension.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -59,7 +61,8 @@ _SECRET = b"retro-e2e-secret-32-bytes-padding!!"
 
 
 def _host(tmp: Path) -> Host:
-    return Host(audit_path=tmp / "audit.jsonl", secret=_SECRET)
+    return Host(audit_path=tmp / "audit.jsonl", secret=_SECRET,
+                confirmations_path=tmp / "confirmations.json")
 
 
 def _scaffold(tmp: Path, *, name: str, action_kinds,
@@ -416,6 +419,107 @@ class TestRevokeRollbackE2E(unittest.TestCase):
         self.assertFalse(refused["ok"])
         self.assertIn("revoked", refused["error"])
         self.assertEqual(host.list_loaded(), [])
+
+
+class TestCrossProcessLifecycleE2E(unittest.TestCase):
+    """Install -> request -> confirm -> run as REAL separate processes.
+
+    Each ``python cli.py extension ...`` invocation is its own OS process
+    with its own in-memory Host — nothing is shared in-process. The only
+    thing that crosses the process boundary is the persisted state under
+    the hermetic env vars (install store, confirmations, audit log, host
+    key). This permanently encodes the production lifecycle: install in
+    one terminal, approve and run in another.
+    """
+
+    def _env(self, tmp: Path) -> dict:
+        merged = dict(os.environ)
+        merged.update({
+            "VETO_EXTENSIONS_CONFIRMATIONS": str(
+                tmp / "confirmations.json"),
+            "VETO_EXTENSIONS_AUDIT": str(tmp / "audit.jsonl"),
+            "VETO_HOST_KEY_FILE": str(tmp / "host.key"),
+            "VETO_EXTENSIONS_INSTALLED": str(tmp / "installed.json"),
+            "VETO_EXTENSIONS_REVOCATIONS": str(
+                tmp / "revocations.json"),
+        })
+        return merged
+
+    def _cli(self, env: dict, *args: str) -> dict:
+        proc = subprocess.run(
+            [sys.executable, str(BASE_DIR / "cli.py"), "extension", *args],
+            cwd=str(BASE_DIR), capture_output=True, text=True, timeout=180,
+            env=env)
+        self.assertEqual(
+            proc.returncode, 0,
+            f"extension {' '.join(args)} exited rc={proc.returncode}\n"
+            f"--- stdout ---\n{proc.stdout}\n"
+            f"--- stderr (tail) ---\n{proc.stderr[-3000:]}")
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            self.fail(f"extension {' '.join(args)} did not print JSON:\n"
+                      f"{proc.stdout}\n--- stderr ---\n{proc.stderr[-2000:]}")
+
+    def test_install_request_confirm_run_across_processes(self):
+        tmp = Path(tempfile.mkdtemp(prefix="veto-e2e-i11-xproc-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        env = self._env(tmp)
+
+        # One real scaffolded extension with a confirm-required action.
+        ext_dir, ext_id = _scaffold(
+            tmp, name="xproc-e2e-widget",
+            action_kinds=["read", "confirm-required"])
+        _grant_fs_root(ext_dir)
+        gated = _implement_action(ext_dir, ext_id, "confirm-required",
+                                  'return {"approved": True}')
+
+        # Process A (install): records the install in the hermetic store.
+        installed = self._cli(env, "install", "--dir", str(ext_dir))
+        self.assertTrue(installed["ok"], installed)
+        self.assertEqual(installed["extension"], ext_id)
+
+        # Process B (request): mints a structured pending ID.
+        asked = self._cli(env, "request", "--ext-id", ext_id,
+                          "--action-id", gated)
+        self.assertTrue(asked["ok"], asked)
+        pending_id = asked["pending_id"]
+        self.assertIsInstance(pending_id, str)
+        self.assertTrue(pending_id)
+
+        # Process C (human approval): confirms, minting a single-use token.
+        minted = self._cli(env, "confirm", "--pending-id", pending_id)
+        self.assertTrue(minted["ok"], minted)
+        token = minted["confirmation_token"]
+        self.assertTrue(token)
+
+        # Process D (agent run): fresh process auto-loads the install and
+        # the token authorizes the run.
+        ran = self._cli(env, "run", "--ext-id", ext_id,
+                        "--action-id", gated, "--token", token)
+        self.assertTrue(ran["ok"], ran)
+        self.assertEqual(ran["result"], {"approved": True})
+
+        # Process E: the same token is single-use — replay is refused.
+        replayed = self._cli(env, "run", "--ext-id", ext_id,
+                             "--action-id", gated, "--token", token)
+        self.assertFalse(replayed["ok"])
+        self.assertIn("replayed", replayed["error"].lower())
+
+        # Process F: no token at all is refused.
+        denied = self._cli(env, "run", "--ext-id", ext_id,
+                           "--action-id", gated)
+        self.assertFalse(denied["ok"])
+
+        # The audit log written by the separate processes shows the full
+        # lifecycle happened on disk, not in one shared memory space.
+        events = [json.loads(line) for line in
+                  (tmp / "audit.jsonl").read_text(encoding="utf-8")
+                  .splitlines() if line.strip()]
+        kinds = {e["event"] for e in events}
+        for expected in ("extension.loaded", "confirm.requested",
+                         "action.confirmed", "action.ok"):
+            self.assertIn(expected, kinds, kinds)
 
 
 if __name__ == "__main__":
