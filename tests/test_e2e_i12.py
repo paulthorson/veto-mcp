@@ -261,7 +261,7 @@ class TestLiveSitePostProduction(unittest.TestCase):
         opener = (urllib.request.build_opener()
                   if follow_redirects
                   else urllib.request.build_opener(
-                      _NoRedirect(urllib.request.HTTPRedirectHandler)))
+                      _NoRedirect()))
         req = urllib.request.Request(
             url, headers={"User-Agent": "veto-e2e-retro/1.0"})
         try:
