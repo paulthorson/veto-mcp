@@ -266,7 +266,12 @@ def tailor_resume(
 # ----------------------------------------------------------------------
 
 def _norm_text(text: str) -> str:
-    return re.sub(r"\s+", " ", str(text or "")).strip().lower()
+    # Fold whitespace/case and strip leading list markers, mirroring
+    # versions._norm: the renderer emits bullets as "- {text}", so the
+    # lookup key must drop the markdown decoration or no rendered
+    # bullet ever matches its profile source (MAJOR-1).
+    s = re.sub(r"\s+", " ", str(text or "")).strip().lower()
+    return re.sub(r"^([-*•]|\d+[.)])\s+", "", s)
 
 
 def tailor_with_provenance(
@@ -290,6 +295,14 @@ def tailor_with_provenance(
     supplied, to the link/evidence ids whose requirement text mentions
     the same skill. Malformed links are ignored, never trusted.
 
+    Lines the renderer composes itself — today that is only the Summary
+    fallback (``"Professional with X years..."``, used when the profile
+    has no ``summary``) — are tagged ``system:template``, never
+    ``profile:base``: system phrasing must not masquerade as the user's
+    own words. In :mod:`initiatives.i05.versions` ``trace_report``,
+    ``system:*`` ids classify as ``system`` (disclosed, not evidence,
+    never approved).
+
     The honesty contract applies unchanged: provenance records *which*
     evidence justified each statement; it never invents new facts.
     """
@@ -309,9 +322,18 @@ def tailor_with_provenance(
                     key, f"profile:experience[{i}].bullets[{j}]")
 
     links = evidence_links or []
+    # The renderer composes the Summary section itself ("Professional
+    # with X years...") when the profile has no summary — that phrasing
+    # is the system's, not the user's, so it must never be stamped as
+    # profile-sourced. Track the section to tag those lines distinctly.
+    profile_has_summary = bool(str(profile.get("summary") or "").strip())
     statement_map: list[dict[str, Any]] = []
+    in_summary_section = False
     for line in resume_md.splitlines():
         stripped = line.strip()
+        if stripped.startswith("##"):
+            in_summary_section = stripped.lower() == "## summary"
+            continue
         if (not stripped or stripped.startswith("#") or "|" in stripped
                 or (stripped.startswith("*") and stripped.endswith("*"))):
             continue
@@ -339,14 +361,25 @@ def tailor_with_provenance(
                     str(link.get("requirement_id") or "") + " "
                     + str(link.get("quote") or "")
                 ).lower()
-                if lid and skill.lower() in blob:
+                if lid and re.search(
+                    r"(?<![a-z0-9+#])" + re.escape(skill.lower())
+                    + r"(?![a-z0-9+#])",
+                    blob,
+                ):
                     if lid not in link_ids:
                         link_ids.append(lid)
                     eid = link.get("evidence_id")
                     if eid and str(eid) not in evidence_ids:
                         evidence_ids.append(str(eid))
+        if in_summary_section and not profile_has_summary:
+            # Renderer-composed template fallback — system phrasing, not
+            # the user's words. Tagged distinctly so no consumer can
+            # mistake it for profile-sourced text.
+            if "system:template" not in evidence_ids:
+                evidence_ids.append("system:template")
         if not evidence_ids:
-            # Summary / education / contact-adjacent lines: profile-sourced.
+            # Contact / education / user-written summary lines: the only
+            # remaining untraced lines are genuinely profile-sourced.
             evidence_ids.append("profile:base")
         statement_map.append(
             {
