@@ -193,6 +193,88 @@ class TestDiscovery(unittest.TestCase):
         self.assertIs(deco(fn), fn)
 
 
+class TestSysPathScrub(unittest.TestCase):
+    """load_framework() must not leave framework-internal sys.path entries.
+
+    Regression test for the 2026-09-16 nightly failure: the real framework's
+    ``adversarial_mcp.setup_wizard`` inserts its own package dir into
+    sys.path at import time, which then shadowed this repo's own ``server``
+    top-level module for the rest of the test process.
+    """
+
+    def _write_fake_framework(self, root: Path) -> None:
+        pkg = root / "mcp" / "adversarial_mcp"
+        pkg.mkdir(parents=True)
+        (pkg / "__init__.py").write_text("")
+        # setup_wizard mimics the real framework: inserts its own package
+        # dir into sys.path at import time.
+        (pkg / "setup_wizard.py").write_text(
+            "import sys\n"
+            "from pathlib import Path\n"
+            "_DIR = str(Path(__file__).resolve().parent)\n"
+            "if _DIR not in sys.path:\n"
+            "    sys.path.insert(0, _DIR)\n"
+        )
+        (pkg / "server.py").write_text(
+            "from . import setup_wizard  # noqa: F401\n"
+            "\n"
+            "def check_veto(domain, text):\n"
+            "    return {'veto_triggered': False, 'veto_hits': []}\n"
+            "\n"
+            "def run_review(domain, work, context='', source='app'):\n"
+            "    return {'verdict': 'ALLOW'}\n"
+            "\n"
+            "def record_verdict(domain, verdict, summary, **kwargs):\n"
+            "    return {'recorded': True}\n"
+        )
+
+    def test_framework_path_pollution_is_scrubbed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_fake_framework(root)
+            old_root = os.environ.get("GOVERNANCE_ROOT")
+            old_log = os.environ.get("GOVERNANCE_VERDICT_LOG")
+            os.environ["GOVERNANCE_ROOT"] = tmp
+            os.environ["GOVERNANCE_VERDICT_LOG"] = str(root / "verdicts.jsonl")
+            # A pre-existing entry under the framework root must survive.
+            preexisting = str(root / "mcp")
+            sys.path.insert(0, preexisting)
+            adapter._CACHE["module"] = None
+            adapter._CACHE["root"] = None
+            try:
+                adapter.load_framework()
+                polluting = str(root / "mcp" / "adversarial_mcp")
+                self.assertNotIn(
+                    polluting, sys.path,
+                    "framework-inserted sys.path entry was not scrubbed",
+                )
+                self.assertIn(
+                    preexisting, sys.path,
+                    "pre-existing caller entry was wrongly scrubbed",
+                )
+            finally:
+                for name in (
+                    "adversarial_mcp",
+                    "adversarial_mcp.server",
+                    "adversarial_mcp.setup_wizard",
+                ):
+                    sys.modules.pop(name, None)
+                try:
+                    sys.path.remove(preexisting)
+                except ValueError:
+                    pass
+                adapter._CACHE["module"] = None
+                adapter._CACHE["root"] = None
+                if old_root is None:
+                    os.environ.pop("GOVERNANCE_ROOT", None)
+                else:
+                    os.environ["GOVERNANCE_ROOT"] = old_root
+                if old_log is None:
+                    os.environ.pop("GOVERNANCE_VERDICT_LOG", None)
+                else:
+                    os.environ["GOVERNANCE_VERDICT_LOG"] = old_log
+
+
 class TestGate(unittest.TestCase):
     def setUp(self):
         self._original = adapter.load_framework
