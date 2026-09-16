@@ -6,12 +6,20 @@ lxml
 # Phase 2 browser automation (optional): Playwright + Chromium.
 # Install the browser binary after pip install with:
 #   python -m playwright install chromium
-playwright
+# Pinned: browser automation must not float across major Playwright
+# releases (selector/launch behavior changes have broken fills before).
+playwright==1.62.0
 # Optional: resume PDF output for resume_builder.py (pure Python, no
 # system dependencies). Without it, resume_builder emits resume.md +
 # resume.html. (WeasyPrint is a prettier alternative but needs system
 # libraries: pango, cairo.)
 reportlab
+# Initiative 04 local file ingestion (Epic 6): PDF and DOCX text
+# extraction. The module degrades gracefully when these are missing
+# (explicit preview + "paste the text instead" fallback), but the
+# product path needs them installed.
+pypdf
+python-docx
 # Required by the test suite: tests/test_easy_apply.py imports pytest
 # at module level, so CI must install it (it is not only a dev tool).
 pytest
