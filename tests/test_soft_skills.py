@@ -340,7 +340,9 @@ class TestWiring(PatchedPaths):
         for name in ("soft_skill_areas", "assess_soft_skill", "start_drill",
                      "review_drill_answer", "start_negotiation",
                      "negotiation_counter", "log_soft_skill_practice",
-                     "soft_skill_progress"):
+                     "soft_skill_progress", "lab_scenario_kinds",
+                     "start_lab_scenario", "review_lab_scenario",
+                     "lab_scenario_summary"):
             self.assertIn(name, registered)
         out = registered["soft_skill_areas"]()
         self.assertEqual(len(out["areas"]), 6)

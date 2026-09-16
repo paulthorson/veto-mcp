@@ -87,6 +87,46 @@ class FakeLocator:
         self._page.submitted = True
 
 
+class _FakeDelegatingCDPSession:
+    """Emulates a Chromium CDP session whose isolated world is HONEST:
+    it delegates to the fake page's own DOM model (the ``evaluate``
+    dispatch). Models a benign page's isolated world — the values are
+    the true DOM. Adapted from tests/test_email_sync.py: unlike the
+    email-sync version, this one forwards the ``arguments`` payload of
+    ``Runtime.callFunctionOn`` as ``evaluate``'s ``arg``, because the
+    form-unit tests drive ``_select_matching_option`` (which passes
+    ``[field_index, needle]`` as its arg)."""
+
+    def __init__(self, page):
+        self._page = page
+
+    def send(self, method, params=None):
+        if method == "Page.getFrameTree":
+            return {"frameTree": {"frame": {"id": "frame-1"}}}
+        if method == "Page.createIsolatedWorld":
+            return {"executionContextId": 7}
+        if method == "Runtime.callFunctionOn":
+            fn = (params or {}).get("functionDeclaration", "")
+            args = (params or {}).get("arguments") or []
+            arg = args[0].get("value") if args else None
+            return {"result": {"value": self._page.evaluate(fn, arg)}}
+        raise AssertionError(f"unexpected CDP method {method}")
+
+    def detach(self):
+        pass
+
+
+class _FakeDelegatingCDPContext:
+    """Fake Chromium browser context: exposes the CDP session factory,
+    like a real Playwright ``BrowserContext`` on Chromium."""
+
+    def __init__(self, page):
+        self._page = page
+
+    def new_cdp_session(self, page):
+        return _FakeDelegatingCDPSession(self._page)
+
+
 class FakePage:
     """Emulates the Playwright Page methods browser_apply uses."""
 
@@ -100,6 +140,12 @@ class FakePage:
         self.submitted = False
         self.url = "file:///tmp/apply_form.html"
         self._has_submit = has_submit
+        # Initiative 09 / MAJOR 2 (round 6): the M3 readback now goes
+        # through the CDP isolated world and fails closed on a page with
+        # no CDP-capable context. A real Playwright page ALWAYS exposes
+        # .context; this fake models a Chromium page, so it exposes the
+        # delegating CDP session factory.
+        self.context = _FakeDelegatingCDPContext(self)
 
     # -- evaluate dispatch -------------------------------------------------
     def evaluate(self, js, arg=None):
