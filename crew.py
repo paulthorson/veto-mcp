@@ -29,6 +29,7 @@ human confirm gate.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -1052,11 +1053,83 @@ def ext_verify(ext_dir: str) -> dict:
     return _ext_host().verify_extension(ext_dir)
 
 
+def _revocations():
+    """Shared revocation list for the extension CLI paths.
+
+    Honors VETO_EXTENSIONS_REVOCATIONS so hermetic runs (tests, UAT
+    journeys) never touch the repo tree; defaults to the repo-tree file.
+    """
+    from initiatives.i11.signing.sign import RevocationList
+    base = str(Path(__file__).resolve().parent)
+    return RevocationList(Path(os.environ.get(
+        "VETO_EXTENSIONS_REVOCATIONS",
+        str(Path(base) / "extensions_revocations.json"))))
+
+
+def _install_store():
+    """Persistent install records, honoring VETO_EXTENSIONS_INSTALLED."""
+    from initiatives.i11.signing.sign import InstallStore
+    base = str(Path(__file__).resolve().parent)
+    return InstallStore(Path(os.environ.get(
+        "VETO_EXTENSIONS_INSTALLED",
+        str(Path(base) / "extensions_installed.json"))))
+
+
+def _ensure_loaded(host, ext_id: str) -> dict | None:
+    """Load a previously installed extension into this process's Host.
+
+    Returns None when the extension is (now) loaded, or an error dict
+    when it cannot be loaded. Install records persist across processes;
+    without this, `extension install` in one terminal command followed by
+    `extension request`/`extension run` in the next would fail with
+    "not loaded" even though the install succeeded.
+
+    Fail-closed checks before loading from a record:
+    - the (id, version) pair must not be revoked (the InstallStore's own
+      documented invariant: "revoked (id, version) pairs refuse to
+      install or load");
+    - the recorded source_path must still exist;
+    - the current package hash must equal the recorded hash (tamper-evident:
+      bytes changed since install refuse to load).
+    Loading uses the same explicit unsafe_local_only=True opt-in as the
+    install path (see initiatives/i11/sandbox/SECURITY_RESIDUAL.md).
+    """
+    if ext_id in [e["id"] for e in host.list_loaded()]:
+        return None
+    from initiatives.i11.signing.sign import package_hash
+    store = _install_store()
+    rec = store._read_all().get(ext_id)
+    if rec is None:
+        return {"ok": False,
+                "error": f"extension {ext_id!r} is not loaded; "
+                         f"use `extension install <dir>` first"}
+    version = rec.get("version", "")
+    if _revocations().is_revoked(ext_id, version):
+        return {"ok": False,
+                "error": f"extension {ext_id!r} version {version!r} was "
+                         f"revoked; refusing to load"}
+    source_path = rec.get("source_path", "")
+    if not source_path or not Path(source_path).is_dir():
+        return {"ok": False,
+                "error": f"extension {ext_id!r} is installed but its "
+                         f"source directory is missing; reinstall it"}
+    if package_hash(source_path) != rec.get("package_sha256"):
+        return {"ok": False,
+                "error": f"extension {ext_id!r} package changed since "
+                         f"install (hash mismatch); refusing to load — "
+                         f"reinstall it"}
+    try:
+        host.load_extension(source_path, unsafe_local_only=True)
+    except Exception as exc:  # fail closed: never half-load
+        return {"ok": False,
+                "error": f"extension {ext_id!r} failed to load: {exc}"}
+    return None
+
+
 def ext_install(ext_dir: str) -> dict:
     """Verify, signature-check, revocation-check, load, and pin an extension."""
     from initiatives.i11.signing.sign import (
-        InstallRecord, InstallStore, RevocationList, package_hash,
-        verify_package,
+        InstallRecord, package_hash, verify_package,
     )
     from initiatives.i11.manifest.schema import load_manifest
     import time as _time
@@ -1068,9 +1141,7 @@ def ext_install(ext_dir: str) -> dict:
                 "error": verdict.get("error")}
     manifest = load_manifest(ext_dir)
     sig = verify_package(ext_dir)
-    base = str(Path(__file__).resolve().parent)
-    revocations = RevocationList(Path(base) / "extensions_revocations.json")
-    if revocations.is_revoked(manifest["id"], manifest["version"]):
+    if _revocations().is_revoked(manifest["id"], manifest["version"]):
         return {"ok": False, "error": "this version was revoked; refusing install"}
     # Reviewed API (initiatives/i11/sandbox/host.py:734): trust is DERIVED
     # inside load_extension from the packaging signature — there is no
@@ -1083,12 +1154,17 @@ def ext_install(ext_dir: str) -> dict:
     # the honest ``local-unsigned`` label from _derive_trust — never
     # elevated by the caller. The revocation check above stays in place.
     loaded = host.load_extension(ext_dir, unsafe_local_only=True)
-    store = InstallStore(Path(base) / "extensions_installed.json")
+    # Install bookkeeping honors VETO_EXTENSIONS_INSTALLED so hermetic
+    # runs (tests, UAT journeys) never touch the repo tree. source_path is
+    # recorded so a later process can reload this exact install (see
+    # _ensure_loaded): install once, use across terminal commands.
+    store = _install_store()
     store.record_install(InstallRecord(
         ext_id=manifest["id"], version=manifest["version"],
         package_sha256=sig.get("package_sha256") or package_hash(ext_dir),
         publisher=sig.get("publisher") or "local",
         installed_at=int(_time.time()),
+        source_path=str(Path(ext_dir).resolve()),
     ))
     return {"ok": True, "extension": manifest["id"],
             "version": manifest["version"],
@@ -1108,10 +1184,9 @@ def ext_run(ext_id: str, action_id: str,
     refused — the extension can never self-confirm.
     """
     host = _ext_host()
-    if ext_id not in [e["id"] for e in host.list_loaded()]:
-        return {"ok": False,
-                "error": f"extension {ext_id!r} is not loaded; "
-                         f"use `extension install <dir>` first"}
+    err = _ensure_loaded(host, ext_id)
+    if err is not None:
+        return err
     try:
         return host.run_extension_action(
             ext_id, action_id,
@@ -1128,9 +1203,10 @@ def ext_request(ext_id: str, action_id: str,
     then `extension confirm <pending-id>` on the terminal).
     """
     host = _ext_host()
+    err = _ensure_loaded(host, ext_id)
+    if err is not None:
+        return err
     loaded = host._loaded.get(ext_id)  # noqa: SLF001
-    if loaded is None:
-        return {"ok": False, "error": f"extension {ext_id!r} is not loaded"}
     try:
         pending = host._request_confirmation(  # noqa: SLF001
             ext_id, action_id, {"action": action_id,

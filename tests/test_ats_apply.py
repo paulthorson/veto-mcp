@@ -11,7 +11,9 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import sys
+import tempfile
 import types
 import unittest
 from unittest import mock
@@ -79,7 +81,7 @@ class TestPreview(unittest.TestCase):
     def test_preview_makes_zero_http_calls(self):
         preview = ats_apply.apply_direct(
             "ashby", self.job, APPLICANT,
-            resume_path="/tmp/resume.pdf", cover_letter="Hi",
+            resume_path=None, cover_letter="Hi",
             confirm=False)
         self.assertEqual(preview["mode"], "preview")
         self.assertEqual(preview["network_calls"], 0)
@@ -91,15 +93,28 @@ class TestPreview(unittest.TestCase):
         self.assertTrue(_no_bytes(preview))
 
     def test_preview_field_names_but_no_resume_bytes(self):
+        # Hermetic: use a controlled temp file, not ambient /tmp/resume.pdf
+        # (whose existence previously flipped this test's outcome).
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as fh:
+            fh.write(b"%PDF-1.4 synthetic resume content")
+            resume_path = fh.name
+        self.addCleanup(os.unlink, resume_path)
+        size = os.path.getsize(resume_path)
         preview = ats_apply.apply_direct("lever", self.job, APPLICANT,
-                                         resume_path="/tmp/resume.pdf")
+                                         resume_path=resume_path)
         fields = preview["fields_for_manual_form"]
         self.assertEqual(fields["full_name"], "Ada Lovelace")
         self.assertEqual(fields["email"], "ada@example.com")
-        # Filename may be mentioned; raw bytes never are.
+        # Filename may be mentioned; raw bytes never are. Assert the exact
+        # disclosure string so no raw content can hide in the field.
+        self.assertEqual(
+            fields["resume"],
+            f"{os.path.basename(resume_path)} (found, {size} bytes — "
+            "bytes never included in previews)")
         self.assertTrue(_no_bytes(fields))
         self.assertNotIn("bytes", json.dumps(preview).lower()
-                         .replace("bytes never included", ""))
+                         .replace("bytes never included", "")
+                         .replace(f"(found, {size} bytes", "(found,"))
 
     def test_confirm_true_still_returns_preview_only(self):
         # confirm=True no longer authorizes anything: there is no submit
