@@ -793,6 +793,37 @@ html {
 .footer-links a:hover {
   color: var(--green);
 }
+.footer-legal {
+  padding: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 52em;
+}
+.footer-privacy-heading {
+  margin: 0 0 8px;
+  font-family: var(--font-terminal);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.footer-legal-text {
+  color: var(--ink-faint);
+  font-family: var(--font-terminal);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.footer-legal-text a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.footer-legal-text a:hover {
+  color: var(--green);
+}
 .footer-base {
   border-top: 3px solid var(--border);
   padding: 16px 24px;

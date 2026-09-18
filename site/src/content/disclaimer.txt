@@ -1,0 +1,1 @@
+This site is informational. Veto MCP is distributed on GitHub under the Apache License 2.0; that license governs your use of the software. Nothing here is legal or security advice. You are responsible for the models, credentials, and runtime you connect, and for what agents execute in your environment. Contact: hello@vetomcp.com
