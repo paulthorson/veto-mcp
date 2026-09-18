@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import { Theme } from '@astryxdesign/core';
 import './fonts.css';
 import './vendor/tokens.css';
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Theme theme={jobApplyTheme} mode="dark">
       <App />
+      <Analytics />
     </Theme>
   </StrictMode>,
 );
