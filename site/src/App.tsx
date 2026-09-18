@@ -43,6 +43,9 @@ import specAutopsy from './pages/specs/autopsy';
 import specSkillGaps from './pages/specs/skill-gaps';
 import specStreaks from './pages/specs/streaks';
 import specCrew from './pages/specs/crew';
+import specAiLab from './pages/specs/ai-lab';
+import specShare from './pages/specs/share';
+import specExtensions from './pages/specs/extensions';
 import { RadarDemo } from './demos';
 
 const SPECS: Record<string, PageSpec> = {
@@ -75,6 +78,9 @@ const SPECS: Record<string, PageSpec> = {
   [specSkillGaps.slug]: specSkillGaps,
   [specStreaks.slug]: specStreaks,
   [specCrew.slug]: specCrew,
+  [specAiLab.slug]: specAiLab,
+  [specShare.slug]: specShare,
+  [specExtensions.slug]: specExtensions,
 };
 
 /* Pixel primitives live in ./px and are shared across pages. */
@@ -397,6 +403,13 @@ const GROUPS = [
         body: 'Seven tracks, hands-on lessons, an ethics module in every one. Employers screen for this now.',
       },
       {
+        slug: 'ai-lab',
+        icon: 'mic',
+        tone: '',
+        title: 'Interview lab',
+        body: 'Five disclosed interview modes, role-based AI exercises, and soft-skill scenarios — every round checked against a published rubric.',
+      },
+      {
         slug: 'mentors',
         icon: 'chat',
         tone: '',
@@ -455,6 +468,13 @@ const GROUPS = [
         title: 'Streaks',
         body: 'Gamified reps with shareable progress cards built only from real numbers. The viral loop.',
       },
+      {
+        slug: 'share',
+        icon: 'net',
+        tone: '',
+        title: 'Share cards',
+        body: 'Shareable proof of your hunt — score cards, plans, snapshots — scrubbed clean of anything private. Analytics stay off until you opt in.',
+      },
     ],
   },
   {
@@ -471,6 +491,13 @@ const GROUPS = [
         tone: 'red',
         title: 'Governed AI crew',
         body: 'Eleven personas (CEO, PM, eng, UX, QA, researcher, coach, Red) run spawn > work > review > merge.',
+      },
+      {
+        slug: 'extensions',
+        icon: 'lock',
+        tone: '',
+        title: 'Extension platform',
+        body: 'Community-built tools through a curated registry: four review gates, signed packages, and a sandbox that limits what code can touch.',
       },
     ],
   },
