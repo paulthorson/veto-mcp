@@ -516,8 +516,8 @@ python3 -m venv .venv
 const INSTALL_MCP = `{
   "mcpServers": {
     "veto": {
-      "command": "/home/hatch/workspace/job-apply-mcp/.venv/bin/python",
-      "args": ["/home/hatch/workspace/job-apply-mcp/server.py"],
+      "command": "/absolute/path/to/job-apply-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/job-apply-mcp/server.py"],
       "env": {}
     }
   }
@@ -1041,7 +1041,8 @@ function HomePage({ routeHash }: { routeHash: string }) {
                 <Heading level={3} className="install-h"><span className="n">[2]</span> Connect your AI assistant</Heading>
                 <p className="install-p">
                   Paste into Claude Desktop&rsquo;s config (or any MCP client&rsquo;s{' '}
-                  <code>mcpServers</code>):
+                  <code>mcpServers</code>), replacing{' '}
+                  <code>/absolute/path/to</code> with your checkout&rsquo;s path:
                 </p>
                 <div className="px-code">
                   <CodeBlock code={INSTALL_MCP} language="json" hasCopyButton />
