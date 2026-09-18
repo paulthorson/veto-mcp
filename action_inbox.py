@@ -25,7 +25,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.action_inbox")
+log = logging.getLogger("veto-mcp.action_inbox")
 
 BASE_DIR = Path(__file__).resolve().parent
 APPLICATIONS_FILE = BASE_DIR / "applications.json"

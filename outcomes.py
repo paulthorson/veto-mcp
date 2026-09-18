@@ -56,7 +56,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-log = logging.getLogger("job-apply-mcp.outcomes")
+log = logging.getLogger("veto-mcp.outcomes")
 
 BASE_DIR = Path(__file__).resolve().parent
 

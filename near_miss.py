@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.near_miss")
+log = logging.getLogger("veto-mcp.near_miss")
 
 BASE_DIR = Path(__file__).resolve().parent
 QUEUE_FILE = BASE_DIR / "near_miss.json"

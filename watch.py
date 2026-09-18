@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-log = logging.getLogger("job-apply-mcp.watch")
+log = logging.getLogger("veto-mcp.watch")
 
 SearchFn = Callable[..., list[dict[str, Any]]]
 

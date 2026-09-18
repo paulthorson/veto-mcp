@@ -31,7 +31,7 @@ from typing import Any
 import compliance
 from governance import adapter
 
-log = logging.getLogger("job-apply-mcp.risk_policy")
+log = logging.getLogger("veto-mcp.risk_policy")
 
 GOVERNANCE_DOMAIN = adapter.GOVERNANCE_DOMAIN
 

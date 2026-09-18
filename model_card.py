@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.model_card")
+log = logging.getLogger("veto-mcp.model_card")
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_CARD_FILE = BASE_DIR / "model_card.jsonl"

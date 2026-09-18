@@ -32,7 +32,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.linkedin_optimizer")
+log = logging.getLogger("veto-mcp.linkedin_optimizer")
 
 BASE_DIR = Path(__file__).resolve().parent
 PROFILE_PATH = BASE_DIR / "profiles" / "profile.json"
