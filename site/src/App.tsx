@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import {
   Card,
   CodeBlock,
@@ -14,6 +20,8 @@ import DecoderSharePage from './pages/DecoderSharePage';
 import type { PageSpec } from './pages/spec';
 import { trackRouteView } from './lib/routeAnalytics';
 import { PixelX, PxBtn, PxTag, PixelIcon, GITHUB_URL } from './px';
+import disclaimerText from './content/disclaimer.txt?raw';
+import privacyText from './content/privacy.txt?raw';
 import specSearch from './pages/specs/multi-board-search';
 import specGrill from './pages/specs/the-grill';
 import specTailoring from './pages/specs/tailoring';
@@ -786,6 +794,52 @@ function MobileNav({ routeHash }: { routeHash: string }) {
   );
 }
 
+const LICENSE_URL =
+  'https://github.com/paulthorson/veto-mcp/blob/main/LICENSE';
+const CONTACT_EMAIL = 'hello@vetomcp.com';
+
+/** Cos SoT prose, byte-faithful; only license cite + mailto are linkified. */
+function VerbatimLegal({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  const re = /(Apache License 2\.0|hello@vetomcp\.com)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    if (match[0] === 'Apache License 2.0') {
+      parts.push(
+        <a
+          key={key++}
+          href={LICENSE_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Apache License 2.0
+        </a>,
+      );
+    } else {
+      parts.push(
+        <a key={key++} href={`mailto:${CONTACT_EMAIL}`}>
+          {CONTACT_EMAIL}
+        </a>,
+      );
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return <p className="footer-legal-text">{parts}</p>;
+}
+
+function scrollToPrivacy(e: MouseEvent<HTMLAnchorElement>) {
+  e.preventDefault();
+  document.getElementById('privacy')?.scrollIntoView({ behavior: 'smooth' });
+}
+
 function SiteFooter() {
   return (
     <footer className="footer">
@@ -805,7 +859,21 @@ function SiteFooter() {
           <Link href="#/docs" label="Documentation">{'>'} Documentation</Link>
           <Link href="#/install" label="Install">{'>'} Install</Link>
           <Link href="#/dashboard" label="Mission-control dashboard">{'>'} Dashboard</Link>
+          <a href="#privacy" onClick={scrollToPrivacy}>
+            Privacy
+          </a>
         </div>
+      </div>
+      <div className="wrap footer-legal">
+        <section id="privacy" className="footer-privacy" aria-labelledby="privacy-heading">
+          <h2 id="privacy-heading" className="footer-privacy-heading">
+            Privacy
+          </h2>
+          <VerbatimLegal text={privacyText} />
+        </section>
+        <section className="footer-disclaimer" aria-label="Disclaimer">
+          <VerbatimLegal text={disclaimerText} />
+        </section>
       </div>
       <div className="wrap footer-base">
         <span>Built with Meta&rsquo;s Astryx design system.</span>
