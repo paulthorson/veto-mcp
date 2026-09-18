@@ -43,8 +43,8 @@ const FIRST_SEARCH = `.venv/bin/python cli.py search "software engineer" --locat
 const MCP_CONFIG = `{
   "mcpServers": {
     "veto": {
-      "command": "/home/hatch/workspace/job-apply-mcp/.venv/bin/python",
-      "args": ["/home/hatch/workspace/job-apply-mcp/server.py"],
+      "command": "/absolute/path/to/job-apply-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/job-apply-mcp/server.py"],
       "env": {}
     }
   }
@@ -183,7 +183,7 @@ const TROUBLESHOOTING = [
   },
   {
     q: 'The MCP client does not see the tools',
-    a: 'Symptom: Claude Desktop / Cursor / the CLI shows no Veto tools after you edited the config. Why: the usual three: you replaced the whole config file instead of merging into the existing mcpServers object, the command path points at the system python instead of the project .venv, or the client never restarted. What to do: merge, don\'t replace; set the command to /home/hatch/workspace/job-apply-mcp/.venv/bin/python with args [/home/hatch/workspace/job-apply-mcp/server.py]; restart the client completely. If it still fails, run server.py directly in a terminal and read the traceback.',
+    a: 'Symptom: Claude Desktop / Cursor / the CLI shows no Veto tools after you edited the config. Why: the usual three: you replaced the whole config file instead of merging into the existing mcpServers object, the command path points at the system python instead of the project .venv, or the client never restarted. What to do: merge, don\'t replace; set the command to the .venv python inside your own checkout (/absolute/path/to/job-apply-mcp/.venv/bin/python) with args [/absolute/path/to/job-apply-mcp/server.py]; restart the client completely. If it still fails, run server.py directly in a terminal and read the traceback.',
   },
   {
     q: 'The venv is broken (missing modules, weird errors)',
@@ -299,7 +299,8 @@ export default function DocsPage() {
               Paste into your MCP client&rsquo;s config (Claude Desktop,
               Cursor, Muse CLI, anything speaking MCP). Merge it into the
               existing <code>mcpServers</code> object; don&rsquo;t replace the
-              file. Restart the client afterwards.
+              file. Use the absolute path of your own checkout in place of{' '}
+              <code>/absolute/path/to</code>. Restart the client afterwards.
             </p>
             <Code code={MCP_CONFIG} language="json" />
           </div>
