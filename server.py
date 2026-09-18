@@ -62,7 +62,7 @@ except ImportError as exc:  # defensive: the server must still start
     # Fallback copy of the honest User-Agent, defined only when the providers
     # package itself is unimportable. The canonical definition is
     # providers._common.VETO_USER_AGENT; this literal must match it.
-    VETO_USER_AGENT = "veto/0.1.0 (+https://github.com/paulthorson/job-apply-mcp)"  # noqa: F811
+    VETO_USER_AGENT = "veto/0.1.0 (+https://github.com/paulthorson/veto-mcp)"  # noqa: F811
 
 # Application-quality helpers (dedup.py, prefs.py, filters.py, tailor.py).
 # Imported defensively: the server must start even if one is missing.
@@ -118,9 +118,9 @@ _sanitize_proxy_env()
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s [job-apply-mcp] %(message)s",
+    format="%(asctime)s %(levelname)s [veto-mcp] %(message)s",
 )
-log = logging.getLogger("job-apply-mcp")
+log = logging.getLogger("veto-mcp")
 
 # ---------------------------------------------------------------------------
 # Enhancement plugins (grill, email sync, briefs, ATS apply,

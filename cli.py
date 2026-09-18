@@ -625,7 +625,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 def _configure_stderr_verbosity(args: argparse.Namespace) -> None:
     """Keep stderr for errors and genuine warnings only.
 
-    The repo logs through the stdlib tree rooted at "job-apply-mcp"
+    The repo logs through the stdlib tree rooted at "veto-mcp"
     (server.py configures it at INFO to stderr), so a successful read-only
     command used to spray INFO chatter on stderr. Default the CLI to
     warnings+, so a successful command leaves stderr silent. --verbose opts
@@ -636,7 +636,7 @@ def _configure_stderr_verbosity(args: argparse.Namespace) -> None:
         level = logging.DEBUG
     elif args.quiet:
         level = logging.ERROR
-    logging.getLogger("job-apply-mcp").setLevel(level)
+    logging.getLogger("veto-mcp").setLevel(level)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -20,7 +20,7 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup
 
-log = logging.getLogger("job-apply-mcp.providers")
+log = logging.getLogger("veto-mcp.providers")
 
 #: Project version, matching the ``vX.Y.Z`` git tags and the ``__version__``
 #: declarations in the initiatives packages. The repo has no pyproject.toml
@@ -32,7 +32,7 @@ _VETO_VERSION = "0.1.0"
 #: ``browser_apply.py`` so it cannot drift. It identifies the tool and
 #: never imitates a browser.
 VETO_USER_AGENT = (
-    f"veto/{_VETO_VERSION} (+https://github.com/paulthorson/job-apply-mcp)"
+    f"veto/{_VETO_VERSION} (+https://github.com/paulthorson/veto-mcp)"
 )
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")

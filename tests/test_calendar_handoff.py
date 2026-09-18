@@ -624,7 +624,7 @@ class FollowupValidationTests(_SimulatedHumanConfirmation, unittest.TestCase):
 
     def test_past_from_date_warns_not_fails(self):
         with self.assertLogs(
-            "job-apply-mcp.i09.calendar", level="WARNING"
+            "veto-mcp.i09.calendar", level="WARNING"
         ) as logs:
             draft = propose_followup_reminder(
                 _APP, days_after=7, from_date="2020-01-01T00:00:00+00:00"
@@ -636,7 +636,7 @@ class FollowupValidationTests(_SimulatedHumanConfirmation, unittest.TestCase):
         self.assertTrue(draft.has_time)
 
     def test_future_from_date_does_not_warn(self):
-        with self.assertNoLogs("job-apply-mcp.i09.calendar", level="WARNING"):
+        with self.assertNoLogs("veto-mcp.i09.calendar", level="WARNING"):
             propose_followup_reminder(
                 _APP, days_after=7, from_date="2027-01-01T00:00:00+00:00"
             )

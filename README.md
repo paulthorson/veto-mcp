@@ -524,7 +524,7 @@ on Ubuntu with Python 3.12:
 Push a tag like `v0.1.0` and `.github/workflows/release.yml`:
 
 1. Builds the Docker image and pushes it to
-   `ghcr.io/paulthorson/job-apply-mcp` with the version tag and `latest`
+   `ghcr.io/paulthorson/veto-mcp` with the version tag and `latest`
 2. Creates a GitHub Release for the tag with auto-generated notes
 
 ```bash
@@ -537,13 +537,13 @@ The image runs the MCP server on stdio (no ports — see
 [`Dockerfile`](Dockerfile)):
 
 ```bash
-docker run -i ghcr.io/paulthorson/job-apply-mcp:latest
+docker run -i ghcr.io/paulthorson/veto-mcp:latest
 ```
 
 To build locally:
 
 ```bash
-docker build -t job-apply-mcp .
+docker build -t veto-mcp .
 ```
 
 Dependency updates (pip, Docker base image, GitHub Actions) are handled
