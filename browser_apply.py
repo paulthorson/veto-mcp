@@ -968,43 +968,57 @@ def _evaluate_unforged(page: Any, js: str, arg: Any = None) -> Any:
             "scripts can forge."
         )
     try:
-        world_id = _cdp_isolated_world_id(page)
+        session = cdp_factory(page)
     except Exception as exc:
         raise RuntimeError(
             "could not establish an isolated (unforged) readback "
             f"context: {exc}. Refusing the readback rather than trust the "
             "page's own JS realm."
         ) from exc
-    if world_id is None:
-        raise RuntimeError(
-            "could not establish an isolated (unforged) readback "
-            "context (the CDP session factory is present but the "
-            "isolated world could not be created). Refusing the readback "
-            "rather than trust the page's own JS realm."
-        )
     try:
-        session = cdp_factory(page)
+        # Create the isolated world on THIS session, then evaluate in it.
+        # Reusing a world id from a detached prior session is unreliable
+        # across Chromium/Playwright versions (executionContextId can be
+        # session-scoped); same-session create+call is the durable path.
+        try:
+            tree = session.send("Page.getFrameTree")
+            frame_id = tree["frameTree"]["frame"]["id"]
+            world = session.send(
+                "Page.createIsolatedWorld",
+                {"frameId": frame_id, "worldName": "veto-readback"},
+            )
+            world_id = int(world["executionContextId"])
+        except Exception as exc:
+            raise RuntimeError(
+                "could not establish an isolated (unforged) readback "
+                f"context: {exc}. Refusing the readback rather than trust "
+                "the page's own JS realm."
+            ) from exc
+        try:
+            setattr(page, _ISOLATED_WORLD_ATTR, world_id)
+        except Exception:
+            pass
         try:
             res = session.send(
                 "Runtime.callFunctionOn",
                 {
-                    "contextId": world_id,
+                    "executionContextId": world_id,
                     "functionDeclaration": js,
                     "arguments": [] if arg is None else [{"value": arg}],
                     "returnByValue": True,
                     "awaitPromise": True,
                 },
             )
-        finally:
-            try:
-                session.detach()
-            except Exception:
-                pass
-    except Exception as exc:
-        log.warning(
-            "Unforged readback: isolated-world evaluate failed: %s", exc
-        )
-        return None
+        except Exception as exc:
+            log.warning(
+                "Unforged readback: isolated-world evaluate failed: %s", exc
+            )
+            return None
+    finally:
+        try:
+            session.detach()
+        except Exception:
+            pass
     if res.get("exceptionDetails"):
         log.warning(
             "Unforged readback: isolated-world JS threw: %s",

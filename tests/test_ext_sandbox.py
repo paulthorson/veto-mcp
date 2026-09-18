@@ -67,7 +67,8 @@ def _mkext(actions, ext_id="ut-ext", **perm_over):
 
 def _host():
     tmp = Path(tempfile.mkdtemp(prefix="veto-ut-audit-"))
-    return Host(audit_path=tmp / "audit.jsonl", secret=_SECRET)
+    return Host(audit_path=tmp / "audit.jsonl", secret=_SECRET,
+                confirmations_path=tmp / "confirmations.json")
 
 
 def _load(host, ext, **kw):
