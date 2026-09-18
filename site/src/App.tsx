@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import DecoderPage from './pages/DecoderPage';
 import DecoderSharePage from './pages/DecoderSharePage';
 import type { PageSpec } from './pages/spec';
+import { trackRouteView } from './lib/routeAnalytics';
 import { PixelX, PxBtn, PxTag, PixelIcon, GITHUB_URL } from './px';
 import specSearch from './pages/specs/multi-board-search';
 import specGrill from './pages/specs/the-grill';
@@ -536,9 +537,11 @@ function useRoute(): string {
     typeof window === 'undefined' ? '' : window.location.hash,
   );
   useEffect(() => {
+    trackRouteView(window.location.hash);
     const onChange = () => {
       const h = window.location.hash;
       setHash(h);
+      trackRouteView(h);
       if (h.startsWith('#/')) window.scrollTo({ top: 0, behavior: 'instant' });
     };
     window.addEventListener('hashchange', onChange);
