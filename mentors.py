@@ -77,7 +77,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.mentors")
+log = logging.getLogger("veto-mcp.mentors")
 
 BASE_DIR = Path(__file__).resolve().parent
 

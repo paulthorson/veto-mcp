@@ -53,7 +53,7 @@ from typing import Any
 
 import lifecycle
 
-log = logging.getLogger("job-apply-mcp.email_sync")
+log = logging.getLogger("veto-mcp.email_sync")
 
 BASE_DIR = Path(__file__).resolve().parent
 APPLICATIONS_FILE = BASE_DIR / "applications.json"

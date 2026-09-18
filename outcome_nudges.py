@@ -22,7 +22,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.outcome_nudges")
+log = logging.getLogger("veto-mcp.outcome_nudges")
 
 BASE_DIR = Path(__file__).resolve().parent
 APPLICATIONS_FILE = BASE_DIR / "applications.json"

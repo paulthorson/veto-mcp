@@ -116,7 +116,7 @@ REQ GET https://boards-api.greenhouse.io/v1/boards/airbnb/jobs
     headers: {'host': 'boards-api.greenhouse.io',
               'accept-encoding': 'gzip, deflate',
               'connection': 'keep-alive',
-              'user-agent': 'veto/0.1.0 (+https://github.com/paulthorson/job-apply-mcp)',
+              'user-agent': 'veto/0.1.0 (+https://github.com/paulthorson/veto-mcp)',
               'accept': 'application/json,text/html,*/*;q=0.8',
               'accept-language': 'en-US,en;q=0.9'}
 ```
@@ -131,7 +131,7 @@ single honest identifier defined once at `providers/_common.py:32-36`
 
 ```python
 VETO_USER_AGENT = (
-    f"veto/{_VETO_VERSION} (+https://github.com/paulthorson/job-apply-mcp)"
+    f"veto/{_VETO_VERSION} (+https://github.com/paulthorson/veto-mcp)"
 )
 ```
 
@@ -399,7 +399,7 @@ to contact) that is not purely documentary. Role notes whether it is a
 - `ats_apply.py:14-40,72-101` — endpoint strings inside the fill-only
   apply-plan preview (documents where a submit *would* go; the submit path is
   deleted — see §9).
-- `VETO_USER_AGENT` embeds `https://github.com/paulthorson/job-apply-mcp`
+- `VETO_USER_AGENT` embeds `https://github.com/paulthorson/veto-mcp`
   (`providers/_common.py:34`) — an identifier string in a header, not a
   destination.
 - `site/dist/index.html` — canonical/og URLs

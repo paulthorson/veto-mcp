@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.experiment_ledger")
+log = logging.getLogger("veto-mcp.experiment_ledger")
 
 BASE_DIR = Path(__file__).resolve().parent
 LEDGER_FILE = BASE_DIR / "experiment_ledger.jsonl"

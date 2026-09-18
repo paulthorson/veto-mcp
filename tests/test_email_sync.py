@@ -384,7 +384,7 @@ class TestScan(EmailSyncTestBase):
             ),
             mock.patch.object(email_sync, "lifecycle") as fake_lifecycle,
             self.assertLogs(
-                "job-apply-mcp.email_sync", level="ERROR"
+                "veto-mcp.email_sync", level="ERROR"
             ),
         ):
             email_sync._apply_eligible_updates(eligible, result, None)
@@ -595,7 +595,7 @@ class TestSendFollowup(EmailSyncTestBase):
             ),
             mock.patch.object(email_sync, "_run_gmail_cli") as fake,
             self.assertLogs(
-                "job-apply-mcp.email_sync", level="ERROR"
+                "veto-mcp.email_sync", level="ERROR"
             ),
         ):
             result = email_sync.send_followup(dict(self.DRAFT))
@@ -2116,7 +2116,7 @@ class TestConsentBannerPrivacy(unittest.TestCase):
 
         page.isolated_evaluate = _racing_isolated
         with self.assertLogs(
-            "job-apply-mcp.browser", level="WARNING"
+            "veto-mcp.browser", level="WARNING"
         ):
             clicked = browser_apply.dismiss_consent_banners(page)
         self.assertEqual(clicked, 0)
@@ -2128,7 +2128,7 @@ class TestConsentBannerPrivacy(unittest.TestCase):
         left alone (this would have been auto-clicked before)."""
         page = _FakeConsentPageWithIdButton("Accept all")
         with self.assertLogs(
-            "job-apply-mcp.browser", level="WARNING"
+            "veto-mcp.browser", level="WARNING"
         ):
             browser_apply.dismiss_consent_banners(page)
         self.assertFalse(page.id_button_clicked)
@@ -2343,7 +2343,7 @@ class TestScreenshotPermissions(unittest.TestCase):
             ),
             mock.patch("os.chmod", side_effect=OSError("EPERM")),
             self.assertLogs(
-                "job-apply-mcp.browser", level="ERROR"
+                "veto-mcp.browser", level="ERROR"
             ) as logs,
         ):
             shot = browser_apply._take_screenshot(_FakeShotPage(), "preview")
@@ -2562,7 +2562,7 @@ class TestSecureFileCreation(unittest.TestCase):
         returns False (loud log) so callers write nothing."""
         with (
             mock.patch("os.open", side_effect=OSError("EROFS")),
-            self.assertLogs("job-apply-mcp.browser", level="ERROR"),
+            self.assertLogs("veto-mcp.browser", level="ERROR"),
         ):
             self.assertFalse(
                 browser_apply._precreate_owner_only(

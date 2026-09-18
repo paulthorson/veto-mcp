@@ -51,7 +51,7 @@ import types
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.governance")
+log = logging.getLogger("veto-mcp.governance")
 
 #: Governance domain used for job applications. "universal" is the catch-all
 #: domain whose vetoes cover irrecoverable harm.
