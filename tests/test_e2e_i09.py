@@ -412,7 +412,7 @@ class ChannelConsentE2ETests(unittest.TestCase):
         tampered = raw.replace('"channel": "gmail"', '"channel": "discord"')
         self.assertNotEqual(raw, tampered)
         channel_registry.CONSENT_LOG.write_text(tampered, encoding="utf-8")
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
             history = channel_registry.consent_history()
         self.assertEqual(history, [])
         self.assertFalse(channel_registry.is_enabled("gmail"))  # fail closed

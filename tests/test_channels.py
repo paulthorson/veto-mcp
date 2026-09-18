@@ -165,14 +165,14 @@ class ChannelRegistryTests(unittest.TestCase):
         with registry.CONSENT_LOG.open("a", encoding="utf-8") as fh:
             fh.write("this is not json\n")
             fh.write('{"channel": "gmail", "action": "enable"}\n')  # no mac
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR") as cm:
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR") as cm:
             history = registry.consent_history("gmail")
         loud = "\n".join(cm.output)
         self.assertIn("malformed JSON", loud)
         self.assertIn("rejected", loud)
         # Only the one genuinely signed entry survives; store untrusted.
         self.assertEqual(len(history), 1)
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
             self.assertFalse(registry.is_enabled("gmail"))
 
     def test_tampered_entry_is_rejected_loudly(self):
@@ -181,7 +181,7 @@ class ChannelRegistryTests(unittest.TestCase):
         tampered = raw.replace('"channel": "gmail"', '"channel": "discord"')
         self.assertNotEqual(raw, tampered)
         registry.CONSENT_LOG.write_text(tampered, encoding="utf-8")
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR") as cm:
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR") as cm:
             history = registry.consent_history()
         self.assertIn("signature mismatch", "\n".join(cm.output))
         self.assertEqual(history, [])
@@ -616,7 +616,7 @@ class InteractiveBoundaryRegressionTests(unittest.TestCase):
         # verification: the store must read as untrusted and the channel
         # as disabled, with loud logs pointing at the recovery runbook.
         with self.assertLogs(
-            "job-apply-mcp.i09.channels", level="ERROR"
+            "veto-mcp.i09.channels", level="ERROR"
         ) as cm:
             enabled = registry.is_enabled("gmail")
         self.assertFalse(enabled)  # fail closed
@@ -664,7 +664,7 @@ class QuarantineRepairTests(unittest.TestCase):
         is_enabled reads False. The divergence is surfaced honestly with
         an integrity_warning naming the quarantine repair."""
         self._tear("this is not json")
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
             result = registry.enable_channel(
                 "messenger", confirm=True, via="cli-wizard"
             )
@@ -685,7 +685,7 @@ class QuarantineRepairTests(unittest.TestCase):
         original_bytes = self.log.read_bytes()
         self.assertFalse(registry.is_enabled("gmail"))
 
-        with self.assertLogs("job-apply-mcp.i09.channels", level="WARNING"):
+        with self.assertLogs("veto-mcp.i09.channels", level="WARNING"):
             result = registry.quarantine_consent_log()
 
         self.assertTrue(result["ok"])
@@ -968,7 +968,7 @@ class RotateConsentKeyTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o600)
         self.assertIn("warning", result)
         # Old consents fail closed: unverifiable, channel reads disabled.
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
             self.assertFalse(registry.is_enabled("gmail"))
         # The documented procedure: quarantine the cryptographically-dead
         # entries (RECOVERY.md Procedure B) — the dead lines still fail
@@ -1059,7 +1059,7 @@ class ApprovalWriteFailureTests(unittest.TestCase):
             mock.patch.object(
                 registry, "_append_consent", side_effect=OSError("EIO")
             ),
-            self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"),
+            self.assertLogs("veto-mcp.i09.channels", level="ERROR"),
         ):
             res = registry.request_send_approval(self.draft, channel="gmail", expected_value=_send_expected(self.draft))
         self.assertFalse(res["ok"])
@@ -1364,7 +1364,7 @@ class EnableDisableHonestyTests(unittest.TestCase):
         # Torn store: agree (False), with the divergence surfaced loudly.
         with registry.CONSENT_LOG.open("a", encoding="utf-8") as fh:
             fh.write("torn\n")
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
             result = registry.enable_channel(
                 "discord", confirm=True, via="cli-wizard"
             )
@@ -1757,7 +1757,7 @@ class QuarantineForceGateTests(unittest.TestCase):
     def test_wholesale_unverifiable_log_requires_force(self):
         registry.enable_channel("gmail", confirm=True, via="cli-wizard")
         registry._consent_key_path().unlink()  # key merely LOST (not rotated)
-        with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR") as cm:
+        with self.assertLogs("veto-mcp.i09.channels", level="ERROR") as cm:
             refused = registry.quarantine_consent_log()
         self.assertFalse(refused["ok"])
         self.assertEqual(refused["error"], "quarantine_requires_confirmation")
@@ -2059,7 +2059,7 @@ class AtomicClaimWriteFailureTests(unittest.TestCase):
         TestConsumeMarkerFailure.*.)"""
         aid = self._mint()
         with self._fail_consumption_writes():
-            with self.assertLogs("job-apply-mcp.i09.channels", level="ERROR"):
+            with self.assertLogs("veto-mcp.i09.channels", level="ERROR"):
                 registry.consume_approval(aid, channel="gmail")
         # Mark kept: same-process authorize_send is refused as reused.
         got, refusal = registry.authorize_send(
@@ -2341,7 +2341,7 @@ class KeyPermissionTests(unittest.TestCase):
         key_path = registry._consent_key_path()
         os.chmod(key_path, 0o644)  # e.g. restored from a backup
         with self.assertLogs(
-            "job-apply-mcp.i09.channels", level="ERROR"
+            "veto-mcp.i09.channels", level="ERROR"
         ) as cm:
             self.assertFalse(registry.is_enabled("gmail"))  # fail closed
         loud = "\n".join(cm.output)

@@ -36,7 +36,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.network_crm")
+log = logging.getLogger("veto-mcp.network_crm")
 
 BASE_DIR = Path(__file__).resolve().parent
 NETWORK_FILE = BASE_DIR / "network.json"

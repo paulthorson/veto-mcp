@@ -62,7 +62,7 @@ confirmed it performs pure local text analysis with zero network calls, so the
   user-agent rotation; delete the "Rotated to look like ordinary browser
   traffic" comment. Keep `_polite_delay` (:251-253) as-is.
 - NEW: one module (recommending `providers/_common.py`) defines the single
-  honest constant `veto/<version> (+https://github.com/paulthorson/job-apply-mcp)`
+  honest constant `veto/<version> (+https://github.com/paulthorson/veto-mcp)`
   and `server.py` imports it. After this commit no code issues a UA containing
   Mozilla, Chrome, Safari, Gecko, WebKit, AppleWebKit, KHTML, Firefox, or
   Version.
