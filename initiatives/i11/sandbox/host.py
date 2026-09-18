@@ -57,11 +57,13 @@ from __future__ import annotations
 import ast
 import base64
 import builtins as _builtins_mod
+import fcntl
 import hashlib
 import hmac
 import json
 import os
 import secrets
+import tempfile
 import time
 import types
 from dataclasses import dataclass
@@ -82,6 +84,9 @@ SandboxViolation = (FSSandboxViolation, NetSandboxViolation)
 # Runtime state defaults to the user's veto dir, never the repo tree.
 HOST_KEY_FILE = Path.home() / ".veto" / "extension_host.key"
 DEFAULT_AUDIT_PATH = Path.home() / ".veto" / "extensions_audit.jsonl"
+DEFAULT_CONFIRMATIONS_PATH = (
+    Path.home() / ".veto" / "extensions_confirmations.json"
+)
 
 PII_FIELD_HINTS = ("email", "e-mail", "phone", "tel", "address", "ssn")
 
@@ -150,18 +155,122 @@ class ConfirmationBroker:
 
     The extension may *request*; only the host (human-facing UI) may
     *mint*. ``mint`` is never exposed through ``ExtensionContext``.
+
+    When ``path`` is set (or inherited via ``VETO_EXTENSIONS_CONFIRMATIONS``
+    on the Host), pending requests and used-token nonces are persisted to
+    that JSON file so install / request / confirm / run can each run in a
+    separate OS process and still share confirmation state.
     """
 
     TOKEN_TTL_S = 15 * 60
 
-    def __init__(self, secret: bytes | None = None) -> None:
+    def __init__(self, secret: bytes | None = None,
+                 path: str | Path | None = None) -> None:
         self._secret = secret if secret is not None else _host_secret()
+        self._path = Path(path) if path is not None else None
         self._pending: dict[str, PendingConfirmation] = {}
         self._used_nonces: dict[str, float] = {}  # nonce -> exp (pruned)
+        if self._path is not None:
+            self._load()
+
+    # -- persistence (cross-process) ---------------------------------------
+    def _load(self) -> None:
+        """Reload pending + used-nonce state from disk. Missing file = empty."""
+        if self._path is None or not self._path.is_file():
+            return
+        try:
+            with open(self._path, "r", encoding="utf-8") as fh:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_SH)
+                try:
+                    data = json.load(fh)
+                finally:
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError, TypeError):
+            # Unreadable/corrupt store: keep empty in-memory state rather
+            # than crashing the host. Mint of unknown ids still fails closed.
+            return
+        if not isinstance(data, dict):
+            return
+        pending_raw = data.get("pending") or {}
+        nonces_raw = data.get("used_nonces") or {}
+        if not isinstance(pending_raw, dict) or not isinstance(nonces_raw, dict):
+            return
+        loaded: dict[str, PendingConfirmation] = {}
+        for pid, row in pending_raw.items():
+            if not isinstance(row, dict):
+                continue
+            try:
+                loaded[str(pid)] = PendingConfirmation(
+                    pending_id=str(row["pending_id"]),
+                    ext_id=str(row["ext_id"]),
+                    action_id=str(row["action_id"]),
+                    payload=row.get("payload") if isinstance(
+                        row.get("payload"), dict) else {},
+                    payload_sha=str(row["payload_sha"]),
+                    created_at=float(row["created_at"]),
+                    expires_at=float(row["expires_at"]),
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        used: dict[str, float] = {}
+        for nonce, exp in nonces_raw.items():
+            try:
+                used[str(nonce)] = float(exp)
+            except (TypeError, ValueError):
+                continue
+        self._pending = loaded
+        self._used_nonces = used
+
+    def _save(self) -> None:
+        """Atomically persist pending + used-nonce state (tmp + fsync + replace)."""
+        if self._path is None:
+            return
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return
+        doc = {
+            "pending": {
+                pid: {
+                    "pending_id": p.pending_id,
+                    "ext_id": p.ext_id,
+                    "action_id": p.action_id,
+                    "payload": p.payload,
+                    "payload_sha": p.payload_sha,
+                    "created_at": p.created_at,
+                    "expires_at": p.expires_at,
+                }
+                for pid, p in self._pending.items()
+            },
+            "used_nonces": dict(self._used_nonces),
+        }
+        text = json.dumps(doc, sort_keys=True, default=_safe_str)
+        tmp_fd, tmp_name = tempfile.mkstemp(
+            dir=str(self._path.parent),
+            prefix=self._path.name + ".",
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as fh:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+                try:
+                    fh.write(text)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                finally:
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            os.replace(tmp_name, self._path)
+        except OSError:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
 
     # -- extension-visible -------------------------------------------------
     def request(self, ext_id: str, action_id: str,
                 payload: dict[str, Any]) -> PendingConfirmation:
+        if self._path is not None:
+            self._load()
         payload_sha = hashlib.sha256(
             json.dumps(payload, sort_keys=True,
                        default=_safe_str).encode()
@@ -176,17 +285,21 @@ class ConfirmationBroker:
             expires_at=time.time() + self.TOKEN_TTL_S,
         )
         self._pending[pending.pending_id] = pending
+        self._save()
         return pending
 
     # -- host-only ----------------------------------------------------------
     def mint(self, pending_id: str) -> str:
         """Mint a confirmation token. Host UI only — call after the human
         explicitly approves the pending request."""
+        if self._path is not None:
+            self._load()
         pending = self._pending.get(pending_id)
         if pending is None:
             raise ValueError(f"unknown pending confirmation {pending_id!r}")
         if time.time() > pending.expires_at:
             del self._pending[pending_id]
+            self._save()
             raise ValueError("pending confirmation expired")
         body = {
             "ext_id": pending.ext_id,
@@ -198,12 +311,15 @@ class ConfirmationBroker:
         raw = json.dumps(body, sort_keys=True).encode()
         sig = hmac.new(self._secret, raw, hashlib.sha256).hexdigest()
         del self._pending[pending_id]
+        self._save()
         return _b64url(raw) + "." + sig
 
     def verify(self, token: str, *, ext_id: str, action_id: str,
                payload: dict[str, Any]) -> bool:
         """Verify a token is genuine, unexpired, single-use, and bound to
         this exact (extension, action, payload)."""
+        if self._path is not None:
+            self._load()
         try:
             raw_b64, sig = token.rsplit(".", 1)
             raw = _unb64url(raw_b64)
@@ -237,9 +353,12 @@ class ConfirmationBroker:
         if not hmac.compare_digest(str(body.get("payload_sha", "")), payload_sha):
             return False  # payload was swapped after confirmation
         self._used_nonces[body["nonce"]] = float(body.get("exp", 0))
+        self._save()
         return True
 
     def pending_requests(self) -> list[dict[str, Any]]:
+        if self._path is not None:
+            self._load()
         now = time.time()
         return [
             {"pending_id": p.pending_id, "ext_id": p.ext_id,
@@ -538,11 +657,19 @@ class Host:
     """Loads extensions, freezes capabilities, brokers every sensitive op."""
 
     def __init__(self, audit_path: str | Path | None = None,
-                 secret: bytes | None = None) -> None:
+                 secret: bytes | None = None,
+                 confirmations_path: str | Path | None = None) -> None:
         default_audit = Path(os.environ.get("VETO_EXTENSIONS_AUDIT",
                                             str(DEFAULT_AUDIT_PATH)))
         self.audit = ExtensionAudit(audit_path or default_audit)
-        self.confirmations = ConfirmationBroker(secret=secret)
+        default_confirmations = Path(os.environ.get(
+            "VETO_EXTENSIONS_CONFIRMATIONS",
+            str(DEFAULT_CONFIRMATIONS_PATH)))
+        self.confirmations = ConfirmationBroker(
+            secret=secret,
+            path=(confirmations_path if confirmations_path is not None
+                  else default_confirmations),
+        )
         self._loaded: dict[str, LoadedExtension] = {}
         self._providers: dict[str, Callable[[], Any]] = _default_providers()
         self._providers.update(_DATA_PROVIDERS)
