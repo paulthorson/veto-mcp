@@ -49,7 +49,7 @@ from typing import Any, Callable
 import compliance
 from providers._common import VETO_USER_AGENT, decode_payload
 
-log = logging.getLogger("job-apply-mcp.briefs")
+log = logging.getLogger("veto-mcp.briefs")
 
 BASE_DIR = Path(__file__).resolve().parent
 PROFILE_PATH = BASE_DIR / "profiles" / "profile.json"

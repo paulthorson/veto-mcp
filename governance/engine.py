@@ -44,7 +44,7 @@ from typing import Any, Callable
 from governance import adapter
 from governance import risk_policy
 
-log = logging.getLogger("job-apply-mcp.engine")
+log = logging.getLogger("veto-mcp.engine")
 
 WIZARD_STATE_FILE = "wizard-state.json"
 

@@ -31,7 +31,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.provider_health")
+log = logging.getLogger("veto-mcp.provider_health")
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_STORE = BASE_DIR / "provider_health.json"

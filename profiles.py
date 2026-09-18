@@ -26,7 +26,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("job-apply-mcp.profiles")
+log = logging.getLogger("veto-mcp.profiles")
 
 BASE_DIR = Path(__file__).resolve().parent
 PROFILES_DIR = BASE_DIR / "profiles"
