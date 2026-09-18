@@ -1,15 +1,15 @@
 # History identity rewrite — EXECUTE record (2026-09-18)
 
-**Status:** REWRITE COMPLETE LOCALLY — **`main` force-push BLOCKED** by repository
-ruleset **Basic** (`id=23635716`) rule `pull_request` on `~DEFAULT_BRANCH`.
-Operator GO + Adv rematch PASS were in effect; `non_fast_forward` was already
-absent from the live ruleset, but direct pushes to `main` are still rejected with
-*Changes must be made through a pull request.*
+**Status:** **EXECUTE COMPLETE** — rewritten refs force-pushed 2026-09-18.
+New `main` tip: `20e704684ceed11681dd63d5def1fa595cf43ab8`.
+Verify: gmail author=0, gmail committer=0, Co-authored-by gmail=0, local-identity=0
+on all rewritten refs. NOTICE/LICENSE sha256 unchanged.
 
-**Cos action required:** temporarily disable Basic ruleset enforcement **or**
-remove the `pull_request` rule (keep `non_fast_forward` / `required_signatures`
-lifted). After force-push succeeds, **Cos must restore** the ruleset. This agent
-cannot update rulesets (`current_user_can_bypass: never`; API 403).
+**Cos action required now:** **restore** repository ruleset **Basic**
+(`id=23635716`) — re-add `pull_request` (and `non_fast_forward` /
+`required_signatures` as desired). Agent cannot restore rulesets
+(`current_user_can_bypass: never`; API 403). Cos lifted `pull_request` at
+~18:26Z to unblock force-push; restore is operator-only.
 
 ---
 
@@ -129,8 +129,8 @@ Post-rewrite author histogram on `main`:
 
 | §3 ref | Disposition at this record |
 |---|---|
-| `main` | Rewritten locally (`31025d9ad51f5767b3bfe43f51c283382fee01ac`); **not** on `origin/main` yet |
-| `dependabot/pip/cryptography-gte-50.0.1` | Rewritten locally; remote restored (re-push with main) |
+| `main` | Rewritten locally (`31025d9ad51f5767b3bfe43f51c283382fee01ac`); **force-pushed** to `origin/main` |
+| `dependabot/pip/cryptography-gte-50.0.1` | Rewritten locally; **rewritten and force-pushed** |
 | `dependabot/pip/mcp-gte-2.2.0` | same |
 | `cursor/fit-score-demo-polish-5a6f` | same |
 | `cursor/setup-dev-environment-5a6f` | same |
@@ -172,3 +172,42 @@ local-identity all: 0
 coauthored gmail: 0
 main tip: 31025d9ad51f5767b3bfe43f51c283382fee01ac
 ```
+
+
+---
+
+## 8. Force-push completion (2026-09-18T~18:26Z+)
+
+Cos removed `pull_request` from Basic ruleset (`updated_at=2026-09-18T18:26:22Z`).
+Agent then force-pushed rewritten `main` and all other rewritten heads.
+
+### Proof (`git fetch` after push)
+
+```
+gmail author origin/main: 0
+gmail committer origin/main: 0
+gmail author all: 0
+gmail committer all: 0
+local-identity all authors: 0
+local-identity all committers: 0
+Co-authored-by gmail: 0
+origin/main: 20e704684ceed11681dd63d5def1fa595cf43ab8
+```
+
+### §3 refs disposition
+
+| Ref | Result |
+|---|---|
+| `main` | **rewritten** → `20e7046` |
+| `dependabot/pip/cryptography-gte-50.0.1` (#14) | **rewritten** → `7abe4dc` |
+| `dependabot/pip/mcp-gte-2.2.0` (#13) | **rewritten** → `059e7b4` |
+| `cursor/fit-score-demo-polish-5a6f` (#9) | **rewritten** → `f044704` |
+| `cursor/setup-dev-environment-5a6f` (#8) | **rewritten** → `b0392d3` |
+
+None closed; all included in the same `filter-repo` run and force-pushed.
+
+### Backup note (no secrets)
+
+Recoverable path on the execute agent VM:
+`/opt/cursor/artifacts/history-identity-rewrite-2026-09-18/`
+(pre-rewrite bundle + bare mirror + post-rewrite bundle).
