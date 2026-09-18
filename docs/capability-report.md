@@ -403,7 +403,7 @@ to contact) that is not purely documentary. Role notes whether it is a
   (`providers/_common.py:34`) — an identifier string in a header, not a
   destination.
 - `site/dist/index.html` — canonical/og URLs
-  `https://job-apply-mcp.vercel.app/` (metadata only). (Google Fonts were
+  `https://www.vetomcp.com/` (metadata only). (Google Fonts were
   the site's only third-party requests until 2026-09-14; the two families
   are now self-hosted woff2 — §5.)
 - `initiatives/i11/policy_kit/*` and `reference/apply-pilot/extension.py`
