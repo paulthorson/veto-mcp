@@ -13,7 +13,7 @@ beyond that one path redirect.
 
 The marketing-site check is a live post-production verification against
 the DEPLOYED site (https://www.vetomcp.com/), read-only:
-- production build markers present (expected hashed asset, canonical URL)
+- production build markers present (hashed assets/index-*.js + canonical URL)
 - stale claims from before the 2a14ba6 cut absent ('26 modules', '8-board')
 - the apex domain redirects to www
 
@@ -21,15 +21,15 @@ The live test is inherently network-dependent. If the site is
 unreachable it FAILS with the exact HTTP/network evidence — it never
 silently skips, because a missing site is a finding, not a pass.
 
-Assumptions (marked): network access to vetomcp.com; the Vercel
-deployment dpl_AfPFVcetDAnyT3LXiuJ6kp3cxVHd (commit 2a14ba6) is still
-the production deployment. The expected asset hash below is the marker
-recorded at the last post-production verification (2026-09-15).
+Assumptions (marked): network access to vetomcp.com. The homepage must
+serve a production Vite build (hashed ``assets/index-*.js`` referenced
+and resolvable), not a stale pinned hash from a prior deployment.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -243,11 +243,10 @@ class TestTelemetryE2E(unittest.TestCase):
 class TestLiveSitePostProduction(unittest.TestCase):
     """Post-production check of the DEPLOYED marketing site (read-only).
 
-    Expected markers (deployment dpl_AfPFVcetDAnyT3LXiuJ6kp3cxVHd,
-    commit 2a14ba6, verified live 2026-09-15):
+    Expected markers:
     - https://www.vetomcp.com/ serves HTTP 200
     - canonical URL is https://www.vetomcp.com/
-    - the production bundle asset index-Dgyblqal.js is referenced AND
+    - a hashed production bundle ``assets/index-*.js`` is referenced AND
       resolves 200 live (the deployed build, not a stale/error page)
     - stale claims cut in 2a14ba6 are absent: '26 modules', '8-board'
     - https://vetomcp.com/ redirects (308) to https://www.vetomcp.com/
@@ -255,7 +254,8 @@ class TestLiveSitePostProduction(unittest.TestCase):
 
     SITE = "https://www.vetomcp.com/"
     APEX = "https://vetomcp.com/"
-    EXPECTED_ASSET = "index-Dgyblqal.js"
+    # Hash changes on every production rebuild; match the Vite pattern.
+    ASSET_RE = re.compile(r"assets/(index-[A-Za-z0-9_-]+\.js)")
 
     def _get(self, url, *, follow_redirects=True, timeout=30):
         opener = (urllib.request.build_opener()
@@ -285,17 +285,20 @@ class TestLiveSitePostProduction(unittest.TestCase):
             '<link rel="canonical" href="https://www.vetomcp.com/" />', html,
             "canonical URL marker missing from live homepage")
 
-        # Production build marker: the hashed bundle the deployment
-        # record names, referenced by the served HTML...
-        self.assertIn(self.EXPECTED_ASSET, html,
-                      f"expected production asset {self.EXPECTED_ASSET} "
-                      f"referenced in live HTML")
+        # Production build marker: any hashed Vite index bundle referenced
+        # by the served HTML...
+        match = self.ASSET_RE.search(html)
+        self.assertIsNotNone(
+            match,
+            "expected production asset assets/index-*.js referenced in "
+            f"live HTML; got snippet: {html[:500]!r}")
+        asset_name = match.group(1)
         # ...and resolving 200 live.
         asset_status, _, asset_body = self._get(
-            self.SITE + "assets/" + self.EXPECTED_ASSET)
+            self.SITE + "assets/" + asset_name)
         self.assertEqual(
             asset_status, 200,
-            f"production asset {self.EXPECTED_ASSET} does not resolve "
+            f"production asset {asset_name} does not resolve "
             f"live: HTTP {asset_status}")
         self.assertTrue(len(asset_body) > 1000,
                         "production asset body suspiciously small")
