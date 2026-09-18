@@ -39,7 +39,7 @@ const spec: PageSpec = {
       'The decoder is jd_decoder.py: deterministic regex plus counting, stdlib only, no model, no vibes. Every signal carries the quote it came from. Nothing is inferred beyond what the posting literally says.',
     source: {
       label: 'jd_decoder.py on GitHub',
-      href: 'https://github.com/paulthorson/job-apply-mcp/blob/main/jd_decoder.py',
+      href: 'https://github.com/paulthorson/veto-mcp/blob/main/jd_decoder.py',
     },
     blocks: [
       {

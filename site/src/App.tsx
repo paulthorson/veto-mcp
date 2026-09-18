@@ -515,8 +515,8 @@ const FAQS = [
   },
 ];
 
-const INSTALL_BASH = `git clone https://github.com/paulthorson/job-apply-mcp.git
-cd job-apply-mcp
+const INSTALL_BASH = `git clone https://github.com/paulthorson/veto-mcp.git
+cd veto-mcp
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python cli.py wizard   # profile + channel + risk acknowledgment`;
@@ -524,8 +524,8 @@ python3 -m venv .venv
 const INSTALL_MCP = `{
   "mcpServers": {
     "veto": {
-      "command": "/absolute/path/to/job-apply-mcp/.venv/bin/python",
-      "args": ["/absolute/path/to/job-apply-mcp/server.py"],
+      "command": "/absolute/path/to/veto-mcp/.venv/bin/python",
+      "args": ["/absolute/path/to/veto-mcp/server.py"],
       "env": {}
     }
   }
