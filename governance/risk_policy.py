@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Framework-governed risk policy for job-apply-mcp.
+"""Framework-governed risk policy for veto-mcp.
 
 ``compliance.py`` implements the ToS-risk mitigations as deterministic
 gates (tiers, modes, budgets, circuit breaker, caps). This module promotes
@@ -57,7 +57,7 @@ def record_risk_verdict(
             domain=GOVERNANCE_DOMAIN,
             verdict="pass" if passed else "veto",
             summary=summary,
-            ticket=f"job-apply:{action}",
+            ticket=f"veto:{action}",
             case_tag="risk-allowed" if passed else "risk-blocked",
         )
     except Exception as exc:

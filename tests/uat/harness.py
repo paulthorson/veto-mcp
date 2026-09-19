@@ -174,8 +174,8 @@ class JourneyCase(unittest.TestCase):
 
     Subclasses set EPIC_MAP (class attribute) and implement one test method
     per epic (or per coherent epic slice). Method docstrings are
-    plain-English "what this checks" lines surfaced verbatim in Paul's
-    report.
+    plain-English "what this checks" lines surfaced verbatim in the
+    operator report.
     """
 
     EPIC_MAP: dict[str, tuple[str, str, str]] = {}

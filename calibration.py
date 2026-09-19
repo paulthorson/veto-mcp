@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline calibration harness for job-apply-mcp (Initiative 02).
+"""Offline calibration harness for veto-mcp (Initiative 02).
 
 Evaluates the Initiative 02 evidence gate against the ``outcome-min-v0``
 event store and produces weight reports — **without ever applying new

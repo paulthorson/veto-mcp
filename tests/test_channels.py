@@ -1402,7 +1402,7 @@ class DecisionsDocFieldsTests(unittest.TestCase):
         residual = text.split("Residual question")[1].split("## ")[0]
         self.assertIn("Trade-off", residual)
         self.assertIn("Human gate", residual)
-        self.assertIn("Paul", residual)
+        self.assertIn("veto clearance", residual)
 
 
 class ApprovalDisplaySanitizationTests(unittest.TestCase):

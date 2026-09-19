@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gmail integration for job-apply-mcp.
+"""Gmail integration for veto-mcp.
 
 Two capabilities, both read-safe by default:
 

@@ -19,8 +19,8 @@ process-global crew host.
 In-process execution is explicitly acknowledged with
 ``unsafe_local_only=True`` (see
 initiatives/i11/sandbox/SECURITY_RESIDUAL.md) — the same reviewed
-opt-in the CLI install path uses. The hardened behaviors Paul
-cleared on 2026-09-14 (sandbox containment holds; rollback refuses to
+opt-in the CLI install path uses. The hardened behaviors the
+operator cleared on 2026-09-14 (sandbox containment holds; rollback refuses to
 restore revoked versions) are asserted as hold-backs, NOT re-challenged:
 the tests verify they still hold.
 

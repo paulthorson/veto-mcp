@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Referral radar for job-apply-mcp.
+"""Referral radar for veto-mcp.
 
 Finds the user's LinkedIn connections who work at target companies and
 ranks them as referral prospects. Target companies come from (in order)

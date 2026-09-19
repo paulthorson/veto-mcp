@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Per-application grilling for the job-apply MCP server.
+"""Per-application grilling for the Veto MCP server.
 
 The wizard's ``--grill`` mode interrogates the user once at profile
 setup. This module grills per application: before an application

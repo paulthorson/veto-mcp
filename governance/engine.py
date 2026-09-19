@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Limen engine bridge for job-apply-mcp.
+"""Limen engine bridge for veto-mcp.
 
 Limen is the reference engine for agentic-governance: it spawns workers,
 isolates worktrees, manages jobs, and merges — while the framework
@@ -188,8 +188,8 @@ def run_governed_job(
         review = mod.run_review(
             domain=adapter.GOVERNANCE_DOMAIN,
             work=f"Automated job '{action}' {outcome}. Detail: {detail}",
-            context="governed job review (job-apply-mcp limen bridge)",
-            source="job-apply-mcp",
+            context="governed job review (veto-mcp limen bridge)",
+            source="veto-mcp",
         )
         report["review"] = review if isinstance(review, dict) else {"raw": review}
     except Exception as exc:  # fail open: review is advisory
