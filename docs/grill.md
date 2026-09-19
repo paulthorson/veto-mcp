@@ -34,14 +34,18 @@ Set `grill_channel` in `preferences.json`:
 
 | Value      | Behavior |
 |------------|----------|
-| `whatsapp` (default) | Questions are formatted for the WhatsApp side chat. Only channel that can reach you proactively. |
+| `chat` (default) | Questions are asked in the current chat. |
+| `whatsapp` | Questions are formatted for the WhatsApp side chat. Only channel that can reach you proactively. |
 | `gmail`    | Questions go out as an email to your own address; numbered replies are ingested back. |
-| `chat`     | Questions are asked in the current chat. |
 | `off`      | Skip grilling. |
 
 `grill_on_apply: false` also disables grilling in apply flows.
 
-### WhatsApp (default)
+### Chat (default)
+
+Questions are asked in the current chat — this is the default channel.
+
+### WhatsApp
 
 The only proactive channel. You need the Muse WhatsApp side chat linked
 (1:1 user↔Muse conversation). Link it once here:
