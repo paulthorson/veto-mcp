@@ -8,6 +8,7 @@ not engineers. If something isn't listed here, it didn't ship.
 These are built, reviewed, and committed to the main codebase. They will be part of
 the next versioned release.
 
+- **Soft brand laundry** — Scrubbed remaining pre-rename product strings to Veto across docs, comments, theme, and governance tickets.
 - **Mentor matching** — Get matched with mentors. Before you agree to share anything,
   you see an exact preview of what they'd see — nothing personal goes out without
   your explicit consent. Includes safety controls like blocking and quarantine.

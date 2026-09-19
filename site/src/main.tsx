@@ -9,11 +9,11 @@ import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
 import './site.css';
 import App from './App.tsx';
-import { jobApplyTheme } from './theme.ts';
+import { vetoTheme } from './theme.ts';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Theme theme={jobApplyTheme} mode="dark">
+    <Theme theme={vetoTheme} mode="dark">
       <App />
       <Analytics />
     </Theme>

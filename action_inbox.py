@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Action inbox for job-apply-mcp (Initiative 03 daily operating loop).
+"""Action inbox for veto-mcp (Initiative 03 daily operating loop).
 
 One queue for the day's decisions, assembled read-only from the modules
 that own each signal:

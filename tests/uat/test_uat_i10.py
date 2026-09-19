@@ -11,7 +11,7 @@ applications.json, scratch files) are listed in the drill report's
 broader gap-audit wording ("any record present before backup and absent
 after restore is an unrecoverable record gap") is NOT claimed by this
 journey; whether stable-schema-only coverage satisfies the gate still
-needs Paul's explicit sign-off.
+needs the operator's explicit sign-off.
 
 Traceability note: the repo carries roadmap epics but NO per-story
 acceptance criteria, so no story-level criteria are invented here. Every
@@ -341,7 +341,7 @@ class Initiative10UATJourney(JourneyCase):
             self.assertTrue(report.ok, report.detail)
             self.assertEqual(report.checksum_match_pct, 100.0,
                              "Q3 exit gate: 100% checksum match")
-            # Scoping decision (needs Paul's sign-off): the drill's PASS
+            # Scoping decision (needs operator sign-off): the drill's PASS
             # and its zero gap cover stable schemas ONLY. The Q3 exit
             # gate's broader gap-audit wording ("any record present before
             # backup and absent after restore") is NOT claimed here - the

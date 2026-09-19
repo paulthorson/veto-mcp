@@ -335,8 +335,8 @@ def review_application(
         review = mod.run_review(
             domain=GOVERNANCE_DOMAIN,
             work=work,
-            context="automated job application (job-apply-mcp)",
-            source="job-apply-mcp",
+            context="automated job application (veto-mcp)",
+            source="veto-mcp",
         )
     except Exception as exc:  # fail open: review is advisory
         warnings.append(f"adversarial review failed (non-blocking): {exc}")
@@ -376,7 +376,7 @@ def record_application_verdict(
             domain=GOVERNANCE_DOMAIN,
             verdict="pass" if passed else "veto",
             summary=summary,
-            ticket=f"job-apply:{_job_id_of(job)}",
+            ticket=f"veto:{_job_id_of(job)}",
             case_tag="application-allowed" if passed else "application-blocked",
         )
     except Exception as exc:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smart follow-ups for job-apply-mcp.
+"""Smart follow-ups for veto-mcp.
 
 Turns the stale-application signal (``lifecycle.due_followups``) into
 actionable drafts:

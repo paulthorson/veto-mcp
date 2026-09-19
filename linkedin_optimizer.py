@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LinkedIn profile optimizer for the job-apply MCP server.
+"""LinkedIn profile optimizer for the Veto MCP server.
 
 Deterministic, stdlib-only analysis and rewrite suggestions:
 
