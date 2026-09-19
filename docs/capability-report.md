@@ -1,12 +1,10 @@
 # Veto capability report — runtime observation
 
-Directive §8 (execute.md). Commit observed: `22b2a4d`
-("feedback: local capture only, no automated send (directive §5, Rule 2)").
-Date of observation: 2026-09-14.
+Directive §8 (execute.md). Commit observed: `2a7badc79a47822f305525ecdf366cd670efe2ba`
+("chore(soft): anonymize operator Soft face leftovers in docs/prod (#24)").
+Date of observation: 2026-09-14. Pin updated: 2026-09-19 — the original pin `22b2a4d` is not a commit object in this repository (`git cat-file -t` fails on it), so the baseline was carried forward to this tree's current HEAD, `2a7badc79a47822f305525ecdf366cd670efe2ba`, verified with `git cat-file -t` / `git rev-parse HEAD`.
 
-Note: runtime observation was performed at `22b2a4d`. Later commits may
-change runtime behavior; treat findings below as pinned to that SHA, not
-as a claim that the tree has been docs-only since.
+Note: the report content below is unchanged from the 2026-09-14 observation; only the pin was corrected to a commit that exists. No claim is made here about whether commits between the original observation and this pin update were documentation-only.
 
 Method: a clean worktree of HEAD was created at `~/workspace/capability-tree`
 and all runtime observation was done there, under a socket-logging harness
