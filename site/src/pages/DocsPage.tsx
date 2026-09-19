@@ -125,7 +125,7 @@ const MODULE_GROUPS: ToolGroup[] = [
   {
     label: 'Score',
     tools: [
-      { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority/salary/location 15, recency 5). Under 60 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
+      { name: 'score / rank_jobs', desc: 'Fit score 0–100 per posting (skills 50, seniority 15, salary 15, location 15, recency 5). Under 60 is vetoed with a reason; rank_jobs returns the sorted shortlist.' },
       { name: 'decode-jd', desc: 'Reads a posting like a cynic: transparency score, overwork language, vagueness density, green flags. Verdicts of strong, mixed, or caution, every flag quoted.' },
     ],
   },
@@ -224,7 +224,7 @@ const FAQS = [
   },
   {
     q: 'What honesty guarantees does it make?',
-    a: 'The tailor, cover letter, and interview modules never invent experience, employers, skills, or metrics; achievements and numbers are copied verbatim from your profile. The decode-jd module quotes every flag it raises: flags are quoted, not invented. Fit scoring is deterministic, skills 50, seniority/salary/location 15, recency 5, and postings under 60 are vetoed with a written reason. When a fact is missing, it says unverified instead of filling the gap.',
+    a: 'The tailor, cover letter, and interview modules never invent experience, employers, skills, or metrics; achievements and numbers are copied verbatim from your profile. The decode-jd module quotes every flag it raises: flags are quoted, not invented. Fit scoring is deterministic, skills 50, seniority 15, salary 15, location 15, recency 5, and postings under 60 are vetoed with a written reason. When a fact is missing, it says unverified instead of filling the gap.',
   },
   {
     q: 'What happens when a board blocks me?',
