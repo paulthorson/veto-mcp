@@ -16,8 +16,8 @@ const spec: PageSpec = {
     {
       icon: 'chat',
       tone: '',
-      title: 'Three channels',
-      body: 'Chat (default), WhatsApp, or Gmail, picked in the onboarding wizard. Gmail replies are matched by a [grill:<id>] subject tag and ingested automatically. WhatsApp arrives as a plain message you can answer in one line.',
+      title: 'Channels that work',
+      body: 'Chat is the default and works on a clean install. WhatsApp works when you bridge the side-chat. A Gmail channel exists in code but needs hatch_gws_cli — an external Gmail CLI that is not publicly distributed — so it is on HOLD / non-functional without that CLI.',
     },
     {
       icon: 'list',
@@ -49,7 +49,7 @@ const spec: PageSpec = {
   limits: [
     'The grill asks about gaps it can detect, it can\u2019t grill you on things neither the posting nor your profile mentions.',
     'WhatsApp delivery depends on the side-chat bridge; chat always works as the fallback.',
-    'Gmail matching needs the [grill:<id>] subject tag intact, don\u2019t edit the subject line.',
+    'Gmail grill is HOLD without hatch_gws_cli (external, not publicly distributed). When that CLI is present, matching needs the [grill:<id>] subject tag intact.',
     'Deterministic questions, not a conversation, it won\u2019t riff or follow up like a human interviewer would.',
   ],
   faq: [
@@ -62,8 +62,8 @@ const spec: PageSpec = {
       a: 'Say so. \u2018Don\u2019t know\u2019 is a valid answer, it becomes a reported gap (missing_skills) instead of a padded lie. The grill\u2019s job is accuracy, not flattery.',
     },
     {
-      q: 'How do Gmail replies get matched?',
-      a: 'By the [grill:<id>] subject tag, ingested automatically. Keep the subject intact and just answer in the body, even as one compressed line.',
+      q: 'Does the Gmail grill work on a clean install?',
+      a: 'No. It requires hatch_gws_cli, an external Gmail CLI that is not publicly distributed. Use chat (default) or WhatsApp when bridged. If you do have that CLI, replies match on the [grill:<id>] subject tag — keep the subject intact.',
     },
   ],
 };

@@ -175,7 +175,7 @@ const TROUBLESHOOTING = [
   },
   {
     q: 'The grill never completes (grill_pending)',
-    a: 'Symptom: your application sits in grill_pending and nothing moves it. Why: the grill stays open until every question has an answer; an unanswered question is a stuck application, by design. What to do: call grill_status to see exactly which questions are still missing, then answer all of them. If you reply over Gmail, the subject line must carry the [grill:<id>] tag, that is how your reply gets matched to the session. A reply without the tag is just an email nobody reads.',
+    a: 'Symptom: your application sits in grill_pending and nothing moves it. Why: the grill stays open until every question has an answer; an unanswered question is a stuck application, by design. What to do: call grill_status to see exactly which questions are still missing, then answer all of them over chat (default) or WhatsApp when bridged. A Gmail grill path exists but needs hatch_gws_cli (external, not publicly distributed) and is non-functional on a clean install — if you do have that CLI, the subject line must carry the [grill:<id>] tag.',
   },
   {
     q: 'Search is blocked: risk acknowledgment missing',
@@ -334,7 +334,9 @@ export default function DocsPage() {
                 <Heading level={3} className="feature-title">Channel</Heading>
                 <p className="feature-body">
                   Where the grill reaches you: chat (default, zero setup),
-                  WhatsApp, or Gmail. Each downstream user connects their own.
+                  or WhatsApp when bridged. Gmail grill needs an external
+                  CLI that is not publicly distributed — HOLD on a clean
+                  install. Each downstream user connects their own.
                 </p>
               </Card>
               <Card className="step-card">
