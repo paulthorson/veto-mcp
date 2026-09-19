@@ -14,6 +14,7 @@ import {
 import FeaturePage from './pages/FeaturePage';
 import DemoPage from './pages/DemoPage';
 import DocsPage from './pages/DocsPage';
+import ChangelogPage from './pages/ChangelogPage';
 import DashboardPage from './pages/DashboardPage';
 import DecoderPage from './pages/DecoderPage';
 import DecoderSharePage from './pages/DecoderSharePage';
@@ -796,12 +797,12 @@ function MobileNav({ routeHash }: { routeHash: string }) {
 
 const LICENSE_URL =
   'https://github.com/paulthorson/veto-mcp/blob/main/LICENSE';
-const CONTACT_EMAIL = 'hello@vetomcp.com';
+const CONTACT_EMAIL = 'info@vetomcp.com';
 
 /** Cos SoT prose, byte-faithful; only license cite + mailto are linkified. */
 function VerbatimLegal({ text }: { text: string }) {
   const parts: ReactNode[] = [];
-  const re = /(Apache License 2\.0|hello@vetomcp\.com)/g;
+  const re = /(Apache License 2\.0|info@vetomcp\.com)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -857,6 +858,7 @@ function SiteFooter() {
         <div className="footer-links">
           <Link href={GITHUB_URL} label="GitHub repository" target="_blank">{'>'} GitHub repository</Link>
           <Link href="#/docs" label="Documentation">{'>'} Documentation</Link>
+          <Link href="#/changelog" label="Changelog">{'>'} Changelog</Link>
           <Link href="#/install" label="Install">{'>'} Install</Link>
           <Link href="#/dashboard" label="Mission-control dashboard">{'>'} Dashboard</Link>
           <a href="#privacy" onClick={scrollToPrivacy}>
@@ -1215,6 +1217,8 @@ export default function App() {
       document.title = 'Get vetoed - interactive demo - Veto';
     } else if (hash === '#/docs') {
       document.title = 'Docs - Veto';
+    } else if (hash === '#/changelog') {
+      document.title = 'Changelog - Veto';
     } else if (hash === '#/dashboard') {
       document.title = 'Mission control - Veto dashboard';
     } else if (hash === '#/decoder/try') {
@@ -1237,6 +1241,16 @@ export default function App() {
       <div className="page">
         <SiteNav routeHash={hash} />
         <DemoPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (hash === '#/changelog') {
+    return (
+      <div className="page">
+        <SiteNav routeHash={hash} />
+        <ChangelogPage />
         <SiteFooter />
       </div>
     );

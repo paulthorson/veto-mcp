@@ -228,7 +228,7 @@ npm run build   # tsc -b && vite build → site/dist/
 
 Live claims that must stay aligned with this README: four official-API
 boards (Greenhouse, Lever, Ashby, Adzuna), fill-only apply, and contact
-`hello@vetomcp.com` on privacy / security surfaces.
+`info@vetomcp.com` (general) / `security@vetomcp.com` (security) on privacy / security surfaces.
 
 ## Run
 
