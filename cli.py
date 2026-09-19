@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Command-line interface for the job-apply MCP server.
+"""Command-line interface for the Veto MCP server.
 
 Same tools as the MCP server (search, details, apply, boards,
 applications, profile), usable directly from a terminal with no MCP
@@ -484,7 +484,7 @@ def _add_json_flag(p: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cli.py",
-        description="CLI for the job-apply MCP server: search jobs, "
+        description="CLI for the Veto MCP server: search jobs, "
         "read details, and prepare applications from the terminal.",
         formatter_class=_GroupedHelpFormatter,
     )

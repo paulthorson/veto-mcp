@@ -5,6 +5,6 @@ import { defineTheme } from '@astryxdesign/core';
  * brand layered in site.css. Tokens are Partial — everything not listed
  * here falls back to Astryx's built-in defaults.
  */
-export const jobApplyTheme = defineTheme({
+export const vetoTheme = defineTheme({
   name: 'veto',
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Outcome event capture for job-apply-mcp — schema ``outcome-min-v0``.
+"""Outcome event capture for veto-mcp — schema ``outcome-min-v0``.
 
 This module is the Week-0 minimum event (roadmap Decision 02): an
 append-only, auditable record of what happened after an application.

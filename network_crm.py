@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Networking tracker (CRM-lite) for job-apply-mcp.
+"""Networking tracker (CRM-lite) for veto-mcp.
 
 Warm intros beat cold applications. This module keeps a small, honest
 record of the people you know and when you last talked to them:

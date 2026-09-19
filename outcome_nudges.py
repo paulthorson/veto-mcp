@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Outcome nudges for job-apply-mcp (Initiative 01).
+"""Outcome nudges for veto-mcp (Initiative 01).
 
 Delivers the capture contract's missing-outcome prompts through the
 notification system:

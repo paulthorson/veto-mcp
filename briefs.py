@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Company briefs + interview prep for the job-apply MCP server.
+"""Company briefs + interview prep for the Veto MCP server.
 
 Two building blocks for the "before you apply / before you interview"
 part of the loop:
