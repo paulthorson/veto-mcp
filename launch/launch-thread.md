@@ -3,7 +3,7 @@
 **1/**
 Everyone's building AI that spams 1,000 job applications while you sleep.
 
-I built the opposite: an AI job applier that refuses to lie for you — even
+I built the opposite: a fill-only agent that refuses to lie for you — even
 when you ask it to.
 
 **2/**

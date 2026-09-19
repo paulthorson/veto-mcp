@@ -12,7 +12,7 @@ page explains what it does and why.
 | Tier | Boards | What it means |
 |---|---|---|
 | **official** | Greenhouse, Lever, Ashby, Adzuna | Public or official APIs. Preferred for everything. |
-| **scraping** | LinkedIn, Indeed, Glassdoor, ZipRecruiter | HTML or guest endpoints. Works until it doesn't. May violate the site's ToS; the site can rate-limit (429), block (403), or CAPTCHA at any time. |
+| **scraping** | Glassdoor (locked stub) | Tier retained for budgets, consent, and the circuit breaker. Glassdoor performs no scraping and reports itself unavailable. LinkedIn, Indeed, and ZipRecruiter providers were removed. |
 
 Every search result is tagged with its board's tier, and every apply
 preview shows the risk disclosure for its board.
@@ -21,10 +21,10 @@ preview shows the risk disclosure for its board.
 
 - **strict** - official-tier boards only. No scraping, no exceptions. The
   only ToS-clean-by-construction mode.
-- **standard** (default) - scraping-tier boards are allowed only after the
-  user explicitly acknowledges the ToS risk. The onboarding wizard asks for
-  this; the acknowledgment is recorded with a timestamp in
-  `compliance.json`.
+- **standard** (default) - scraping-tier boards require an explicit ToS-risk
+  acknowledgment (recorded with a timestamp in `compliance.json`). With no
+  live scraping providers, the acknowledgment gates the tier machinery; the
+  Glassdoor stub still performs no scraping.
 
 ## Budgets and circuit breakers
 

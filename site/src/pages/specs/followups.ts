@@ -29,7 +29,7 @@ const spec: PageSpec = {
       icon: 'chat',
       tone: '',
       title: 'Your channels',
-      body: 'Drafts go through your connected Gmail path, or render for chat and WhatsApp. Each downstream user connects their own accounts.',
+      body: 'Drafts can render for chat and WhatsApp. Gmail send needs a private CLI not included in a normal install; without it, drafts stay on chat/WhatsApp. Each downstream user connects their own accounts when a bridge exists.',
     },
   ],
   demoTitle: 'Drafting a follow-up',
@@ -43,7 +43,7 @@ const spec: PageSpec = {
   limits: [
     'Drafts are starting points; a copy-paste nudge sent to 40 companies is still spam.',
     'Stale detection depends on your lifecycle tracking being up to date.',
-    'Sending is Gmail-path only for now; other channels get rendered drafts.',
+    'Sending via Gmail needs a private CLI not included in a normal install; without it, drafts render for chat/WhatsApp only.',
     'It will not follow up more often than the schedule allows, no pestering.',
   ],
   faq: [

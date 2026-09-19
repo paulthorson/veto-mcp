@@ -45,5 +45,5 @@ Goal: get the server in front of people who run MCP-capable agents
 2. README opens with the hook (demo GIF or the refusal screenshot),
    one-command install, and the fill-only / governance policy up top —
    not buried.
-3. Pick the product name (`name.md`) — listings are much harder to rename
-   than a repo.
+3. Product name is **Veto**; public site is **https://www.vetomcp.com/**.
+   Listings should use those names, not legacy working titles.
