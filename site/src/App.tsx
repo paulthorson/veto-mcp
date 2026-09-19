@@ -802,7 +802,7 @@ const CONTACT_EMAIL = 'info@vetomcp.com';
 /** Cos SoT prose, byte-faithful; only license cite + mailto are linkified. */
 function VerbatimLegal({ text }: { text: string }) {
   const parts: ReactNode[] = [];
-  const re = /(Apache License 2\.0|hello@vetomcp\.com)/g;
+  const re = /(Apache License 2\.0|info@vetomcp\.com)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;
