@@ -210,7 +210,7 @@ class WarmPathTest(unittest.TestCase):
     def test_default_outbox_lives_outside_repo_tree(self):
         default = warm_path._default_outbox()
         self.assertNotIn(
-            "job-apply-mcp",
+            "veto-mcp",
             str(default),
             "default outbox must not live in the repo tree",
         )

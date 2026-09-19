@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Experiment ledger for job-apply-mcp (Initiative 01).
+"""Experiment ledger for veto-mcp (Initiative 01).
 
 Records the ranking / tailoring version behind every application so
 later analysis can attribute outcomes to the exact configuration that

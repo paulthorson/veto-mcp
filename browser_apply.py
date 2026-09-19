@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Phase 2: browser-automation apply hook (Playwright, sync API).
 
-This module powers the optional browser auto-fill mode of the job-apply
+This module powers the optional browser auto-fill mode of the veto
 MCP server. It opens an application's ``apply_url`` in headless Chromium,
 extracts the visible form fields, fills them from a user ``profile`` dict,
 attaches the resume file, and screenshots the result.

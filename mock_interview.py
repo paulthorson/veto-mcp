@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mock interview practice for the job-apply MCP server.
+"""Mock interview practice for the Veto MCP server.
 
 A five-question practice loop for an upcoming interview:
 
