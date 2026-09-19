@@ -8,8 +8,7 @@ not engineers. If something isn't listed here, it didn't ship.
 These are built, reviewed, and committed to the main codebase. They will be part of
 the next versioned release.
 
-- **Product naming** — Visitor-facing strings, theme identifiers, and governance
-  ticket prefixes use the Veto / veto-mcp names.
+- Renamed leftover pre-release product names to Veto throughout the docs and app.
 - **Mentor matching** — Match with mentors. Before you share anything, you see an
   exact preview of what they would see. Sharing requires explicit consent. Includes
   blocking and quarantine controls.
