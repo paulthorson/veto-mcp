@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provider health board for job-apply-mcp (Initiative 03).
+"""Provider health board for veto-mcp (Initiative 03).
 
 One local JSON store (``provider_health.json``) tracks, per board/provider:
 

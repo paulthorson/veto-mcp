@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offer comparison for the job-apply MCP server.
+"""Offer comparison for the Veto MCP server.
 
 For the "I have multiple offers, help me think clearly" part of the
 loop. All money figures are **user-supplied** — this module never

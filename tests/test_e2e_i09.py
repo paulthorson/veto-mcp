@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """E2E retro-validation for Initiative 09 (Connector reliability).
 
-Paul's standing rule: nothing ships without E2E. This module exercises the
+Standing rule: nothing ships without E2E. This module exercises the
 shipped i09 features against REAL local surfaces — no mocks of the behavior
 under test:
 

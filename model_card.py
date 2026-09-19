@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Versioned model card for job-apply-mcp (Initiative 02).
+"""Versioned model card for veto-mcp (Initiative 02).
 
 Every weight change — reason, date, weights, rollback/pin/reset — is an
 append-only entry in ``model_card.jsonl``. The live card starts at v0

@@ -3,7 +3,7 @@
 Run ID: 2026-09-13-ws1-fixer
 Lane: Develop & Deliver
 Started: 2026-09-13
-Human arbiter: Paul Thorson
+Human arbiter: anonymous operator
 
 **This file is append-only.** Nothing above a committed line is edited. A correction is a new
 entry that references the entry it corrects.
@@ -12,7 +12,7 @@ entry that references the entry it corrects.
 
 ## 1. Request
 
-> You are a fixer for Veto Initiative 12, workstreams WS1 (tools+contracts) and WS3 (changelog), in repo ~/workspace/job-apply-mcp. Both blind reviews returned ALLOW, but each lists ship-blocking must-fix findings. Your job: apply all findings below, add tests proving the fixes, run the i12 test subset, and report changed files. Do NOT commit anything (a later sweep commits).
+> You are a fixer for Veto Initiative 12, workstreams WS1 (tools+contracts) and WS3 (changelog), in repo ~/workspace/veto-mcp. Both blind reviews returned ALLOW, but each lists ship-blocking must-fix findings. Your job: apply all findings below, add tests proving the fixes, run the i12 test subset, and report changed files. Do NOT commit anything (a later sweep commits).
 
 Solution shape assumed by the request: fix the listed findings in place; no redesign.
 
@@ -121,10 +121,10 @@ Not applicable — no critic/advocate/reviewer loop was run for the fixer pass i
 ## 8. Gate
 
 Gate: n/a (fixer pass; commit sweep is the later human-gated step).
-Routed because: scheduled gate — the later sweep commits, and only Paul clears.
+Routed because: scheduled gate — the later sweep commits, and only the human clears.
 
 ### Human decision
-- Arbiter: Paul Thorson
+- Arbiter: anonymous operator
 - Date: pending (commit sweep)
 - Decision: pending
 - Reason: —

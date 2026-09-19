@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """E2E retro-validation for Initiative 10 (Packaging & recovery).
 
-Paul's standing rule: nothing ships without E2E. This module exercises the
+Standing rule: nothing ships without E2E. This module exercises the
 shipped i10 features through their REAL entrypoints against hermetic temp
 dirs (no synthetic installs, no mocked subprocesses for the flows below):
 

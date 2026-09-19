@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mentor matchmaking for the job-apply MCP server.
+"""Mentor matchmaking for the Veto MCP server.
 
 Connects mentors with people seeking mentorship, opt-in only on both sides:
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Application lifecycle management for job-apply-mcp.
+"""Application lifecycle management for veto-mcp.
 
 Additive extension of the ``applications.json`` store:
 

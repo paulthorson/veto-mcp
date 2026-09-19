@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-profile support for job-apply-mcp.
+"""Multi-profile support for veto-mcp.
 
 The onboarding wizard writes ``profiles/profile.json`` (legacy single
 profile). This module adds *named* profiles — e.g. one per target role —

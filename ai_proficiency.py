@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI-proficiency training for the job-apply MCP server.
+"""AI-proficiency training for the Veto MCP server.
 
 Employers now screen for AI fluency. This module takes a candidate from
 zero to demonstrably AI-proficient *in their own role*:
