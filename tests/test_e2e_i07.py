@@ -8,7 +8,7 @@ Exercised against REAL surfaces:
     the same handshake records a real user journey would produce,
   - the append-only, hash-chained consent audit log on real disk.
 
-Consent gates under test (Paul cleared three Rule 1 vetos on 2026-09-14 —
+Consent gates under test (operator cleared three Rule 1 vetos on 2026-09-14 —
 WS2 safety fail-open, WS4 silent-empty, WS1 pre-consent PII leaks — as
 human veto-clearances; these tests do NOT re-challenge them but verify
 the hardened behaviors hold):

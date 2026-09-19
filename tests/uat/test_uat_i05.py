@@ -13,7 +13,7 @@ criteria.
 
 What these tests assert vs. the E2E suite (tests/test_e2e_i05.py): the
 E2E suite drives the same CLI for engineering coverage. This journey
-asserts the acceptance contract Paul signs off on: exact version
+asserts the acceptance contract the operator signs off on: exact version
 restore, evidence-approval gating before tailoring, the ATS copy
 contract, explained diffs, the checklist-gated packet, and the
 earned-success gate.
