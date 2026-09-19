@@ -7,8 +7,12 @@
 3. Make sure the test suite passes before you open the PR:
 
    ```bash
-   .venv/bin/python -m pytest tests/
+   .venv/bin/python tests/run.py
    ```
+
+   (`tests/run.py` is the unittest-based runner CI uses — see
+   `.github/workflows/ci.yml:46` (`run: python tests/run.py`); plain
+   `.venv/bin/python -m unittest discover -s tests` works too.)
 
 ## Sign-off
 
