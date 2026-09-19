@@ -243,7 +243,7 @@ const FEATURES = [
     icon: 'envelope',
     tone: '',
     title: 'Recruiter email sync',
-    body: 'When a Gmail CLI bridge is available, recruiter mail can be classified and follow-ups drafted. On a clean install that bridge is not included, so email sync is unavailable. Sending always needs your confirm.',
+    body: 'When a private Gmail CLI is available, recruiter mail can be classified and follow-ups drafted. That CLI is not included in a normal install, so email sync is unavailable there. Sending always needs your confirm.',
   },
   {
     slug: 'interview-prep',
@@ -495,7 +495,7 @@ const FAQS = [
   },
   {
     q: 'What is the grill?',
-    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. Chat is the default channel; WhatsApp works when bridged. A Gmail grill path exists in code but needs an external CLI that is not publicly distributed, so it is non-functional on a clean install. Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
+    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. Chat is the default channel; WhatsApp works when bridged. Gmail grill needs a private CLI not included in a normal install. Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
   },
   {
     q: 'Will I get banned from a job board?',

@@ -17,7 +17,7 @@ const spec: PageSpec = {
       icon: 'chat',
       tone: '',
       title: 'Channels that work',
-      body: 'Chat is the default and works on a clean install. WhatsApp works when you bridge the side-chat. A Gmail channel exists in code but needs hatch_gws_cli — an external Gmail CLI that is not publicly distributed — so it is not available without that CLI.',
+      body: 'Chat is the default and works on a normal install. WhatsApp works when you bridge the side-chat. Gmail grill needs a private CLI not included in a normal install.',
     },
     {
       icon: 'list',
@@ -49,7 +49,7 @@ const spec: PageSpec = {
   limits: [
     'The grill asks about gaps it can detect, it can\u2019t grill you on things neither the posting nor your profile mentions.',
     'WhatsApp delivery depends on the side-chat bridge; chat always works as the fallback.',
-    'Gmail grill is not available on a clean install without hatch_gws_cli (external, not publicly distributed). When that CLI is present, matching needs the [grill:<id>] subject tag intact.',
+    'Gmail grill needs a private CLI not included in a normal install. When that CLI is present, matching needs the [grill:<id>] subject tag intact.',
     'Deterministic questions, not a conversation, it won\u2019t riff or follow up like a human interviewer would.',
   ],
   faq: [
@@ -62,8 +62,8 @@ const spec: PageSpec = {
       a: 'Say so. \u2018Don\u2019t know\u2019 is a valid answer, it becomes a reported gap (missing_skills) instead of a padded lie. The grill\u2019s job is accuracy, not flattery.',
     },
     {
-      q: 'Does the Gmail grill work on a clean install?',
-      a: 'No. It requires hatch_gws_cli, an external Gmail CLI that is not publicly distributed. Use chat (default) or WhatsApp when bridged. If you do have that CLI, replies match on the [grill:<id>] subject tag — keep the subject intact.',
+      q: 'Does the Gmail grill work on a normal install?',
+      a: 'No. Gmail grill needs a private CLI not included in a normal install. Use chat (default) or WhatsApp when bridged. If you do have that CLI, replies match on the [grill:<id>] subject tag — keep the subject intact.',
     },
   ],
 };

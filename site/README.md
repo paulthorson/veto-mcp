@@ -21,7 +21,7 @@ npm run build   # tsc -b && vite build → dist/
 
 ## Measured live surface
 
-As of the go-live scrub:
+Measured against the live site:
 
 | Check | Expected |
 |---|---|

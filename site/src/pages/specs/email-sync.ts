@@ -5,7 +5,7 @@ const spec: PageSpec = {
   tag: 'Recruiter email',
   tagVariant: '',
   title: 'INBOX RADAR',
-  lede: 'When a Gmail CLI bridge is available, scan_recruiter_emails classifies recruiter mail and proposes stage updates on high-confidence matches, and draft_followup_email writes check-ins and thank-yous. On a clean install that bridge (hatch_gws_cli) is not included — these tools report the CLI missing. Nothing sends without your explicit confirm.',
+  lede: 'When a private Gmail CLI is available, scan_recruiter_emails classifies recruiter mail and proposes stage updates on high-confidence matches, and draft_followup_email writes check-ins and thank-yous. That CLI is not included in a normal install, so these tools report it missing there. Nothing sends without your explicit confirm.',
   points: [
     {
       icon: 'envelope',
@@ -28,19 +28,19 @@ const spec: PageSpec = {
     {
       icon: 'lock',
       tone: 'amber',
-      title: 'External CLI required',
-      body: 'Gmail read/send goes through hatch_gws_cli — an external CLI that is not publicly distributed. Without it, email sync is unavailable on a clean install. No credential storage beyond your own connection when that CLI is present.',
+      title: 'Not in a normal install',
+      body: 'Gmail read/send needs a private CLI not included in a normal install. Without it, email sync is unavailable. No credential storage beyond your own connection when that CLI is present.',
     },
   ],
   demoTitle: 'A recruiter email, handled',
   demoLines: [
     { text: 'cli.py email-scan --days 7', kind: 'cmd' },
-    { text: '\u2192 unavailable: hatch_gws_cli not on PATH (clean install)', kind: 'warn' },
-    { text: '  email sync needs the external Gmail CLI bridge', kind: 'info' },
-    { text: '  chat grill + fill-only apply still work without it', kind: 'ok' },
+    { text: '\u2192 unavailable: private Gmail CLI not included in a normal install', kind: 'warn' },
+    { text: '  email sync needs that CLI; chat grill and fill-only apply still work', kind: 'info' },
+    { text: '  nothing sends without your confirm', kind: 'ok' },
   ],
   limits: [
-    'Requires hatch_gws_cli (external, not publicly distributed). Non-functional on a clean install without it.',
+    'Needs a private Gmail CLI not included in a normal install. Unavailable without it.',
     'Stage updates only fire on high-confidence unambiguous matches. Everything else waits for you.',
     'Drafts are starting points in your voice. Read before confirming.',
     'Sending requires explicit confirm of recipient, subject, and body every time. There is no auto-send.',
@@ -48,15 +48,15 @@ const spec: PageSpec = {
   faq: [
     {
       q: 'Will it reply to recruiters on its own?',
-      a: 'Never. It drafts; you confirm the exact recipient, subject, and body. There is deliberately no auto-send mode. An email to a stranger is a consequential action, and those belong to you. And without hatch_gws_cli, it cannot reach Gmail at all.',
+      a: 'Never. It drafts; you confirm the exact recipient, subject, and body. There is deliberately no auto-send mode. An email to a stranger is a consequential action, and those belong to you. And without the private Gmail CLI, it cannot reach Gmail at all.',
     },
     {
       q: 'Does this work out of the box?',
-      a: 'No. Email sync depends on hatch_gws_cli, which is not publicly distributed. On a clean install the tools report the CLI as missing. Chat grill and fill-only apply do not need it.',
+      a: 'No. Email sync needs a private Gmail CLI not included in a normal install. Chat grill and fill-only apply do not need it.',
     },
     {
       q: 'What does it do with rejections?',
-      a: 'When the CLI bridge is available: classifies them, moves the application to rejected, and clears the follow-up reminder. Closure, automated. The dignified kind.',
+      a: 'When the private Gmail CLI is available: classifies them, moves the application to rejected, and clears the follow-up reminder. Closure, automated. The dignified kind.',
     },
   ],
 };
