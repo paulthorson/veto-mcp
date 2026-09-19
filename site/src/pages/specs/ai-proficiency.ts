@@ -39,7 +39,7 @@ const spec: PageSpec = {
     { text: '+ level 2/5: comfortable prompting, weak on review discipline', kind: 'ok' },
     { text: '+ placed at lesson 3: "Ship a PR reviewed by AI, then review the AI"', kind: 'ok' },
     { text: '$ veto ai lesson engineer 3', kind: 'cmd' },
-    { text: '+ exercise session open. Ethics module unlocks at lesson 5.', kind: 'info' },
+    { text: '+ exercise session open. Ethics module becomes available at lesson 5.', kind: 'info' },
     { text: '+ rep logged: ai_lesson (engineer). Streak: 6 days.', kind: 'ok' },
   ],
   limits: [
