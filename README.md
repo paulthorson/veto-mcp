@@ -1,35 +1,37 @@
-# Veto — the AI job applier that says no
+# Veto — fill forms, never submit
 
-> Every AI job bot promises to blast 1,000 applications while you sleep.
-> This one searches official job-board APIs, grills you over WhatsApp
-> about the gaps in your resume, tailors every application — and
-> **never submits a single one. The final click is always yours.**
+> Most job bots optimize for volume. Veto searches official job-board
+> APIs, grills you on resume gaps (chat or WhatsApp), tailors packets —
+> and **fills forms only. It never submits.** The final click is always
+> yours.
 
 Veto is an open-source [MCP](https://modelcontextprotocol.io/)
-server that turns your AI assistant into a job-search agent with a
-conscience. It does the tedious parts — searching, tailoring, filling
-forms, tracking, following up — and enforces the judgment calls most
-bots skip.
+server for governed job search. It handles the tedious parts —
+searching, tailoring, filling forms, tracking, following up — and
+enforces judgment calls most bots skip. Product home:
+[www.vetomcp.com](https://www.vetomcp.com).
+
+> **Marketing site + MCP packaging** for the same product. Visitor docs
+> live on the site; this README is the install/operator surface.
+> Product framework: `paulthorson/veto`.
 
 ## The 60-second tour
 
 1. **Search.** One query across Greenhouse, Lever, Ashby, and Adzuna —
    public or official APIs only — plus your own saved listings. Deduped,
    tier-tagged, and ranked.
-2. **Grill.** Before anything is submitted, it interrogates *you* —
-   missing skills, unquantified experience, salary, logistics — over chat
-   or WhatsApp. Answer on your phone; the application waits. (A Gmail
-   grill channel also exists, but it needs `hatch_gws_cli` — an external
-   Gmail CLI that is not publicly distributed — so it is non-functional
-   on a clean install.)
+2. **Grill.** Before anything is recorded or filled, it interrogates
+   *you* — missing skills, unquantified experience, salary, logistics —
+   over chat or WhatsApp. Answer on your phone; the application waits.
+   Gmail grill needs a private CLI not included in a normal install.
 3. **Tailor.** Resume bullets front-loaded with the posting's keywords,
    cover letter referencing the actual role. It never invents experience
    — gaps are reported, not padded.
 4. **Fill, don't submit.** The agent fills the application form and stops
    at the review screen. *You* click submit. The software never touches
    the submit button — on any site, ever.
-5. **Track.** Stages, follow-up nudges, recruiter-email sync, response
-   analytics by board.
+5. **Track.** Stages, follow-up nudges, optional recruiter-email sync
+   (same Gmail install limit as above), response analytics by board.
 
 ## The three refusals
 
@@ -69,10 +71,9 @@ ask it to search, it contacts only the public job-board APIs you
 asked it to search, and makes no connections it wasn't asked to
 make (report §1–§2, §8). Optional notifications (ntfy, webhook) are
 off by default and send nothing until you configure them (report
-§4). Gmail features need the external `hatch_gws_cli` Gmail CLI, which is
-not publicly distributed — they are non-functional on a clean install
-without it. Where Gmail works, Veto never sees, stores, or transmits
-your Google tokens (report §7).
+§4). Gmail features (grill channel, email sync) need a private CLI not
+included in a normal install. Where that CLI is present, Veto never
+sees, stores, or transmits your Google tokens (report §7).
 Tokens and credentials it does hold live only in files only you can
 read (mode `0600`, report §6). The author operates no service and
 receives nothing: no copy of your resume, application history,
@@ -82,9 +83,9 @@ credentials, or correspondence ever reaches the author (report §9 item 4).
 
 Veto talks to other companies' services: public job-board APIs
 (Greenhouse, Lever, Ashby, Adzuna), DuckDuckGo for company research
-you request, Gmail (only via the external `hatch_gws_cli` CLI, which is
-not publicly distributed), and —
-only if you configure them — ntfy.sh or a webhook you chose.
+you request, Gmail (only when a private CLI not included in a normal
+install is present), and — only if you configure them — ntfy.sh or a
+webhook you chose.
 Each of those services has its own terms of use, and some of them
 restrict automation — you are responsible for complying with them.
 The author is not affiliated with, endorsed by, or authorized by
@@ -124,7 +125,7 @@ Or point any MCP client at it — ready-to-paste config in
 |---|---|
 | `search_jobs(query, location, board="all", limit=10, remote_only=False)` | Search postings. Returns jobs with `id`, `title`, `company`, `location`, `url`, `board`, `snippet`. |
 | `get_job_details(job_id)` | Full description, requirements, and `apply_url` for one job. |
-| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 records the application locally (default), or Phase 2 fills the form in headless Chromium when `JOB_MCP_BROWSER_APPLY=1` and a `profile` dict are provided — then stops at the review screen so you can click submit yourself. `profile` defaults to your saved wizard profile. The software never submits. |
+| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 records the application locally (default), or Phase 2 fills the form in headless Chromium when `VETO_BROWSER_APPLY=1` (or the `JOB_MCP_BROWSER_APPLY` alias) and a `profile` dict are provided — then stops at the review screen so you can click submit yourself. `profile` defaults to your saved wizard profile. The software never submits. |
 | `get_profile()` | Returns the applicant profile saved by the onboarding wizard (`profiles/profile.json`), or setup instructions if it doesn't exist yet. |
 | `list_boards()` | Supported boards and their status (`active` / `stub`). |
 | `track_applications()` | Everything recorded in `applications.json`. |
@@ -139,10 +140,10 @@ risk-sensitive path is adjudicated by the risk policy (see
 
 | Area | Tools | What it does |
 |---|---|---|
-| **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Channels: chat (default), WhatsApp, Gmail — chosen in the onboarding wizard. The Gmail channel requires `hatch_gws_cli` (external, not publicly distributed) and is non-functional without it. Gmail replies are matched by a `[grill:<id>]` subject tag and ingested automatically. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
+| **Apply-time grilling** | `grill_start`, `grill_answer`, `grill_status`, `grill_ingest_reply` | Before an application proceeds, the agent grills the candidate with deterministic questions derived from job/profile gaps (missing skills, unquantified experience, logistics, motivation). Chat is the default; WhatsApp when bridged. Gmail grill needs a private CLI not included in a normal install. When that CLI is present, Gmail replies are matched by a `[grill:<id>]` subject tag. `apply_to_job` returns `grill_pending` until the grill is complete. See `docs/grill.md`. |
 | **Direct ATS apply** | `apply_via_ats` | Official ATS application endpoints only (Greenhouse/Lever/Ashby with employer-issued keys). Investigated honestly: no verified anonymous endpoint exists, so the tool returns a dry-run preview (zero network calls) and never submits. |
 | **Drip queue** | `queue_add`, `queue_list` (+ `queue-run` CLI) | Persistent, paced application queue. Respects the daily cap, pauses 2–7 minutes between applications, and adjudicates the whole run before starting. |
-| **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | **Requires `hatch_gws_cli`** — an external Gmail CLI that is not publicly distributed; without it these tools report the CLI as missing. Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
+| **Email sync** | `scan_recruiter_emails`, `draft_followup_email` | Needs a private Gmail CLI not included in a normal install; without it these tools report the CLI as missing. Classifies recruiter email, proposes application stage updates (applies only on high-confidence unambiguous matches), and drafts check-in / thank-you / nudge follow-ups. Sending needs `confirm=True`. |
 | **Interview prep** | `company_brief`, `prep_interview` | Company briefs (facts marked `unverified` when unfetched; no invented funding/headcount) and STAR stories built only from real profile achievements with metrics preserved verbatim. |
 | **Analytics** | `application_analytics` | Funnel, response rate by board, median time to response, stale applications. |
 | **Doctor** | `doctor` | Health check: profile, compliance acknowledgment, Playwright, sessions, preferences, boards. |
@@ -213,15 +214,21 @@ python3 -m venv .venv
 
 ## Web site
 
-The repo also ships a React/Vite site in `site/` (marketing pages and
-docs). Its design-system CSS is vendored in `site/src/vendor/` — no
-sibling checkout or private package needed. Build it with:
+The public marketing site is **https://www.vetomcp.com/** (measured:
+apex `vetomcp.com` responds `308` → `https://www.vetomcp.com/`; www
+serves `200` with canonical `https://www.vetomcp.com/`). Sources live in
+`site/` (React/Vite). Design-system CSS is vendored in `site/src/vendor/`
+— no sibling checkout or private package needed. Build it with:
 
 ```bash
 cd site
 npm install
 npm run build   # tsc -b && vite build → site/dist/
 ```
+
+Live claims that must stay aligned with this README: four official-API
+boards (Greenhouse, Lever, Ashby, Adzuna), fill-only apply, and contact
+`hello@vetomcp.com` on privacy / security surfaces.
 
 ## Run
 
@@ -377,8 +384,10 @@ headless Chromium. It never submits:
 ```bash
 .venv/bin/pip install -r requirements.txt   # includes playwright
 .venv/bin/python -m playwright install chromium
-export JOB_MCP_BROWSER_APPLY=1
+export VETO_BROWSER_APPLY=1
 ```
+
+(`JOB_MCP_BROWSER_APPLY=1` remains accepted as an alias.)
 
 > **Note:** if the Chromium binary download fails on your network, browser
 > mode degrades gracefully — `browser_apply` returns an error dict when the
@@ -405,8 +414,9 @@ apply_to_job(
 )
 ```
 
-Without `JOB_MCP_BROWSER_APPLY=1`, `confirm=True` keeps the Phase 1
-behavior (local log only + direct `apply_url` for manual submission).
+Without `VETO_BROWSER_APPLY=1` (or the `JOB_MCP_BROWSER_APPLY` alias),
+`confirm=True` keeps the Phase 1 behavior (local log only + direct
+`apply_url` for manual submission).
 
 Screenshots land in `veto-mcp/screenshots/` (pre-fill preview and a
 post-fill shot). Each confirmed Phase 2 attempt appends to
