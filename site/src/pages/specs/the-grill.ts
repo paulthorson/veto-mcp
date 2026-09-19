@@ -17,7 +17,7 @@ const spec: PageSpec = {
       icon: 'chat',
       tone: '',
       title: 'Channels that work',
-      body: 'Chat is the default and works on a clean install. WhatsApp works when you bridge the side-chat. A Gmail channel exists in code but needs hatch_gws_cli — an external Gmail CLI that is not publicly distributed — so it is on HOLD / non-functional without that CLI.',
+      body: 'Chat is the default and works on a clean install. WhatsApp works when you bridge the side-chat. A Gmail channel exists in code but needs hatch_gws_cli — an external Gmail CLI that is not publicly distributed — so it is not available without that CLI.',
     },
     {
       icon: 'list',
@@ -49,7 +49,7 @@ const spec: PageSpec = {
   limits: [
     'The grill asks about gaps it can detect, it can\u2019t grill you on things neither the posting nor your profile mentions.',
     'WhatsApp delivery depends on the side-chat bridge; chat always works as the fallback.',
-    'Gmail grill is HOLD without hatch_gws_cli (external, not publicly distributed). When that CLI is present, matching needs the [grill:<id>] subject tag intact.',
+    'Gmail grill is not available on a clean install without hatch_gws_cli (external, not publicly distributed). When that CLI is present, matching needs the [grill:<id>] subject tag intact.',
     'Deterministic questions, not a conversation, it won\u2019t riff or follow up like a human interviewer would.',
   ],
   faq: [

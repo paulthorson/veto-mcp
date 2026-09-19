@@ -29,14 +29,14 @@ const spec: PageSpec = {
       icon: 'lock',
       tone: 'amber',
       title: 'External CLI required',
-      body: 'Gmail read/send goes through hatch_gws_cli — an external CLI that is not publicly distributed. Without it, email-sync is non-functional on a clean install (HOLD). No credential storage beyond your own connection when that CLI is present.',
+      body: 'Gmail read/send goes through hatch_gws_cli — an external CLI that is not publicly distributed. Without it, email sync is unavailable on a clean install. No credential storage beyond your own connection when that CLI is present.',
     },
   ],
   demoTitle: 'A recruiter email, handled',
   demoLines: [
     { text: 'cli.py email-scan --days 7', kind: 'cmd' },
-    { text: '\u2192 HOLD: hatch_gws_cli not on PATH (clean install)', kind: 'warn' },
-    { text: '  email-sync needs the external Gmail CLI bridge', kind: 'info' },
+    { text: '\u2192 unavailable: hatch_gws_cli not on PATH (clean install)', kind: 'warn' },
+    { text: '  email sync needs the external Gmail CLI bridge', kind: 'info' },
     { text: '  chat grill + fill-only apply still work without it', kind: 'ok' },
   ],
   limits: [

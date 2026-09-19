@@ -243,7 +243,7 @@ const FEATURES = [
     icon: 'envelope',
     tone: '',
     title: 'Recruiter email sync',
-    body: 'When a Gmail CLI bridge is available, recruiter mail can be classified and follow-ups drafted. On a clean install that bridge is not included — hold. Sending always needs your confirm.',
+    body: 'When a Gmail CLI bridge is available, recruiter mail can be classified and follow-ups drafted. On a clean install that bridge is not included, so email sync is unavailable. Sending always needs your confirm.',
   },
   {
     slug: 'interview-prep',

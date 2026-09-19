@@ -335,8 +335,9 @@ export default function DocsPage() {
                 <p className="feature-body">
                   Where the grill reaches you: chat (default, zero setup),
                   or WhatsApp when bridged. Gmail grill needs an external
-                  CLI that is not publicly distributed — HOLD on a clean
-                  install. Each downstream user connects their own.
+                  CLI that is not publicly distributed, so it is not
+                  available on a clean install. Each downstream user
+                  connects their own.
                 </p>
               </Card>
               <Card className="step-card">
