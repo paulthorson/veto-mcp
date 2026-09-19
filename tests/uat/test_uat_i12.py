@@ -28,7 +28,7 @@ deterministic onboarding assignment, score-card privacy refusal, changelog
 health, and the consent/record flow) for genuinely new acceptance ground
 the E2E suite never covers: the analytics tripwire's quarantine and
 re-enable chain, the named security-specialist plus independent-reviewer
-protocol, Paul's veto, dark-pattern copy checks, and the exact shape of
+protocol, the operator veto, dark-pattern copy checks, and the exact shape of
 the public analytics payload the Q3 exit gate watches.
 
 The repo has roadmap epics but no per-story acceptance criteria, so
@@ -473,7 +473,7 @@ class Initiative12UATJourney(JourneyCase):
     # E6: Consent-based product analytics (Q3 exit gate)
     # ------------------------------------------------------------------
     def test_telemetry_tripwire_shuts_off_and_quarantines(self):
-        """Analytics stay off until you opt in; if any private content slips into an event, analytics shut off, the data is quarantined, and turning them back on requires a named security specialist, a different independent reviewer, and no veto from Paul."""
+        """Analytics stay off until you opt in; if any private content slips into an event, analytics shut off, the data is quarantined, and turning them back on requires a named security specialist, a different independent reviewer, and no operator veto."""
         state = self.workdir / "telemetry.json"
 
         # 1. Off by default: a fresh install consents to nothing and
@@ -569,7 +569,7 @@ class Initiative12UATJourney(JourneyCase):
         self.assertTrue(status["enabled"])
         self.assertEqual(status["open_incidents"], 0)
 
-        # 7. Paul's veto blocks re-enable unconditionally -- only his typed
+        # 7. Operator veto blocks re-enable unconditionally -- only a typed
         #    confirmation lifts it. (A second trip to exercise the path.)
         store2.record("tool_opened", tool="jd_decoder", surface="terminal",
                       session_id="sess2")

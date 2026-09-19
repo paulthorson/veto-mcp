@@ -1,6 +1,6 @@
 """Automated UAT acceptance journey: Initiative 07 (Mentor matching & warm paths).
 
-Acceptance contract (plain-English summary for Paul's report):
+Acceptance contract (plain-English summary for the operator report):
 "A job seeker finds a mentor, and an introduction happens only with
 explicit consent from both sides."
 
@@ -10,9 +10,10 @@ The journey is exercised against REAL surfaces only:
 - the real i07 modules (consent handshake, session kit, warm-path planner,
   safety) with every state file redirected to a per-test temp dir.
 
-Paul cleared three Rule 1 vetos on 2026-09-14 (WS2 safety fail-open, WS4
-silent-empty, WS1 pre-consent PII leaks) as human veto-clearances; these
-tests do NOT re-challenge them but assert the hardened behaviors hold:
+The operator cleared three Rule 1 vetos on 2026-09-14 (WS2 safety
+fail-open, WS4 silent-empty, WS1 pre-consent PII leaks) as human
+veto-clearances; these tests do NOT re-challenge them but assert the
+hardened behaviors hold:
 no PII revealed before mutual two-sided consent, goalless requests are
 not consent-bearing, and corrupt stores fail closed.
 

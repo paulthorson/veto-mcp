@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Veto's automated UAT acceptance journeys and render Paul's report.
+"""Run Veto's automated UAT acceptance journeys and render the operator report.
 
 Usage (from the product repo root)::
 
@@ -9,8 +9,8 @@ Usage (from the product repo root)::
 
 Runs the seven shipped-initiative journeys (04, 05, 06, 07, 10, 11, 12)
 and produces a plain-English report with epic -> check -> pass/fail
-traceability. Paul reviews this report and signs off; the automation does
-the trying, he does the accepting.
+traceability. The operator reviews this report and signs off; the
+automation does the trying, the operator does the accepting.
 
 Exit code: 0 if every journey check passed (skips allowed), 1 otherwise.
 """
@@ -233,7 +233,7 @@ def render_markdown(started, records, epic_maps) -> str:
         "",
         "Each check below is one automated acceptance journey step, traced "
         "to its roadmap epic. The automation does the trying; "
-        "Paul does the accepting.",
+        "the operator does the accepting.",
         "",
         "## Traceability: epic -> check -> result",
         "",
@@ -290,8 +290,8 @@ def render_markdown(started, records, epic_maps) -> str:
         "",
         "## Sign-off",
         "",
-        "Paul personally accepts or rejects each initiative before it "
-        "counts as shipped. One line per initiative:",
+        "The operator personally accepts or rejects each initiative before "
+        "it counts as shipped. One line per initiative:",
         "",
     ]
     seen = []
