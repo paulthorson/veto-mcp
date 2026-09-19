@@ -796,7 +796,7 @@ function MobileNav({ routeHash }: { routeHash: string }) {
 
 const LICENSE_URL =
   'https://github.com/paulthorson/veto-mcp/blob/main/LICENSE';
-const CONTACT_EMAIL = 'hello@vetomcp.com';
+const CONTACT_EMAIL = 'info@vetomcp.com';
 
 /** Cos SoT prose, byte-faithful; only license cite + mailto are linkified. */
 function VerbatimLegal({ text }: { text: string }) {
