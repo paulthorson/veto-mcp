@@ -175,11 +175,11 @@ const TROUBLESHOOTING = [
   },
   {
     q: 'The grill never completes (grill_pending)',
-    a: 'Symptom: your application sits in grill_pending and nothing moves it. Why: the grill stays open until every question has an answer; an unanswered question is a stuck application, by design. What to do: call grill_status to see exactly which questions are still missing, then answer all of them. If you reply over Gmail, the subject line must carry the [grill:<id>] tag, that is how your reply gets matched to the session. A reply without the tag is just an email nobody reads.',
+    a: 'Symptom: your application sits in grill_pending and nothing moves it. Why: the grill stays open until every question has an answer; an unanswered question is a stuck application, by design. What to do: call grill_status to see exactly which questions are still missing, then answer all of them over chat (default) or WhatsApp when bridged. Gmail grill needs a private CLI not included in a normal install — if you do have that CLI, the subject line must carry the [grill:<id>] tag.',
   },
   {
     q: 'Search is blocked: risk acknowledgment missing',
-    a: 'Symptom: check_search_allowed refuses a scraping-tier board with a consent error even though nothing is down. Why: standard mode requires explicit ToS-risk acknowledgment before any scraping-tier board unlocks; compliance.json has no timestamp for you. What to do: run the wizard (step 03) or call acknowledge_risks to record your consent. If you would rather not consent to scraping at all, switch to strict mode and use the official-tier boards instead.',
+    a: 'Symptom: check_search_allowed refuses a scraping-tier board with a consent error even though nothing is down. Why: standard mode requires an explicit ToS-risk acknowledgment before the scraping tier is allowed; compliance.json has no timestamp for you. Glassdoor is the only board on that tier and is a locked stub (no scraping). What to do: run the wizard (step 03) or call acknowledge_risks to record your consent, or switch to strict mode and use the official-API boards only.',
   },
   {
     q: 'The MCP client does not see the tools',
@@ -334,16 +334,20 @@ export default function DocsPage() {
                 <Heading level={3} className="feature-title">Channel</Heading>
                 <p className="feature-body">
                   Where the grill reaches you: chat (default, zero setup),
-                  WhatsApp, or Gmail. Each downstream user connects their own.
+                  or WhatsApp when bridged. Gmail grill needs a private
+                  CLI not included in a normal install. Each downstream
+                  user connects their own.
                 </p>
               </Card>
               <Card className="step-card">
                 <div className="step-n" aria-hidden="true">[03]</div>
                 <Heading level={3} className="feature-title">Risk acknowledgment</Heading>
                 <p className="feature-body">
-                  You explicitly accept the scraping-tier ToS risk before
-                  those boards unlock. Recorded with a timestamp in{' '}
-                  <code>compliance.json</code>. No acknowledgment, no scraping.
+                  You acknowledge the scraping-tier ToS risk before that tier
+                  is allowed. Recorded with a timestamp in{' '}
+                  <code>compliance.json</code>. No live board scrapes today —
+                  Glassdoor is a locked stub — but the gate still applies to
+                  the tier machinery.
                 </p>
               </Card>
             </div>
@@ -492,10 +496,10 @@ export default function DocsPage() {
               <h4>Modes</h4>
               <p className="tool-desc">
                 <code>strict</code>: official APIs only. ToS-clean by
-                construction, no scraping at all. <code>standard</code>:
-                scraping-tier boards are allowed but daily-budgeted,
-                circuit-broken, tier-tagged, and gated behind explicit risk
-                acknowledgment. The mode persists in{' '}
+                construction, no scraping at all. <code>standard</code>: the
+                scraping tier requires explicit risk acknowledgment and keeps
+                budgets, circuit-breaker, and tier tags. No live board scrapes;
+                Glassdoor remains a locked stub. The mode persists in{' '}
                 <code>compliance.json</code>.
               </p>
             </div>
