@@ -29,7 +29,7 @@ const spec: PageSpec = {
       icon: 'chat',
       tone: '',
       title: 'Your channels',
-      body: 'Drafts can render for chat and WhatsApp. Gmail send is HOLD without hatch_gws_cli (external, not publicly distributed). Each downstream user connects their own accounts when a bridge exists.',
+      body: 'Drafts can render for chat and WhatsApp. Gmail send is unavailable without hatch_gws_cli (external, not publicly distributed). Each downstream user connects their own accounts when a bridge exists.',
     },
   ],
   demoTitle: 'Drafting a follow-up',
