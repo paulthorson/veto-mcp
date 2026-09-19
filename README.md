@@ -124,7 +124,7 @@ Or point any MCP client at it — ready-to-paste config in
 |---|---|
 | `search_jobs(query, location, board="all", limit=10, remote_only=False)` | Search postings. Returns jobs with `id`, `title`, `company`, `location`, `url`, `board`, `snippet`. |
 | `get_job_details(job_id)` | Full description, requirements, and `apply_url` for one job. |
-| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 records the application locally (default), or Phase 2 fills the form in headless Chromium when `JOB_MCP_BROWSER_APPLY=1` and a `profile` dict are provided — then stops at the review screen so you can click submit yourself. `profile` defaults to your saved wizard profile. The software never submits. |
+| `apply_to_job(job_id, resume_path, cover_letter="", answers={}, confirm=False, profile=None, headless=True)` | **Dry-run preview by default.** With `confirm=True`: Phase 1 records the application locally (default), or Phase 2 fills the form in headless Chromium when `VETO_BROWSER_APPLY=1` (or the `JOB_MCP_BROWSER_APPLY` alias) and a `profile` dict are provided — then stops at the review screen so you can click submit yourself. `profile` defaults to your saved wizard profile. The software never submits. |
 | `get_profile()` | Returns the applicant profile saved by the onboarding wizard (`profiles/profile.json`), or setup instructions if it doesn't exist yet. |
 | `list_boards()` | Supported boards and their status (`active` / `stub`). |
 | `track_applications()` | Everything recorded in `applications.json`. |
@@ -213,15 +213,21 @@ python3 -m venv .venv
 
 ## Web site
 
-The repo also ships a React/Vite site in `site/` (marketing pages and
-docs). Its design-system CSS is vendored in `site/src/vendor/` — no
-sibling checkout or private package needed. Build it with:
+The public marketing site is **https://www.vetomcp.com/** (measured:
+apex `vetomcp.com` responds `308` → `https://www.vetomcp.com/`; www
+serves `200` with canonical `https://www.vetomcp.com/`). Sources live in
+`site/` (React/Vite). Design-system CSS is vendored in `site/src/vendor/`
+— no sibling checkout or private package needed. Build it with:
 
 ```bash
 cd site
 npm install
 npm run build   # tsc -b && vite build → site/dist/
 ```
+
+Live claims that must stay aligned with this README: four official-API
+boards (Greenhouse, Lever, Ashby, Adzuna), fill-only apply, and contact
+`hello@vetomcp.com` on privacy / security surfaces.
 
 ## Run
 
@@ -377,8 +383,10 @@ headless Chromium. It never submits:
 ```bash
 .venv/bin/pip install -r requirements.txt   # includes playwright
 .venv/bin/python -m playwright install chromium
-export JOB_MCP_BROWSER_APPLY=1
+export VETO_BROWSER_APPLY=1
 ```
+
+(`JOB_MCP_BROWSER_APPLY=1` remains accepted as an alias.)
 
 > **Note:** if the Chromium binary download fails on your network, browser
 > mode degrades gracefully — `browser_apply` returns an error dict when the
@@ -405,8 +413,9 @@ apply_to_job(
 )
 ```
 
-Without `JOB_MCP_BROWSER_APPLY=1`, `confirm=True` keeps the Phase 1
-behavior (local log only + direct `apply_url` for manual submission).
+Without `VETO_BROWSER_APPLY=1` (or the `JOB_MCP_BROWSER_APPLY` alias),
+`confirm=True` keeps the Phase 1 behavior (local log only + direct
+`apply_url` for manual submission).
 
 Screenshots land in `veto-mcp/screenshots/` (pre-fill preview and a
 post-fill shot). Each confirmed Phase 2 attempt appends to

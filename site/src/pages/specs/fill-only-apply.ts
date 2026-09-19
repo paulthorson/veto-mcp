@@ -23,7 +23,7 @@ const spec: PageSpec = {
       icon: 'globe',
       tone: '',
       title: 'Browser mode is opt-in',
-      body: 'Full browser form-filling needs JOB_MCP_BROWSER_APPLY=1 plus your explicit confirm. Checkboxes and radio buttons (attestations, EEO) are deliberately left for the human, and every step is screenshotted for review.',
+      body: 'Full browser form-filling is opt-in: set the browser-apply environment flag (see the README) and pass your explicit confirm. Checkboxes and radio buttons (attestations, EEO) are deliberately left for the human, and every step is screenshotted for review.',
     },
     {
       icon: 'x',

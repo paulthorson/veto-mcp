@@ -4,8 +4,9 @@ Directive §8 (execute.md). Commit observed: `22b2a4d`
 ("feedback: local capture only, no automated send (directive §5, Rule 2)").
 Date of observation: 2026-09-14.
 
-Note: runtime observation was performed at `22b2a4d`; commits since are
-documentation-only and do not change runtime behavior.
+Note: runtime observation was performed at `22b2a4d`. Later commits may
+change runtime behavior; treat findings below as pinned to that SHA, not
+as a claim that the tree has been docs-only since.
 
 Method: a clean worktree of HEAD was created at `~/workspace/capability-tree`
 and all runtime observation was done there, under a socket-logging harness
