@@ -1228,7 +1228,7 @@ export default function App() {
         ? `${spec.title} - Veto`
         : 'Not found - Veto';
     } else {
-      document.title = 'Veto - the AI job applier that says no';
+      document.title = 'Veto — fill forms, never submit';
     }
   }, [hash]);
 
