@@ -149,10 +149,12 @@ const MODULE_GROUPS: ToolGroup[] = [
   {
     label: 'Win',
     tools: [
-      { name: 'referrals / network', desc: 'Referral radar mines your LinkedIn export for target-company insiders; the CRM tracks touches, nudges the stale, and traces warm paths.' },
+      { name: 'referrals', desc: 'Referral radar: insiders at your target companies from your own connections, with warm-path tracing to reach them.' },
+      { name: 'network_crm', desc: 'Network CRM: contacts, interaction history, and warm paths, with a nudge list ranked by staleness.' },
       { name: 'followups', desc: 'Stage-aware follow-up drafts for stale entries. Sending needs your exact approval of recipient, subject, and body.' },
       { name: 'offers', desc: 'Four-year total compensation, adjustable weighted scoring, and what would need to be true for each offer to win.' },
       { name: 'autopsy', desc: 'Rejection autopsy: funnel leak by stage, ghosting rate, and a diagnosis mapped to the module that fixes it.' },
+      { name: 'skill_gaps', desc: 'Skill-gap planner: the misses that keep costing you, ranked by frequency, each mapped to the lesson that closes it.' },
       { name: 'streaks', desc: 'Log reps, keep streaks, hit daily goals, and export share cards built only from real logged numbers.' },
     ],
   },
@@ -393,7 +395,7 @@ export default function DocsPage() {
               New modules
             </Heading>
             <p className="section-sub">
-              The playbooks: eighteen modules around the engine, grouped by
+              The playbooks: seventeen modules around the engine, grouped by
               phase. Same contract everywhere: nothing invented,
               nothing sent without you.
             </p>
