@@ -215,7 +215,7 @@ const FEATURES = [
     icon: 'question',
     tone: 'red',
     title: 'The grill',
-    body: 'Before anything moves, Veto interrogates you: missing skills, unquantified wins, salary, logistics. Over chat, WhatsApp, or Gmail. The application waits for your answers.',
+    body: 'Before anything moves, Veto interrogates you: missing skills, unquantified wins, salary, logistics. Chat works by default; WhatsApp when bridged. The application waits for your answers.',
   },
   {
     slug: 'tailoring',
@@ -243,7 +243,7 @@ const FEATURES = [
     icon: 'envelope',
     tone: '',
     title: 'Recruiter email sync',
-    body: 'Recruiter emails classified, application stages auto-updated, follow-up drafts written. Sending always needs your confirm.',
+    body: 'When a Gmail CLI bridge is available, recruiter mail can be classified and follow-ups drafted. On a clean install that bridge is not included — hold. Sending always needs your confirm.',
   },
   {
     slug: 'interview-prep',
@@ -265,7 +265,7 @@ const STEPS = [
   {
     n: '01',
     title: 'Build your profile',
-    body: 'Run the wizard once. Import your LinkedIn export or answer a few questions. Pick how Veto reaches you: chat, WhatsApp, or Gmail.',
+    body: 'Run the wizard once. Import your LinkedIn export or answer a few questions. Chat is the default grill channel; WhatsApp when you bridge it.',
   },
   {
     n: '02',
@@ -495,7 +495,7 @@ const FAQS = [
   },
   {
     q: 'What is the grill?',
-    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. They arrive over chat, WhatsApp, or Gmail (your choice in the wizard). Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
+    a: 'Before a confirmed application proceeds, Veto asks you deterministic questions derived from the gaps between the posting and your profile: missing skills, unquantified experience, salary, logistics, motivation. Chat is the default channel; WhatsApp works when bridged. A Gmail grill path exists in code but needs an external CLI that is not publicly distributed, so it is non-functional on a clean install. Answer however you like, even in one compressed line; the parser handles it. Nothing moves until the grill is complete.',
   },
   {
     q: 'Will I get banned from a job board?',

@@ -1,5 +1,9 @@
 # Veto — the AI job applier that says no
 
+> **Marketing site + MCP packaging** for [www.vetomcp.com](https://www.vetomcp.com).
+> Visitor docs live on the site; this README is the install/operator surface
+> for the same distribution. Product framework: `paulthorson/veto`.
+
 > Every AI job bot promises to blast 1,000 applications while you sleep.
 > This one searches official job-board APIs, grills you over WhatsApp
 > about the gaps in your resume, tailors every application — and
