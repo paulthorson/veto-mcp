@@ -47,8 +47,8 @@ Questions are asked in the current chat — this is the default channel.
 
 ### WhatsApp
 
-The only proactive channel. You need the Muse WhatsApp side chat linked
-(1:1 user↔Muse conversation). Link it once here:
+The only proactive channel. You need the Muse app's WhatsApp side chat linked
+(1:1 user conversation). Link it once here:
 
 **https://agent.meta.ai/connect/channel?service=whatsapp**
 
