@@ -1070,7 +1070,7 @@ function HomePage({ routeHash }: { routeHash: string }) {
             </Heading>
             <p className="section-sub">
               Every other apply-bot is optimized for volume. Veto is optimized
-              for not embarrassing you. The refusals are mechanical, not vibes.
+              for not putting you at risk. The refusals are mechanical, not vibes.
               They are enforced by a governance framework with an audit trail.
             </p>
             <div className="grid gov-grid">
