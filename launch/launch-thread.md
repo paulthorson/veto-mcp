@@ -67,7 +67,7 @@ Genuine question for job seekers and hiring managers:
 
 What should an AI *never* do in your name during a job search? I'm still
 tuning the refusal list, and I'd rather hear it from you than discover it
-the embarrassing way.
+the hard way.
 
 ---
 

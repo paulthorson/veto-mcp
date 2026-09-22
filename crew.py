@@ -296,7 +296,7 @@ PERSONAS: dict[str, dict[str, Any]] = {
         "risk_tier": "low",
         "escalation_policy": (
             "Escalate (block) when you find invented claims, veto-grade job leads, "
-            "or anything that would embarrass the candidate if sent. You cannot "
+            "or anything that would put the candidate at risk if sent. You cannot "
             "approve — only the human merge authority can."
         ),
     },
