@@ -247,5 +247,67 @@ class DraftOutreachTest(unittest.TestCase):
             referrals.draft_outreach({"name": "X"}, {}, {}, kind="cold")
 
 
+class DraftUnknownContactWarningTest(unittest.TestCase):
+    """Regression tests: drafting to a name outside the connections
+    network must not be silent (probe B-13). The draft is still created
+    with rc=0, but a clear warning goes to stderr."""
+
+    _NETWORK = [
+        {"name": "Fixture Friend", "company": "FixtureSoft",
+         "title": "Engineering Manager"},
+    ]
+
+    def _run_draft(self, tmp, name, as_json=False):
+        import argparse
+        import contextlib
+        import io
+
+        json_path = _write(Path(tmp) / "conns.json", json.dumps(self._NETWORK))
+        args = argparse.Namespace(
+            draft=name,
+            csv=None,
+            connections_json=str(json_path),
+            job_title="Backend Engineer",
+            company="",
+            kind="warm",
+            json=as_json,
+            limit=10,
+        )
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = referrals.cmd_referrals(args)
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_unknown_contact_warns_on_stderr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rc, _out, err = self._run_draft(tmp, "Zoe Nobody")
+        self.assertEqual(rc, 0, "unknown-contact draft must still succeed")
+        self.assertIn("Zoe Nobody", err)
+        self.assertIn("not in your connections network", err)
+        self.assertIn("cold draft", err)
+
+    def test_unknown_contact_draft_body_has_no_shared_history(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _rc, out, _err = self._run_draft(tmp, "Zoe Nobody")
+        self.assertNotIn("we worked together", out.lower())
+        self.assertNotIn("mutual", out.lower())
+
+    def test_known_contact_emits_no_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rc, out, err = self._run_draft(tmp, "Fixture Friend")
+        self.assertEqual(rc, 0)
+        self.assertEqual(err, "", f"spurious warning: {err!r}")
+        self.assertIn("Fixture Friend", out)
+        self.assertIn("FixtureSoft", out)
+
+    def test_warning_does_not_pollute_json_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rc, out, err = self._run_draft(tmp, "Zoe Nobody", as_json=True)
+        self.assertEqual(rc, 0)
+        self.assertIn("not in your connections network", err)
+        parsed = json.loads(out)  # stdout must stay valid JSON
+        self.assertEqual(parsed["to"], "Zoe Nobody")
+
+
 if __name__ == "__main__":
     unittest.main()
