@@ -39,6 +39,28 @@ def _load_json(path: str | None) -> dict:
         return json.load(fh)
 
 
+def _load_json_cli(path: str | None, label: str) -> dict | None:
+    """Load a JSON file for a CLI command, returning None on user errors.
+
+    Prints a clean one-line error to stderr (no traceback) for missing,
+    unreadable, undecodable, or unparseable files. A None path loads as {}.
+    """
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except FileNotFoundError:
+        print(f"error: {label} file not found: {path}", file=sys.stderr)
+        return None
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        print(f"error: cannot parse {label} file {path!r}: {exc}", file=sys.stderr)
+        return None
+    except OSError as exc:
+        print(f"error: cannot read {label} file {path!r}: {exc}", file=sys.stderr)
+        return None
+
+
 def _p(path: str | None) -> Path | None:
     return Path(path) if path else None
 
@@ -59,8 +81,10 @@ def cmd_variant_create(a: argparse.Namespace) -> int:
 def cmd_variant_tailor(a: argparse.Namespace) -> int:
     import tailor as tailor_mod
 
-    profile = _load_json(a.profile)
-    job = _load_json(a.job)
+    profile = _load_json_cli(a.profile, "profile")
+    job = _load_json_cli(a.job, "job")
+    if profile is None or job is None:
+        return 2
     links = evidence_library.links_for_job(
         a.job_id, library_dir=_p(a.library_dir)) if a.job_id else None
     result = tailor_mod.tailor_with_provenance(profile, job, links)

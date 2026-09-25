@@ -215,6 +215,36 @@ class StudioE2E(unittest.TestCase):
         self.assertIn("FixtureCorp", content)
         self.assertIn("Python", content)
 
+    # -- clean user errors --------------------------------------------
+    def test_variant_tailor_missing_profile_clean_error(self):
+        missing = self.dir / "nope.json"
+        proc = self.studio(
+            "variant-tailor", "some-variant",
+            "--profile", str(missing), "--job", str(self.job))
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("profile file not found", proc.stderr)
+        self.assertIn(str(missing), proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_variant_tailor_missing_job_clean_error(self):
+        missing = self.dir / "nope-job.json"
+        proc = self.studio(
+            "variant-tailor", "some-variant",
+            "--profile", str(self.profile), "--job", str(missing))
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("job file not found", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_variant_tailor_corrupt_profile_clean_error(self):
+        corrupt = self.dir / "corrupt.json"
+        corrupt.write_text('{"not": json', encoding="utf-8")
+        proc = self.studio(
+            "variant-tailor", "some-variant",
+            "--profile", str(corrupt), "--job", str(self.job))
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("cannot parse profile file", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
     # -- ATS readiness --------------------------------------------------
     def test_ats_readiness_check(self):
         resume_file = self.dir / "resume.md"
