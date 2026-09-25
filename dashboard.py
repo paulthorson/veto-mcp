@@ -1368,4 +1368,15 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(cmd_dashboard(argparse.Namespace()))
+    # Standalone entry point: ``python dashboard.py`` runs the interactive
+    # terminal dashboard. The script historically ignored argv entirely, so
+    # ``--help``/``-h`` fell through into the interactive menu and blocked on
+    # stdin. Parse the (currently flag-less) arguments so argparse handles
+    # -h/--help itself: usage is printed and the process exits 0 without
+    # ever touching stdin. Unknown flags stay ignored, as before.
+    _parser = argparse.ArgumentParser(
+        prog="dashboard.py",
+        description="Interactive terminal dashboard for the job-application pipeline.",
+    )
+    _args, _unknown = _parser.parse_known_args()
+    sys.exit(cmd_dashboard(_args))

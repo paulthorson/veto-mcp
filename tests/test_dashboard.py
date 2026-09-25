@@ -28,9 +28,11 @@ import importlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.request
 from datetime import date, datetime, timedelta
@@ -686,6 +688,41 @@ class TerminalDashboardTests(unittest.TestCase):
         self.assertFalse(alive, "cmd_dashboard hung on EOF instead of exiting")
         self.assertNotIn("exc", outcome, f"raised: {outcome.get('exc')!r}")
         self.assertEqual(outcome.get("rc"), 0)
+
+    def test_help_flag_prints_usage_and_exits_zero_fast(self):
+        """``python dashboard.py --help`` must print usage and exit 0 fast.
+
+        Regression: the standalone script used to ignore argv entirely, so
+        --help fell through into the interactive menu and blocked on stdin
+        (~11s until killed). Now argparse handles -h/--help and exits 0
+        without ever touching stdin.
+        """
+        for flag in ("--help", "-h"):
+            with self.subTest(flag=flag):
+                start = time.monotonic()
+                proc = subprocess.run(
+                    [sys.executable, str(BASE_DIR / "dashboard.py"), flag],
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                elapsed = time.monotonic() - start
+                combined = proc.stdout + proc.stderr
+                self.assertEqual(
+                    proc.returncode, 0, f"{flag} exited {proc.returncode}: {combined!r}"
+                )
+                self.assertIn("usage:", combined.lower(), f"{flag} printed no usage")
+                self.assertNotIn(
+                    "JOB-APPLY DASHBOARD",
+                    combined,
+                    f"{flag} ran the interactive menu instead of printing help",
+                )
+                self.assertLess(
+                    elapsed,
+                    15,
+                    f"{flag} took {elapsed:.1f}s — it must not block on stdin",
+                )
 
 
 if __name__ == "__main__":
