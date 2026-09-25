@@ -30,6 +30,7 @@ import csv
 import json
 import logging
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -730,8 +731,17 @@ def cmd_referrals(args: argparse.Namespace) -> int:
                 for c in contacts
                 if args.draft.lower() in c.get("name", "").lower()
             ),
-            {"name": args.draft},
+            None,
         )
+        if contact is None:
+            # Not in the connections network: still draft (rc=0), but warn
+            # so nobody mistakes a cold draft for a warm referral path.
+            print(
+                f"warning: '{args.draft}' is not in your connections network — "
+                "this will be a cold draft, not a warm referral.",
+                file=sys.stderr,
+            )
+            contact = {"name": args.draft}
         draft = draft_outreach(
             contact,
             {"title": args.job_title or "", "company": args.company or ""},
