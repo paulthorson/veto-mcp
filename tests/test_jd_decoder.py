@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -262,6 +265,35 @@ class TestPluginWiring(unittest.TestCase):
         mapping = jd_decoder.register_cli(sub)
         args = argparse.Namespace(text="", file=None, verdict=False, json=False)
         self.assertEqual(mapping["decode-jd"](args), 2)
+
+    def _cli_with_file(self, file):
+        parser = argparse.ArgumentParser()
+        sub = parser.add_subparsers()
+        mapping = jd_decoder.register_cli(sub)
+        args = argparse.Namespace(
+            text="", file=file, verdict=False, json=False)
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            rc = mapping["decode-jd"](args)
+        return rc, buf.getvalue()
+
+    def test_cli_binary_file_clean_error(self):
+        # Raw tracebacks must never reach the user; binary input gets a
+        # one-line stderr error and a non-zero exit.
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "bad.bin"
+            bad.write_bytes(b"\x89PNG\r\n\x1a\n\x97\x98\x99 binary \xff\xfe")
+            rc, stderr = self._cli_with_file(str(bad))
+            self.assertEqual(rc, 2)
+            self.assertIn("cannot decode", stderr)
+            self.assertIn(str(bad), stderr)
+            self.assertNotIn("Traceback", stderr)
+
+    def test_cli_missing_file_clean_error(self):
+        rc, stderr = self._cli_with_file("/tmp/definitely-not-here-xyz.txt")
+        self.assertEqual(rc, 2)
+        self.assertIn("file not found", stderr)
+        self.assertNotIn("Traceback", stderr)
 
 
 if __name__ == "__main__":
