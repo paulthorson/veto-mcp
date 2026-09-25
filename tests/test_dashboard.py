@@ -228,6 +228,78 @@ class ComputeKpisEmptyTests(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_COMPUTE_KPIS, "dashboard_data.compute_kpis not built yet")
+class ComputeKpisCorruptTests(unittest.TestCase):
+    """Corrupt state files must surface an error naming the file.
+
+    Regression: corrupt JSON was silently swallowed and rendered as
+    all-zero KPIs, indistinguishable from "no data yet".
+    """
+
+    def _corrupt_state(self, tmp, **files):
+        root = Path(tmp)
+        for name, content in files.items():
+            (root / name).write_text(content, encoding="utf-8")
+        return root
+
+    def test_corrupt_applications_raises_corrupt_data_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._corrupt_state(tmp, **{"applications.json": "{broken"})
+            with self.assertRaises(dashboard_data.CorruptDataError) as ctx:
+                dashboard_data.compute_kpis(root)
+        self.assertIn("applications.json", str(ctx.exception))
+
+    def test_corrupt_streaks_raises_naming_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._corrupt_state(tmp, **{"streaks.json": "not json at all"})
+            with self.assertRaises(dashboard_data.CorruptDataError) as ctx:
+                dashboard_data.compute_kpis(root)
+        self.assertIn("streaks.json", str(ctx.exception))
+
+    def test_corrupt_offers_raises_naming_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._corrupt_state(tmp, **{"offers.json": "[1, 2,"})
+            with self.assertRaises(dashboard_data.CorruptDataError) as ctx:
+                dashboard_data.compute_kpis(root)
+        self.assertIn("offers.json", str(ctx.exception))
+
+    def test_missing_files_still_degrade_to_zeros(self):
+        # A missing file is "no data yet", not corruption: must NOT raise.
+        with tempfile.TemporaryDirectory() as tmp:
+            kpis = dashboard_data.compute_kpis(Path(tmp))
+        _assert_all_zeros(self, kpis)
+
+    def test_corrupt_data_error_is_value_error_subclass(self):
+        self.assertTrue(issubclass(dashboard_data.CorruptDataError, ValueError))
+
+    def test_print_kpis_renders_error_naming_corrupt_file(self):
+        # Terminal dashboard must show a visible error naming the file,
+        # not an all-zero KPI row.
+        if dashboard is None:
+            self.skipTest("dashboard module not importable")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._corrupt_state(tmp, **{"applications.json": "{broken"})
+            buf = io.StringIO()
+            with mock.patch.object(dashboard, "REPO_DIR", root), \
+                    contextlib.redirect_stdout(buf):
+                dashboard.print_kpis()
+        out = buf.getvalue()
+        self.assertIn("applications.json", out)
+        self.assertIn("corrupt", out.lower())
+        self.assertNotIn("Applications: 0", out)
+
+    def test_print_kpis_empty_dir_shows_zero_row(self):
+        # No state at all: normal empty-state KPI row must still render.
+        if dashboard is None:
+            self.skipTest("dashboard module not importable")
+        with tempfile.TemporaryDirectory() as tmp:
+            buf = io.StringIO()
+            with mock.patch.object(dashboard, "REPO_DIR", Path(tmp)), \
+                    contextlib.redirect_stdout(buf):
+                dashboard.print_kpis()
+        self.assertIn("Applications: 0", buf.getvalue())
+
+
+@unittest.skipUnless(HAS_COMPUTE_KPIS, "dashboard_data.compute_kpis not built yet")
 class ComputeKpisFixtureTests(unittest.TestCase):
     """Fixture state -> correct counts."""
 

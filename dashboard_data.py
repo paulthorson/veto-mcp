@@ -1,9 +1,12 @@
 """KPI snapshot for the Veto terminal dashboard (stdlib only).
 
 ``compute_kpis(root)`` reads the local JSON state stores under ``root``
-(default: this repo directory) and returns a fixed-shape dict. Missing or
-corrupt stores degrade gracefully to zeros/empties, so a fresh install
-shows a clean zero state instead of crashing.
+(default: this repo directory) and returns a fixed-shape dict. Missing
+stores degrade gracefully to zeros/empties, so a fresh install shows a
+clean zero state instead of crashing. A store file that exists but cannot
+be parsed (or read) raises :class:`CorruptDataError` so the caller can
+surface an explicit error naming the file — corruption must never look
+like no data.
 """
 
 from __future__ import annotations
@@ -49,11 +52,32 @@ _STAGE_TO_FUNNEL = {
 APPLIED_NUDGE_DAYS = 7
 
 
+class CorruptDataError(ValueError):
+    """A state-store file exists but could not be parsed or read.
+
+    Raised by :func:`_load_json` when the file is present yet its content
+    is not usable — malformed JSON or an unreadable file. A missing file
+    still yields the caller's default (fresh install = zero state), so
+    callers can distinguish "no data yet" from "data corrupt". Subclasses
+    ``ValueError`` so existing ``except ValueError`` guards keep working.
+    """
+
+    def __init__(self, path: Path, cause: Exception):
+        self.path = Path(path)
+        super().__init__(f"corrupt data file: {self.path} ({cause})")
+
+
 def _load_json(path: Path, default: object) -> object:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except FileNotFoundError:
+        # No data yet: a fresh install shows a clean zero state.
         return default
+    except (OSError, ValueError) as exc:
+        # The file exists but is unreadable or unparseable: surface it so
+        # the caller can render an explicit error naming the file instead
+        # of silently degrading to all-zero KPIs.
+        raise CorruptDataError(path, exc) from exc
 
 
 def _fit_score(entry: dict) -> float | None:
@@ -180,6 +204,9 @@ def compute_kpis(root: Path | None = None) -> dict:
 
     Keys: applications, avg_fit, streak_days, interviews, offers,
     followups_due, activity_30d, funnel.
+
+    Raises :class:`CorruptDataError` when a state-store file exists but is
+    unreadable or unparseable. Missing files degrade to zeros/empties.
     """
     root = Path(root) if root else REPO_DIR
     today = date.today()
