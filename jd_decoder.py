@@ -546,7 +546,20 @@ def cmd_decode_jd(args: Any) -> int:
     """CLI handler for `decode-jd`."""
     text = args.text or ""
     if args.file:
-        text = Path(args.file).read_text(encoding="utf-8")
+        try:
+            text = Path(args.file).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            print(f"error: file not found: {args.file}", file=sys.stderr)
+            return 2
+        except UnicodeDecodeError:
+            print(
+                f"error: cannot decode {args.file!r}: not a UTF-8 text file",
+                file=sys.stderr,
+            )
+            return 2
+        except OSError as exc:
+            print(f"error: cannot read {args.file!r}: {exc}", file=sys.stderr)
+            return 2
     if not text.strip():
         print("error: provide JD text as an argument or via --file", file=sys.stderr)
         return 2

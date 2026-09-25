@@ -207,7 +207,15 @@ def _divider(label: str = "") -> None:
 
 def print_kpis() -> None:
     """Print the KPI header row from dashboard_data.compute_kpis()."""
-    k = dashboard_data.compute_kpis(REPO_DIR)
+    try:
+        k = dashboard_data.compute_kpis(REPO_DIR)
+    except dashboard_data.CorruptDataError as exc:
+        # A state-store file exists but is corrupt: name it loudly instead
+        # of rendering all-zero KPIs, which would look like a fresh install.
+        print(vt.paint("danger", f"  !! Data file corrupt: {exc.path.name}"))
+        print("  The file could not be parsed, so KPIs are unavailable.")
+        print(f"  Fix or remove it, then re-run. ({exc})")
+        return
     avg = f"{k['avg_fit']:.0f}" if k["avg_fit"] is not None else "—"
     print(
         f"Applications: {vt.paint('display', str(k['applications']))}  |  "
@@ -1368,4 +1376,15 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(cmd_dashboard(argparse.Namespace()))
+    # Standalone entry point: ``python dashboard.py`` runs the interactive
+    # terminal dashboard. The script historically ignored argv entirely, so
+    # ``--help``/``-h`` fell through into the interactive menu and blocked on
+    # stdin. Parse the (currently flag-less) arguments so argparse handles
+    # -h/--help itself: usage is printed and the process exits 0 without
+    # ever touching stdin. Unknown flags stay ignored, as before.
+    _parser = argparse.ArgumentParser(
+        prog="dashboard.py",
+        description="Interactive terminal dashboard for the job-application pipeline.",
+    )
+    _args, _unknown = _parser.parse_known_args()
+    sys.exit(cmd_dashboard(_args))

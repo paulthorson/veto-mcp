@@ -125,6 +125,39 @@ class StoreTest(unittest.TestCase):
         res = self._record(occurred_at="2026-09-14T12:00:00+00:00")
         self.assertTrue(res["appended"])
 
+    def test_double_record_without_timestamp_is_duplicate(self):
+        # Probe scenario: the same observation recorded twice with no
+        # explicit occurred_at (both default to "now", seconds apart).
+        # Record-time skew must not defeat duplicate detection.
+        first = outcomes.record_event(
+            self.events, application_id="acme:1", event_type="applied",
+            source="manual",
+        )
+        self.assertTrue(first["appended"])
+        second = outcomes.record_event(
+            self.events, application_id="acme:1", event_type="applied",
+            source="manual",
+        )
+        self.assertFalse(second["appended"])
+        self.assertEqual(
+            second["duplicate_of"], first["event"]["event_id"]
+        )
+        lines = self.events.read_text().strip().splitlines()
+        self.assertEqual(len(lines), 1)
+
+    def test_defaulted_timestamps_different_type_still_records(self):
+        outcomes.record_event(
+            self.events, application_id="acme:1", event_type="applied",
+            source="manual",
+        )
+        res = outcomes.record_event(
+            self.events, application_id="acme:1", event_type="replied",
+            source="manual",
+        )
+        self.assertTrue(res["appended"])
+        self.assertIsNone(res["duplicate_of"])
+        self.assertEqual(len(outcomes.load_events(self.events)), 2)
+
     def test_identity_key_stable(self):
         ev = outcomes.build_event(
             application_id="acme:1", event_type="applied",
@@ -516,6 +549,19 @@ class CliHandlerTest(unittest.TestCase):
                                  "--type", "applied", "--source", "manual",
                                  "--occurred-at",
                                  outcomes.load_events(self.events)[0]["occurred_at"]])
+        self.assertEqual(code2, 0)
+        self.assertIn("Duplicate", out2)
+        self.assertEqual(len(outcomes.load_events(self.events)), 1)
+
+    def test_record_twice_without_occurred_at_dedupes(self):
+        # End-to-end probe scenario: two identical CLI records (no
+        # --occurred-at, seconds apart) must not double-append.
+        code, out = self._run(["record", "--application-id", "acme:1",
+                               "--type", "applied", "--source", "manual"])
+        self.assertEqual(code, 0)
+        self.assertIn("Recorded event", out)
+        code2, out2 = self._run(["record", "--application-id", "acme:1",
+                                 "--type", "applied", "--source", "manual"])
         self.assertEqual(code2, 0)
         self.assertIn("Duplicate", out2)
         self.assertEqual(len(outcomes.load_events(self.events)), 1)

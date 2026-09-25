@@ -29,7 +29,15 @@ Schema contract (also published in ``docs/outcome-event-contract.md``):
 
 Storage is ``outcomes.jsonl`` (one JSON object per line), **append-only**:
 the writer only ever appends. Duplicates are detected by a content
-identity key and rejected, never appended twice.
+identity key and rejected, never appended twice. Identity covers the
+event's semantic content — schema version, application, type, source,
+and ``corrects`` — plus ``occurred_at`` **only when the caller supplied
+it explicitly**. A caller-defaulted ``occurred_at`` (stamped with "now"
+at record time) carries no caller information, so recording the same
+observation twice without an explicit timestamp is a duplicate even
+though the two record-time stamps differ by seconds; an explicitly
+different timestamp is a distinct event. Bookkeeping fields
+(``event_id``, ``recorded_at``) never participate in identity.
 
 Corrections are themselves events: :func:`correct_event` appends a new
 event with ``corrects`` pointing at the superseded ``event_id``.
@@ -215,21 +223,27 @@ def build_event(
     return event
 
 
-def identity_key(event: dict[str, Any]) -> str:
+def identity_key(event: dict[str, Any], *, include_occurred_at: bool = True) -> str:
     """Stable duplicate-detection key for an event.
 
-    Two events with the same schema version, application, type,
-    occurrence instant, and source are the same observation — the second
-    append is rejected as a duplicate. ``corrects`` is part of the key
-    so a correction (which supersedes an earlier event) is a distinct
-    observation, not a duplicate of the original.
+    Two events with the same schema version, application, type, source,
+    and ``corrects`` pointer are the same observation — the second
+    append is rejected as a duplicate. ``occurred_at`` joins the key
+    only when ``include_occurred_at`` is true, i.e. when the caller
+    supplied the timestamp explicitly: an explicitly different instant
+    is a distinct event, while a caller-defaulted "now" stamp carries
+    no information and must not defeat duplicate detection.
+    ``corrects`` is part of the key so a correction (which supersedes
+    an earlier event) is a distinct observation, not a duplicate of
+    the original. Bookkeeping fields (``event_id``, ``recorded_at``)
+    never participate in identity.
     """
     canonical = json.dumps(
         [
             event.get("schema_version"),
             event.get("application_id"),
             event.get("event_type"),
-            event.get("occurred_at"),
+            event.get("occurred_at") if include_occurred_at else None,
             event.get("source"),
             event.get("corrects"),
         ],
@@ -308,6 +322,12 @@ def record_event(
 ) -> dict[str, Any]:
     """Validate, deduplicate, and append an event.
 
+    Identity is the content identity key (see :func:`identity_key`):
+    ``occurred_at`` participates only when the caller supplied it, so an
+    explicitly different timestamp records a distinct event while a
+    repeated record that leaves ``occurred_at`` defaulted to "now" is a
+    duplicate no-op.
+
     Returns ``{"event": ..., "appended": True, "duplicate_of": None}`` on
     success, or ``{"event": None, "appended": False,
     "duplicate_of": <event_id>}`` when the identity key (or event_id)
@@ -318,6 +338,11 @@ def record_event(
     "after enablement" against.
     """
     events_path = Path(path) if path else default_store_path()
+    # Mirror build_event's defaulting rule: only a caller-supplied
+    # occurred_at is identity-bearing. A defaulted "now" stamp differs
+    # between two records of the same observation by mere seconds and
+    # must not defeat duplicate detection.
+    explicit_ts = bool(occurred_at)
     event = build_event(
         application_id=application_id,
         event_type=event_type,
@@ -327,13 +352,13 @@ def record_event(
         provenance=provenance,
         corrects=corrects,
     )
-    key = identity_key(event)
+    key = identity_key(event, include_occurred_at=explicit_ts)
     for existing in load_events(events_path, include_superseded=True):
         if str(existing.get("event_id")) == event["event_id"]:
             raise DuplicateEventError(
                 f"event_id {event['event_id']} already recorded"
             )
-        if identity_key(existing) == key:
+        if identity_key(existing, include_occurred_at=explicit_ts) == key:
             return {
                 "event": None,
                 "appended": False,

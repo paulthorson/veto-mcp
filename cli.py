@@ -31,6 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))  # make `import server` work from anywhere
 
 import server  # noqa: E402  (reuses all tool implementations; no logic duplicated)
+import lifecycle  # noqa: E402  (corruption report for the applications store)
 
 PROFILE_PATH = BASE_DIR / "profiles" / "profile.json"
 WIZARD_PATH = BASE_DIR / "wizard.py"
@@ -217,27 +218,36 @@ def cmd_apply(args: argparse.Namespace) -> int:
 
 
 def cmd_applications(args: argparse.Namespace) -> int:
-    apps = server.track_applications()
+    # Corrupt-store contract: stdout stays parseable (empty state), but a
+    # corrupt store is NOT an empty store — exit 1 with a human-readable
+    # stderr line so JSON consumers can detect it via the exit code. A
+    # missing store remains a clean exit-0 empty state.
+    apps, report = lifecycle.load_entries_with_report(server.APPLICATIONS_FILE)
     if args.json:
         _print_json(apps)
-        return 0
-    if not apps:
+    elif not apps:
         print("No applications recorded yet.")
-        return 0
-    _print_table(
-        ["date", "title", "company", "board", "status"],
-        [
+    else:
+        _print_table(
+            ["date", "title", "company", "board", "status"],
             [
-                _truncate((a.get("submitted_at") or "")[:10], 10),
-                _truncate(a.get("title", ""), 38),
-                _truncate(a.get("company", ""), 26),
-                a.get("board", ""),
-                a.get("status", ""),
-            ]
-            for a in apps
-        ],
-    )
-    print(f"\n{len(apps)} application(s) in {server.APPLICATIONS_FILE}")
+                [
+                    _truncate((a.get("submitted_at") or "")[:10], 10),
+                    _truncate(a.get("title", ""), 38),
+                    _truncate(a.get("company", ""), 26),
+                    a.get("board", ""),
+                    a.get("status", ""),
+                ]
+                for a in apps
+            ],
+        )
+        print(f"\n{len(apps)} application(s) in {server.APPLICATIONS_FILE}")
+    if report.get("corrupt"):
+        return _fail(
+            f"applications store {server.APPLICATIONS_FILE} was corrupt "
+            f"({report.get('reason')}); quarantined to "
+            f"{report.get('quarantined_to')} (evidence preserved)"
+        )
     return 0
 
 

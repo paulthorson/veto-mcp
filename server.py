@@ -456,6 +456,13 @@ def search_jobs(
     boards (strict mode, exhausted budget, tripped circuit breaker,
     governance veto) raise for an explicit board choice and are skipped
     for "all". See the risk_status tool for the audit surface.
+
+    Per-board fault isolation: a board that cannot be searched at all
+    (stubbed provider, missing credentials) is skipped with a warning
+    for "all" instead of aborting the whole search, and raises for an
+    explicit board choice. When *no* board was usable the search raises
+    ValueError listing every skipped board and why; otherwise the search
+    succeeds with the results from the working boards.
     """
     board = board.lower().strip()
     if board != "all" and board not in PROVIDERS:
@@ -468,6 +475,13 @@ def search_jobs(
         else [board]
     )
     results: list[dict[str, Any]] = []
+    # Per-board fault isolation: an "all" search skips boards that cannot
+    # be used (blocked by risk policy, stubbed provider, missing
+    # credentials) with a warning naming the board and the reason, and
+    # keeps aggregating results from the remaining boards. An explicit
+    # board choice still raises so the caller learns the board they asked
+    # for is unavailable.
+    skipped: list[str] = []
     for name in targets:
         # Risk gate (additive): every board search is adjudicated through
         # the risk policy (tiers, search budgets, circuit breakers, the
@@ -478,9 +492,14 @@ def search_jobs(
             _search_verdict = _risk_policy.adjudicate_search(name, query)
             if not _search_verdict.get("allowed", False):
                 _reason = _search_verdict.get("reason", "blocked by risk policy")
-                log.warning("search skipped for board %s: %s", name, _reason)
                 if board != "all":
                     raise ValueError(f"Board {name!r} is not usable: {_reason}")
+                log.warning(
+                    "search: skipping board %r for all-boards search: %s",
+                    name,
+                    _reason,
+                )
+                skipped.append(f"{name}: {_reason}")
                 continue
         provider = PROVIDERS[name]
         try:
@@ -491,9 +510,17 @@ def search_jobs(
             # NotImplementedError: documented stub boards (glassdoor).
             # RuntimeError: providers needing user credentials (adzuna
             # without ADZUNA_APP_ID/ADZUNA_APP_KEY). Surface as ValueError
-            # so the tool contract stays consistent.
-            log.warning("%s: %s", name, exc)
-            raise ValueError(f"Board {name!r} is not usable: {exc}")
+            # so the tool contract stays consistent for an explicit board
+            # choice; skip with a warning for "all".
+            if board != "all":
+                raise ValueError(f"Board {name!r} is not usable: {exc}")
+            log.warning(
+                "search: skipping board %r for all-boards search: %s",
+                name,
+                exc,
+            )
+            skipped.append(f"{name}: {exc}")
+            continue
         # Budget accounting + risk tagging.
         # Recovery streaks are recorded by the providers themselves at
         # the exact points where a genuine fetch completed (post
@@ -506,7 +533,13 @@ def search_jobs(
                 if isinstance(_job, dict):
                     _job.update(_tag)
         results.extend(_found)
-    results = results[: limit * len(targets)]
+    if skipped and len(skipped) == len(targets):
+        # Nothing could be searched at all: fail loudly so callers know
+        # no board contributed results (exit-code policy: non-zero only
+        # when no board was usable).
+        raise ValueError("No board was usable: " + "; ".join(skipped))
+    # Cap at the per-board limit for the boards that actually ran.
+    results = results[: limit * (len(targets) - len(skipped))]
 
     # Application-quality pipeline (all recall-friendly; each degrades to
     # a no-op when its module failed to import).
