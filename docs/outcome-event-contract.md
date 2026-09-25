@@ -65,7 +65,14 @@ MCP tool, or `outcomes record`.
 ## Duplicate detection
 
 Identity key = SHA-256 over canonical JSON of
-`[schema_version, application_id, event_type, occurred_at, source, corrects]`.
+`[schema_version, application_id, event_type, occurred_at, source, corrects]`,
+where `occurred_at` participates **only when the caller supplied it
+explicitly**. A caller-defaulted `occurred_at` (stamped with "now" at
+record time) carries no caller information, so recording the same
+observation twice without an explicit timestamp is a duplicate even
+though the two record-time stamps differ by seconds; an explicitly
+different timestamp is a distinct event. Bookkeeping fields
+(`event_id`, `recorded_at`) never participate in identity.
 An append whose key (or `event_id`) already exists is **rejected**, never
 double-appended. `corrects` is part of the key so a correction is a
 distinct observation, not a duplicate of the event it supersedes.

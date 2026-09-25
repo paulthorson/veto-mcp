@@ -11,9 +11,11 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import re
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -209,6 +211,61 @@ class TestStderrChatter(unittest.TestCase):
         )
         self.assertEqual(rc, 0)
         self.assertIn("a genuine error", records)
+
+
+class TestApplicationsCorruptStore(unittest.TestCase):
+    """Corrupt applications.json: stdout stays parseable, exit is non-zero.
+
+    Regression test: a malformed store used to exit 0 printing ``[]``,
+    indistinguishable from an empty store for JSON consumers. Contract:
+    the corrupt file is quarantined (never deleted), stdout keeps its
+    parseable empty shape, stderr carries a human-readable error, and
+    the process exits 1. A missing store stays a clean exit-0 empty.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.store = Path(self.tmp.name) / "applications.json"
+
+    def _run_applications(self, as_json):
+        args = argparse.Namespace(json=as_json)
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            with mock.patch.object(server, "APPLICATIONS_FILE", self.store):
+                code = cli.cmd_applications(args)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_corrupt_store_json_exits_nonzero_with_parseable_stdout(self):
+        self.store.write_text("NOT JSON AT ALL {{{", encoding="utf-8")
+        code, out, err = self._run_applications(as_json=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(out), [])  # stdout stays parseable
+        self.assertIn("corrupt", err.lower())
+        quarantined = list(
+            Path(self.tmp.name).glob("applications.json.corrupt.*")
+        )
+        self.assertEqual(len(quarantined), 1)  # evidence preserved
+
+    def test_corrupt_store_human_mode_also_exits_nonzero(self):
+        self.store.write_text("NOT JSON AT ALL {{{", encoding="utf-8")
+        code, _out, err = self._run_applications(as_json=False)
+        self.assertEqual(code, 1)
+        self.assertIn("corrupt", err.lower())
+
+    def test_missing_store_still_clean_empty(self):
+        code, out, _err = self._run_applications(as_json=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out), [])
+
+    def test_healthy_store_untouched_and_exit_zero(self):
+        self.store.write_text(
+            json.dumps([{"job_id": "x:1", "title": "T"}]), encoding="utf-8"
+        )
+        code, out, _err = self._run_applications(as_json=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)[0]["job_id"], "x:1")
+        self.assertTrue(self.store.exists())
 
 
 if __name__ == "__main__":
