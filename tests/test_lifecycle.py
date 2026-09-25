@@ -141,6 +141,34 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(rows[1]["stage"], "offer")
         self.assertEqual(rows[0]["job_id"], "linkedin:abc123")
 
+    def test_corrupt_store_quarantined_and_reported(self):
+        garbage = "NOT JSON AT ALL {{{"
+        self.store.write_text(garbage, encoding="utf-8")
+        entries, report = lifecycle.load_entries_with_report(self.store)
+        self.assertEqual(entries, [])
+        self.assertTrue(report["corrupt"])
+        self.assertIn("reason", report)
+        quarantined = Path(report["quarantined_to"])
+        self.assertTrue(quarantined.exists())
+        # Evidence preserved byte-for-byte; original moved aside, never
+        # deleted or truncated in place.
+        self.assertEqual(quarantined.read_text(encoding="utf-8"), garbage)
+        self.assertFalse(self.store.exists())
+        # load_entries keeps its legacy shape (entries only).
+        self.assertEqual(lifecycle.load_entries(self.store), [])
+
+    def test_missing_store_is_clean_empty(self):
+        entries, report = lifecycle.load_entries_with_report(self.store)
+        self.assertEqual(entries, [])
+        self.assertFalse(report["corrupt"])
+
+    def test_healthy_store_report_not_corrupt(self):
+        self._write([_sample_entry()])
+        entries, report = lifecycle.load_entries_with_report(self.store)
+        self.assertEqual(len(entries), 1)
+        self.assertFalse(report["corrupt"])
+        self.assertTrue(self.store.exists())  # healthy file untouched
+
 
 class WatchTest(unittest.TestCase):
     def setUp(self):

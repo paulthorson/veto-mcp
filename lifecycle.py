@@ -79,20 +79,79 @@ def new_entry_defaults() -> dict[str, Any]:
     }
 
 
+def _quarantine_corrupt(path: Path) -> Path:
+    """Move a corrupt store file aside; never delete evidence.
+
+    The file is renamed to ``<name>.corrupt.<UTC timestamp>`` (with a
+    numeric suffix on collision). Returns the quarantine path; if the
+    move itself fails, logs and returns ``path`` unchanged.
+    """
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    target = path.with_name(f"{path.name}.corrupt.{stamp}")
+    counter = 0
+    while target.exists():
+        counter += 1
+        target = path.with_name(f"{path.name}.corrupt.{stamp}.{counter}")
+    try:
+        path.replace(target)
+    except OSError as exc:
+        log.error("Failed to quarantine corrupt store %s: %s", path, exc)
+        return path
+    return target
+
+
+def load_entries_with_report(
+    path: Path,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Read the applications store; report whether it was corrupt.
+
+    Returns ``(entries, report)``. ``report`` is ``{"corrupt": False}``
+    for a healthy or missing store. When the file exists but is not
+    parseable JSON, it is quarantined to
+    ``<name>.corrupt.<UTC timestamp>`` (never deleted — evidence is
+    preserved), an error is logged, ``[]`` is returned, and ``report``
+    is ``{"corrupt": True, "quarantined_to": <path>, "reason": <parse
+    error>}`` so callers can surface a machine-detectable signal: a
+    bare ``[]`` is indistinguishable from a genuinely empty store. The
+    file is never rewritten here.
+    """
+    path = Path(path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError) as exc:
+        log.warning("Could not read %s: %s", path, exc)
+        return [], {"corrupt": False}
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError as exc:
+        target = _quarantine_corrupt(path)
+        log.error(
+            "Applications store %s is corrupt (%s); quarantined to %s",
+            path,
+            exc,
+            target,
+        )
+        return [], {
+            "corrupt": True,
+            "quarantined_to": str(target),
+            "reason": str(exc),
+        }
+    if not isinstance(raw, list):
+        log.warning("Applications store %s is not a list; ignoring", path)
+        return [], {"corrupt": False}
+    entries = [backfill_entry(e) if isinstance(e, dict) else e for e in raw]
+    return entries, {"corrupt": False}
+
+
 def load_entries(path: Path) -> list[dict[str, Any]]:
     """Read the applications store, backfilling lifecycle fields in memory.
 
-    The file is never rewritten here.
+    The file is never rewritten here. A corrupt (unparseable) file is
+    quarantined, not deleted — see :func:`load_entries_with_report` for
+    the machine-readable corruption report.
     """
-    try:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
-        log.warning("Could not read %s: %s", path, exc)
-        return []
-    if not isinstance(raw, list):
-        log.warning("Applications store %s is not a list; ignoring", path)
-        return []
-    return [backfill_entry(e) if isinstance(e, dict) else e for e in raw]
+    entries, _report = load_entries_with_report(path)
+    return entries
 
 
 def save_entries(path: Path, entries: list[dict[str, Any]]) -> None:
