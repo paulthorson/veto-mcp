@@ -341,7 +341,10 @@ class TestRequestHygiene(unittest.TestCase):
         def _boom(*args, **kwargs):
             raise ConnectionError("simulated network failure")
 
-        with mock.patch.object(provider_common, "make_client") as make_client:
+        with mock.patch.object(provider_common, "make_client") as make_client, mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[__import__("ipaddress").ip_address("93.184.216.34")],
+        ):
             make_client.return_value.__enter__.side_effect = _boom
             self.assertFalse(
                 robots_allows("test", "https://example.com/jobs/1")
@@ -354,11 +357,15 @@ class TestRequestHygiene(unittest.TestCase):
         client = mock.MagicMock()
         client.__enter__.return_value = client
         client.get.return_value = resp
+        resp.url = "https://example.com/robots.txt"
         with mock.patch.object(
             provider_common, "make_client", return_value=client
         ), mock.patch(
             "urllib.robotparser.RobotFileParser.parse",
             side_effect=ValueError("simulated parse failure"),
+        ), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[__import__("ipaddress").ip_address("93.184.216.34")],
         ):
             self.assertFalse(
                 robots_allows("test", "https://example.com/jobs/1")

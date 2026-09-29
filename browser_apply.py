@@ -84,6 +84,41 @@ from providers._common import VETO_USER_AGENT
 from url_policy import destination_error
 
 
+def navigation_hop_urls(apply_url: str, response: Any, page: Any) -> list[str]:
+    """Start URL, Playwright redirect chain, and final page URL."""
+    urls: list[str] = [apply_url]
+    req = getattr(response, "request", None) if response is not None else None
+    chain: list[str] = []
+    while req is not None:
+        hop = getattr(req, "url", None)
+        if hop:
+            chain.append(str(hop))
+        req = getattr(req, "redirected_from", None)
+    urls.extend(reversed(chain))
+    extra = getattr(page, "navigation_hops", None)
+    if extra:
+        urls.extend(str(u) for u in extra)
+    final = getattr(page, "url", None)
+    if final:
+        urls.append(str(final))
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in urls:
+        if item and item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def confirm_apply_hops(urls: list[str]) -> str | None:
+    """Refuse if any navigation hop is a blocked destination."""
+    for hop in urls:
+        err = destination_error(str(hop), allow_file=True)
+        if err:
+            return err
+    return None
+
+
 def confirm_apply_landing(page: Any, apply_url: str) -> str | None:
     """Refuse a landed apply page whose final URL is a blocked destination."""
     final_url = getattr(page, "url", apply_url) or apply_url
@@ -1241,16 +1276,35 @@ def apply_via_browser(
             }
             context = browser.new_context(**context_kwargs)
             page = context.new_page()
+            nav_hops: list[str] = []
+
+            def _on_request(req: Any) -> None:
+                is_nav = getattr(req, "is_navigation_request", None)
+                if callable(is_nav) and not is_nav():
+                    return
+                hop = getattr(req, "url", None)
+                if hop:
+                    nav_hops.append(str(hop))
+
+            if hasattr(page, "on"):
+                page.on("request", _on_request)
+            response = None
             try:
-                page.goto(apply_url, wait_until="domcontentloaded", timeout=timeout_ms)
+                response = page.goto(
+                    apply_url, wait_until="domcontentloaded", timeout=timeout_ms
+                )
             except Exception as exc:
                 result["error"] = f"Navigation to apply_url failed: {exc}"
                 return result
 
-            landed = confirm_apply_landing(page, apply_url)
+            if nav_hops:
+                page.navigation_hops = nav_hops
+            hop_err = confirm_apply_hops(
+                navigation_hop_urls(apply_url, response, page)
+            )
             result["final_url"] = getattr(page, "url", apply_url) or apply_url
-            if landed:
-                result["error"] = landed
+            if hop_err:
+                result["error"] = hop_err
                 return result
 
             dismiss_consent_banners(page)

@@ -37,6 +37,15 @@ class DestinationTest(unittest.TestCase):
         ):
             self.assertIsNotNone(url_policy.destination_error(url), url)
 
+    def test_this_network_and_cgnat_blocked(self):
+        for url in (
+            "http://0.0.0.0/",
+            "http://0.1.2.3/",
+            "http://100.64.0.1/",
+            "http://100.127.255.1/",
+        ):
+            self.assertIsNotNone(url_policy.destination_error(url), url)
+
     def test_file_scheme_blocked_by_default(self):
         self.assertIsNotNone(url_policy.destination_error("file:///etc/passwd"))
 
@@ -51,6 +60,70 @@ class DestinationTest(unittest.TestCase):
             self.assertIsNone(
                 url_policy.destination_error("https://careers.example.com/j/1")
             )
+
+
+class PinRequestTest(unittest.TestCase):
+    def test_rewrites_hostname_to_checked_ip_and_sets_host(self):
+        import ipaddress
+
+        with mock.patch.object(
+            url_policy,
+            "resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            connect, headers, err = url_policy.pin_request(
+                "https://careers.example.com/j/1"
+            )
+        self.assertIsNone(err)
+        self.assertEqual(connect, "https://93.184.216.34/j/1")
+        self.assertEqual(headers.get("Host"), "careers.example.com")
+
+    def test_public_ip_literal_is_unchanged(self):
+        connect, headers, err = url_policy.pin_request("https://1.2.3.4/x")
+        self.assertIsNone(err)
+        self.assertEqual(connect, "https://1.2.3.4/x")
+        self.assertEqual(headers, {})
+
+    def test_private_destination_is_not_pinned(self):
+        connect, headers, err = url_policy.pin_request("http://127.0.0.1/")
+        self.assertIsNotNone(err)
+        self.assertEqual(connect, "")
+        self.assertEqual(headers, {})
+
+    def test_this_network_and_cgnat_are_not_pinned(self):
+        for url in (
+            "http://0.0.0.0/",
+            "http://100.64.0.1/",
+        ):
+            connect, _headers, err = url_policy.pin_request(url)
+            self.assertIsNotNone(err, url)
+            self.assertEqual(connect, "")
+
+    def test_client_get_never_omits_follow_redirects_false(self):
+        seen: list[bool | None] = []
+
+        class _Picky:
+            def get(self, url, follow_redirects=None, **kwargs):
+                if kwargs:
+                    raise TypeError("unexpected kwargs")
+                seen.append(follow_redirects)
+                return object()
+
+        url_policy.client_get_no_redirect(
+            _Picky(), "https://example.com/", headers={"Host": "example.com"},
+            extensions={"sni_hostname": "example.com"},
+        )
+        self.assertEqual(seen, [False])
+
+    def test_client_get_refuses_auto_follow_fallback(self):
+        class _Auto:
+            def get(self, url, **kwargs):
+                if "follow_redirects" in kwargs:
+                    raise TypeError("no follow_redirects")
+                raise AssertionError("must not fall back to auto-follow")
+
+        with self.assertRaises(TypeError):
+            url_policy.client_get_no_redirect(_Auto(), "https://example.com/")
 
 
 class PathConfineTest(unittest.TestCase):

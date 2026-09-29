@@ -6,4 +6,4 @@ Plain-English notes on what changed in Veto, most recent first.
 
 Initial public release of Veto MCP.
 
-Listing fetches and apply-page navigation refuse private and metadata destinations. Application CSV exports and saved HTML files stay inside the workspace. Webhook delivery requires an explicit https host list. Python packages are pinned to exact versions.
+Listing fetches, robots.txt checks, apply-page hops, and webhook delivery refuse private and metadata destinations. Each outbound connect uses an address that already passed that check, so the hostname cannot change between the check and the request. Application CSV exports and saved HTML files stay inside the workspace. Webhook delivery requires an explicit https host list and does not follow a redirect until the next URL passes the same rules. Python packages are pinned to exact versions.

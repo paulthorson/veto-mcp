@@ -60,10 +60,13 @@ class _FakeClient:
         self.location = location
         self.final_url = final_url
         self.requests: list[str] = []
+        self.headers_seen: list[dict] = []
         self.closed = False
 
-    def get(self, url, follow_redirects=False):
+    def get(self, url, follow_redirects=False, headers=None, extensions=None):
+        assert follow_redirects is False
         self.requests.append(url)
+        self.headers_seen.append(headers or {})
         return _FakeResponse(
             self.html,
             self.status_code,
@@ -204,7 +207,9 @@ class UrlFetchTest(ByolStoreTest):
         client = _FakeClient(html)
         fetched = byol.fetch_url("https://careers.example.com/j/123", client=client)
         self.assertIn("html", fetched)
-        self.assertEqual(client.requests, ["https://careers.example.com/j/123"])
+        self.assertEqual(len(client.requests), 1)
+        self.assertIn("93.184.216.34", client.requests[0])
+        self.assertEqual(client.headers_seen[0].get("Host"), "careers.example.com")
         listing = byol.parse_html(fetched["html"], source_url="https://careers.example.com/j/123")
         self.assertEqual(listing["title"], "Senior Platform Engineer")
         self.assertEqual(listing["company"], "Initech")
@@ -298,8 +303,39 @@ class UrlFetchTest(ByolStoreTest):
         )
         result = byol.fetch_url("https://careers.example.com/j/1", client=client)
         self.assertIn("error", result)
-        self.assertEqual(client.requests, ["https://careers.example.com/j/1"])
+        self.assertEqual(len(client.requests), 1)
+        self.assertIn("93.184.216.34", client.requests[0])
+        self.assertNotIn("127.0.0.1", client.requests[0])
         self.assertNotIn("http://127.0.0.1/secret", client.requests)
+
+    def test_this_network_and_cgnat_refused(self):
+        for url in ("http://0.0.0.0/", "http://100.64.0.1/job"):
+            client = _FakeClient("<html></html>")
+            result = byol.fetch_url(url, client=client)
+            self.assertIn("error", result, url)
+            self.assertEqual(client.requests, [])
+
+    def test_client_get_typeerror_fallback_never_auto_follows(self):
+        seen: list[bool | None] = []
+
+        class _Picky:
+            def get(self, url, follow_redirects=None, **kwargs):
+                if kwargs:
+                    raise TypeError("unexpected kwargs")
+                seen.append(follow_redirects)
+                return _FakeResponse("<html></html>")
+
+        byol._client_get(_Picky(), "https://careers.example.com/", headers={"Host": "x"})
+        self.assertEqual(seen, [False])
+
+        class _Auto:
+            def get(self, url, **kwargs):
+                if "follow_redirects" in kwargs:
+                    raise TypeError("no follow_redirects")
+                raise AssertionError("must not fall back to auto-follow")
+
+        with self.assertRaises(TypeError):
+            byol._client_get(_Auto(), "https://careers.example.com/")
 
 
 class ProviderHandoffTest(ByolStoreTest):

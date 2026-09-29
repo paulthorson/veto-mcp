@@ -20,6 +20,12 @@ from typing import Any
 import httpx
 from bs4 import BeautifulSoup
 
+from url_policy import (
+    client_get_no_redirect,
+    destination_error,
+    follow_checked_hops,
+)
+
 log = logging.getLogger("veto-mcp.providers")
 
 #: Project version, matching the ``vX.Y.Z`` git tags and the ``__version__``
@@ -112,10 +118,35 @@ def robots_allows(board: str, url: str, timeout: float = 5.0) -> bool:
         body = cached[1]
     else:
         body = None
+        robots_url = host + "/robots.txt"
+        blocked = destination_error(robots_url)
+        if blocked:
+            log.debug("robots.txt destination refused for %s: %s", host, blocked)
+            _robots_cache[host] = (now, None)
+            return False
         try:
-            with make_client(timeout=timeout) as client:
-                resp = client.get(host + "/robots.txt")
-                if resp.status_code == 200 and resp.text:
+            with make_client(timeout=timeout, follow_redirects=False) as client:
+
+                def _do_request(
+                    connect_url: str,
+                    extra_headers: dict,
+                    extensions: dict,
+                    _logical: str,
+                ):
+                    try:
+                        return client_get_no_redirect(
+                            client, connect_url, extra_headers, extensions
+                        )
+                    except TypeError:
+                        return client_get_no_redirect(
+                            client, connect_url, extra_headers
+                        )
+
+                resp, hop_err = follow_checked_hops(robots_url, _do_request)
+                if hop_err:
+                    log.debug("robots.txt hop refused for %s: %s", host, hop_err)
+                    resp = None
+                if resp is not None and resp.status_code == 200 and resp.text:
                     body = resp.text
         except Exception as exc:
             log.debug("robots.txt fetch failed for %s: %s", host, exc)

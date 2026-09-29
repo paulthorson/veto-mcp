@@ -7,11 +7,13 @@ dependence (env vars monkeypatched), log file redirected to a temp dir.
 Run:  cd ~/workspace/veto-mcp && python3 -m unittest discover -s tests -v
 """
 
+import ipaddress
 import json
 import os
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -164,15 +166,20 @@ class TestSend(unittest.TestCase):
         prefs = self._enabled_prefs("webhook")
         captured = {}
 
-        def fake_urlopen(req, timeout=None):
+        def fake_open(req, timeout=None):
             captured["url"] = req.full_url
+            captured["host"] = req.get_header("Host")
             captured["payload"] = json.loads(req.data.decode("utf-8"))
             return _FakeResponse(200)
 
-        with mock.patch("urllib.request.urlopen", fake_urlopen):
+        with mock.patch.object(notify, "_open_http", fake_open), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
             result = notify.send("T", "B", prefs=prefs)
         self.assertEqual(result["delivered_via"], ["log", "webhook"])
-        self.assertEqual(captured["url"], "https://example.com/hook")
+        self.assertEqual(captured["url"], "https://93.184.216.34/hook")
+        self.assertEqual(captured["host"], "example.com")
         self.assertEqual(captured["payload"]["title"], "T")
         self.assertEqual(captured["payload"]["body"], "B")
 
@@ -184,6 +191,11 @@ class TestSend(unittest.TestCase):
         prefs = self._enabled_prefs("ntfy", "webhook")
         with mock.patch(
             "urllib.request.urlopen", return_value=_FakeResponse(200)
+        ), mock.patch.object(
+            notify, "_open_http", return_value=_FakeResponse(200)
+        ), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
         ):
             ntfy_only = notify.send("T", "B", channel="ntfy", prefs=prefs)
             webhook_only = notify.send("T", "B", channel="webhook", prefs=prefs)
@@ -199,7 +211,9 @@ class TestSend(unittest.TestCase):
         def boom(req, timeout=None):
             raise OSError("network down")
 
-        with mock.patch("urllib.request.urlopen", boom):
+        with mock.patch("urllib.request.urlopen", boom), mock.patch.object(
+            notify, "_open_http", boom
+        ):
             result = notify.send("T", "B", prefs=prefs)  # must not raise
         self.assertEqual(result, {"ok": True, "delivered_via": ["log"]})
 
@@ -242,7 +256,9 @@ class TestSend(unittest.TestCase):
             called.append(req.full_url)
             raise AssertionError("must not POST when allowlist is empty")
 
-        with mock.patch("urllib.request.urlopen", boom):
+        with mock.patch("urllib.request.urlopen", boom), mock.patch.object(
+            notify, "_open_http", boom
+        ):
             result = notify.send("T", "B", prefs=prefs)
         self.assertEqual(result["delivered_via"], ["log"])
         self.assertTrue(result.get("sink_warnings"))
@@ -256,7 +272,9 @@ class TestSend(unittest.TestCase):
         def boom(req, timeout=None):
             raise AssertionError("must not POST a refused webhook")
 
-        with mock.patch("urllib.request.urlopen", boom):
+        with mock.patch("urllib.request.urlopen", boom), mock.patch.object(
+            notify, "_open_http", boom
+        ):
             os.environ["JOB_MCP_WEBHOOK"] = "http://example.com/hook"
             result = notify.send("T", "B", prefs=prefs)
             self.assertEqual(result["delivered_via"], ["log"])
@@ -275,9 +293,106 @@ class TestSend(unittest.TestCase):
         def boom(req, timeout=None):
             raise AssertionError("must not POST a host outside the allowlist")
 
-        with mock.patch("urllib.request.urlopen", boom):
+        with mock.patch("urllib.request.urlopen", boom), mock.patch.object(
+            notify, "_open_http", boom
+        ):
             result = notify.send("T", "B", prefs=prefs)
         self.assertEqual(result["delivered_via"], ["log"])
+
+    def test_webhook_redirect_to_private_is_refused(self):
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
+        calls: list[str] = []
+
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            raise urllib.error.HTTPError(
+                req.full_url,
+                302,
+                "Found",
+                {"location": "https://127.0.0.1/hook"},
+                None,
+            )
+
+        with mock.patch.object(notify, "_open_http", fake_open), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            ok = notify._post_webhook("https://example.com/hook", "T", "B")
+        self.assertFalse(ok)
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("127.0.0.1", calls[0])
+
+    def test_webhook_redirect_to_imds_is_refused(self):
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
+        calls: list[str] = []
+
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            raise urllib.error.HTTPError(
+                req.full_url,
+                301,
+                "Moved",
+                {"location": "https://169.254.169.254/latest/meta-data"},
+                None,
+            )
+
+        with mock.patch.object(notify, "_open_http", fake_open), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            ok = notify._post_webhook("https://example.com/hook", "T", "B")
+        self.assertFalse(ok)
+        self.assertEqual(len(calls), 1)
+        self.assertNotIn("169.254", calls[0])
+
+    def test_webhook_redirect_off_allowlist_is_refused(self):
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
+        calls: list[str] = []
+
+        def fake_open(req, timeout=None):
+            calls.append(req.full_url)
+            raise urllib.error.HTTPError(
+                req.full_url,
+                302,
+                "Found",
+                {"location": "https://evil.example/hook"},
+                None,
+            )
+
+        with mock.patch.object(notify, "_open_http", fake_open), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            ok = notify._post_webhook("https://example.com/hook", "T", "B")
+        self.assertFalse(ok)
+        self.assertEqual(len(calls), 1)
+
+    def test_webhook_redirect_to_allowlisted_host_is_rechecked(self):
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com,hooks.example.com"
+        calls: list[tuple[str, str | None]] = []
+
+        def fake_open(req, timeout=None):
+            calls.append((req.full_url, req.get_header("Host")))
+            if len(calls) == 1:
+                raise urllib.error.HTTPError(
+                    req.full_url,
+                    302,
+                    "Found",
+                    {"location": "https://hooks.example.com/hook"},
+                    None,
+                )
+            return _FakeResponse(200)
+
+        with mock.patch.object(notify, "_open_http", fake_open), mock.patch(
+            "url_policy.resolve_host_ips",
+            return_value=[ipaddress.ip_address("93.184.216.34")],
+        ):
+            ok = notify._post_webhook("https://example.com/hook", "T", "B")
+        self.assertTrue(ok)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0][1], "example.com")
+        self.assertEqual(calls[1][1], "hooks.example.com")
+        self.assertTrue(all("93.184.216.34" in url for url, _ in calls))
 
     def test_setup_ntfy_warns_about_public_topics(self):
         result = notify.setup_ntfy()

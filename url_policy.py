@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Destination and workspace-path rules for outbound fetches and local files.
 
-Listing fetches, apply-page navigation, and webhook delivery share one
-check: only http(s) to a public destination. Saved HTML files and CSV
-exports must stay under the repo or the user data directory.
+Listing fetches, robots.txt checks, apply-page navigation, and webhook
+delivery share one check: only http(s) to a public destination. After
+that check, the connect is pinned to a validated IP (original hostname
+as Host / TLS SNI) so DNS cannot change between the check and the
+socket. Saved HTML files and CSV exports must stay under the repo or
+the user data directory.
 """
 
 from __future__ import annotations
@@ -29,15 +32,20 @@ BLOCKED_HOSTS = frozenset(
 )
 
 BLOCKED_NETWORKS = (
-    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("0.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("169.254.0.0/16"),
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
 )
+
+MAX_REDIRECTS = 8
+REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
 
 WEBHOOK_ALLOWED_HOSTS_ENV = "JOB_MCP_WEBHOOK_ALLOWED_HOSTS"
 DATA_DIR_ENV = "VETO_DATA_DIR"
@@ -161,6 +169,157 @@ def destination_error(url: str, *, allow_file: bool = False) -> str | None:
         if _ip_is_blocked(ip):
             return f"Refusing private or metadata destination: {host}"
     return None
+
+
+def public_connect_ip(url: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """First resolved IP that passed the destination check, or None."""
+    if destination_error(url):
+        return None
+    try:
+        parts = urllib.parse.urlsplit(url)
+        host = (parts.hostname or "").rstrip(".").lower()
+        ips = resolve_host_ips(host)
+    except (socket.gaierror, OSError, ValueError):
+        return None
+    for ip in ips:
+        if not _ip_is_blocked(ip):
+            return ip
+    return None
+
+
+def pin_request(url: str) -> tuple[str, dict[str, str], str | None]:
+    """Rewrite ``url`` to a validated IP so DNS cannot change before connect.
+
+    Returns ``(connect_url, extra_headers, error)``. The original hostname
+    is sent as ``Host`` (and should be used as TLS SNI) so the server still
+    sees the public name. The TCP connect uses only an IP that already
+    passed :func:`destination_error`.
+    """
+    err = destination_error(url)
+    if err:
+        return "", {}, err
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return "", {}, f"Refusing invalid URL: {url!r}"
+    host = (parts.hostname or "").rstrip(".").lower()
+    ip = public_connect_ip(url)
+    if ip is None:
+        return "", {}, f"Refusing URL that could not be pinned: {host or url!r}"
+    if _parse_ip(host) is not None:
+        return url, {}, None
+    host_header = host
+    if ip.version == 6:
+        netloc = f"[{ip}]"
+    else:
+        netloc = str(ip)
+    if parts.port:
+        netloc = f"{netloc}:{parts.port}"
+    connect_url = urllib.parse.urlunsplit(
+        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+    )
+    return connect_url, {"Host": host_header}, None
+
+
+def redirect_target(current: str, response: object) -> tuple[str | None, bool]:
+    """Return ``(next_url, is_redirect)`` from a response's Location header."""
+    status = int(
+        getattr(response, "status_code", 0)
+        or getattr(response, "status", 0)
+        or getattr(response, "code", 0)
+        or 0
+    )
+    if status not in REDIRECT_STATUS:
+        return None, False
+    headers = getattr(response, "headers", {}) or {}
+    location = ""
+    try:
+        location = headers.get("location") or headers.get("Location") or ""
+    except Exception:
+        location = ""
+    if not location:
+        return None, True
+    return urllib.parse.urljoin(current, str(location)), True
+
+
+def follow_checked_hops(
+    url: str,
+    do_request,
+    *,
+    extra_check=None,
+    allow_file: bool = False,
+    max_hops: int = MAX_REDIRECTS,
+):
+    """Run ``do_request`` on each hop after destination checks and IP pin.
+
+    ``do_request(connect_url, extra_headers, extensions, logical_url)``
+    must not follow redirects. The TCP target is the validated IP;
+    ``Host`` / SNI keep the original hostname so the name cannot be
+    rebound between the check and the connect.
+    Returns ``(response, error)``.
+    """
+    current = (url or "").strip()
+    resp = None
+    for _hop in range(max_hops + 1):
+        err = destination_error(current, allow_file=allow_file)
+        if err:
+            return None, err
+        if extra_check is not None:
+            err = extra_check(current)
+            if err:
+                return None, err
+        connect_url, extra_headers, err = pin_request(current)
+        if err:
+            return None, err
+        host = extra_headers.get("Host")
+        extensions = {"sni_hostname": host} if host else {}
+        resp = do_request(connect_url, extra_headers, extensions, current)
+        nxt, is_redir = redirect_target(current, resp)
+        if not is_redir:
+            final = str(getattr(resp, "url", "") or current)
+            err = destination_error(final, allow_file=allow_file)
+            if err:
+                return None, err
+            if extra_check is not None:
+                err = extra_check(final)
+                if err:
+                    return None, err
+            return resp, None
+        if not nxt:
+            return None, f"Redirect from {current} had no Location header"
+        current = nxt
+    return None, f"Too many redirects fetching {url}"
+
+
+def client_get_no_redirect(client, url, headers=None, extensions=None):
+    """GET ``url`` and never auto-follow redirects.
+
+    Raises TypeError if the client cannot take ``follow_redirects=False``.
+    There is no fallback that omits that flag.
+    """
+    attempts: list[dict] = []
+    if extensions:
+        kwargs: dict = {"follow_redirects": False, "extensions": extensions}
+        if headers:
+            kwargs["headers"] = headers
+        attempts.append(kwargs)
+    if headers:
+        attempts.append({"follow_redirects": False, "headers": headers})
+    attempts.append({"follow_redirects": False})
+    last: TypeError | None = None
+    seen: set[tuple[str, ...]] = set()
+    for kwargs in attempts:
+        key = tuple(sorted(kwargs))
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            return client.get(url, **kwargs)
+        except TypeError as exc:
+            last = exc
+    raise TypeError(
+        "HTTP client must accept follow_redirects=False"
+    ) from last
 
 
 def webhook_allowed_hosts() -> list[str]:

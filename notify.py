@@ -36,15 +36,18 @@ notification log can contain job titles and company names, so add
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import secrets
+import ssl
+import urllib.error
 import urllib.request
 from datetime import datetime, time as _time, timezone
 from pathlib import Path
 from typing import Any
 
-from url_policy import webhook_error
+from url_policy import pin_request, redirect_target, webhook_error
 
 BASE_DIR = Path(__file__).resolve().parent
 NOTIFY_LOG = BASE_DIR / "notifications.jsonl"
@@ -480,6 +483,52 @@ def _post_ntfy(topic: str, title: str, body: str) -> bool:
         return False
 
 
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Never follow redirects; the caller re-validates each Location."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+    def http_error_301(self, req, fp, code, msg, headers):
+        raise urllib.error.HTTPError(req.full_url, code, msg, headers, fp)
+
+    http_error_302 = http_error_303 = http_error_307 = http_error_301
+    http_error_308 = http_error_301
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """TCP to a checked IP; TLS SNI and verify use the original hostname."""
+
+    def __init__(self, host, *args, server_hostname=None, **kwargs):
+        self._server_hostname = server_hostname
+        super().__init__(host, *args, **kwargs)
+
+    def connect(self):
+        http.client.HTTPConnection.connect(self)
+        context = self._context or ssl.create_default_context()
+        server_hostname = self._server_hostname or self.host
+        self.sock = context.wrap_socket(self.sock, server_hostname=server_hostname)
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        sni = req.get_header("Host")
+        if sni and ":" in sni and not sni.startswith("["):
+            sni = sni.rsplit(":", 1)[0]
+
+        def http_class(host, *args, **kwargs):
+            return _PinnedHTTPSConnection(
+                host, *args, server_hostname=sni, **kwargs
+            )
+
+        return self.do_open(http_class, req, context=self._context)
+
+
+def _open_http(req: urllib.request.Request, timeout: float):
+    opener = urllib.request.build_opener(_NoRedirectHandler, _PinnedHTTPSHandler())
+    return opener.open(req, timeout=timeout)
+
+
 def _post_webhook(url: str, title: str, body: str) -> bool:
     """POST JSON to a generic webhook. Returns True on 2xx; never raises."""
     if webhook_error(url):
@@ -493,14 +542,47 @@ def _post_webhook(url: str, title: str, body: str) -> bool:
             },
             ensure_ascii=False,
         ).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:
-            return 200 <= resp.status < 300
+        current = url
+        data: bytes | None = payload
+        for _hop in range(8):
+            if webhook_error(current):
+                return False
+            connect_url, extra_headers, pin_err = pin_request(current)
+            if pin_err:
+                return False
+            headers = {"Content-Type": "application/json", **extra_headers}
+            req = urllib.request.Request(
+                connect_url,
+                data=data,
+                headers=headers,
+                method="POST" if data is not None else "GET",
+            )
+            try:
+                with _open_http(req, _TIMEOUT_SECONDS) as resp:
+                    nxt, is_redir = redirect_target(current, resp)
+                    if is_redir:
+                        if not nxt or webhook_error(nxt):
+                            return False
+                        current = nxt
+                        data = None
+                        continue
+                    return 200 <= resp.status < 300
+            except urllib.error.HTTPError as exc:
+                try:
+                    nxt, is_redir = redirect_target(current, exc)
+                    if is_redir:
+                        if not nxt or webhook_error(nxt):
+                            return False
+                        current = nxt
+                        data = None
+                        continue
+                    return False
+                finally:
+                    try:
+                        exc.close()
+                    except Exception:
+                        pass
+        return False
     except Exception:
         return False
 

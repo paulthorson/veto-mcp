@@ -23,9 +23,11 @@ from providers import _common  # noqa: E402
 
 
 class _FakeResp:
-    def __init__(self, status_code: int, text: str):
+    def __init__(self, status_code: int, text: str, headers=None, url=""):
         self.status_code = status_code
         self.text = text
+        self.headers = headers or {}
+        self.url = url
 
 
 class _FakeClient:
@@ -34,6 +36,7 @@ class _FakeClient:
     def __init__(self, resp=None, exc=None):
         self._resp = resp
         self._exc = exc
+        self.requests: list[str] = []
 
     def __enter__(self):
         return self
@@ -41,17 +44,30 @@ class _FakeClient:
     def __exit__(self, *args):
         return False
 
-    def get(self, url):
-        assert url.endswith("/robots.txt"), url
+    def get(self, url, follow_redirects=False, **kwargs):
+        assert follow_redirects is False
+        self.requests.append(url)
+        assert url.endswith("/robots.txt") or "robots.txt" in url, url
         if self._exc is not None:
             raise self._exc
         return self._resp
 
 
+def _public_resolve(host):
+    import ipaddress
+
+    try:
+        return [ipaddress.ip_address(host)]
+    except ValueError:
+        return [ipaddress.ip_address("93.184.216.34")]
+
+
 def _robots_allows(resp=None, exc=None):
     _common.clear_robots_cache()
     fake = _FakeClient(resp=resp, exc=exc)
-    with mock.patch.object(_common, "make_client", return_value=fake):
+    with mock.patch.object(_common, "make_client", return_value=fake), mock.patch(
+        "url_policy.resolve_host_ips", side_effect=_public_resolve
+    ):
         return _common.robots_allows("user", "https://example.com/jobs/1")
 
 
@@ -83,6 +99,44 @@ class FailClosedRobotsTests(unittest.TestCase):
         self.assertTrue(
             _robots_allows(resp=_FakeResp(200, "User-agent: *\nDisallow:"))
         )
+
+    def test_robots_redirect_to_imds_is_disallowed(self):
+        _common.clear_robots_cache()
+        fake = _FakeClient(
+            resp=_FakeResp(
+                302,
+                "",
+                headers={"location": "http://169.254.169.254/latest/meta-data"},
+            )
+        )
+        with mock.patch.object(_common, "make_client", return_value=fake), mock.patch(
+            "url_policy.resolve_host_ips", side_effect=_public_resolve
+        ):
+            allowed = _common.robots_allows("user", "https://example.com/jobs/1")
+        self.assertFalse(allowed)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertNotIn("169.254", fake.requests[0])
+
+    def test_robots_redirect_to_loopback_is_disallowed(self):
+        _common.clear_robots_cache()
+        fake = _FakeClient(
+            resp=_FakeResp(301, "", headers={"location": "http://127.0.0.1/robots.txt"})
+        )
+        with mock.patch.object(_common, "make_client", return_value=fake), mock.patch(
+            "url_policy.resolve_host_ips", side_effect=_public_resolve
+        ):
+            allowed = _common.robots_allows("user", "https://example.com/jobs/1")
+        self.assertFalse(allowed)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertNotIn("127.0.0.1", fake.requests[0])
+
+    def test_robots_private_host_is_disallowed_without_fetch(self):
+        _common.clear_robots_cache()
+        fake = _FakeClient(resp=_FakeResp(200, "User-agent: *\nDisallow:"))
+        with mock.patch.object(_common, "make_client", return_value=fake):
+            allowed = _common.robots_allows("user", "http://127.0.0.1/jobs/1")
+        self.assertFalse(allowed)
+        self.assertEqual(fake.requests, [])
 
 
 class BlockCooldownTests(unittest.TestCase):

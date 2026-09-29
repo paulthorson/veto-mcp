@@ -65,8 +65,10 @@ from providers._common import (
 from url_policy import (
     ALLOWED_SCHEMES,
     PathDenied,
+    client_get_no_redirect,
     confine_user_path,
     destination_error,
+    follow_checked_hops,
 )
 
 log = logging.getLogger("veto-mcp.byol")
@@ -87,8 +89,6 @@ MAX_HTML_BYTES = 2 * 1024 * 1024
 #: Schemes we will fetch. Anything else (file:, javascript:, data:, ...)
 #: is rejected outright.
 _ALLOWED_SCHEMES = ALLOWED_SCHEMES
-_MAX_REDIRECTS = 8
-_REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
 
 
 # ---------------------------------------------------------------------------
@@ -390,12 +390,12 @@ def parse_html(html: str, *, source_url: str = "") -> dict[str, Any]:
     }
 
 
-def _client_get(client: Any, url: str) -> Any:
-    """GET ``url`` without following redirects when the client supports it."""
+def _client_get(client: Any, url: str, headers: dict | None = None) -> Any:
+    """GET ``url`` without following redirects. Never auto-follows."""
     try:
-        return client.get(url, follow_redirects=False)
+        return client.get(url, follow_redirects=False, headers=headers or {})
     except TypeError:
-        return client.get(url)
+        return client.get(url, follow_redirects=False)
 
 
 def fetch_url(url: str, client: Any = None) -> dict[str, Any]:
@@ -418,38 +418,32 @@ def fetch_url(url: str, client: Any = None) -> dict[str, Any]:
         polite_delay()
         own_client = client is None
         client = client or make_client(follow_redirects=False)
+
+        def _do_request(
+            connect_url: str,
+            extra_headers: dict,
+            extensions: dict,
+            _logical: str,
+        ) -> Any:
+            try:
+                return client_get_no_redirect(
+                    client, connect_url, extra_headers, extensions
+                )
+            except TypeError:
+                return client_get_no_redirect(client, connect_url, extra_headers)
+
         try:
-            current = url
-            resp = None
-            for _hop in range(_MAX_REDIRECTS + 1):
-                blocked = destination_error(current)
-                if blocked:
-                    return {"error": blocked}
-                resp = _client_get(client, current)
-                if resp.status_code in _REDIRECT_STATUS:
-                    location = (
-                        resp.headers.get("location")
-                        or resp.headers.get("Location")
-                        or ""
-                    )
-                    if not location:
-                        return {
-                            "error": f"Redirect from {current} had no Location header"
-                        }
-                    current = urllib.parse.urljoin(current, location)
-                    continue
-                break
-            else:
-                return {"error": f"Too many redirects fetching {url}"}
+            resp, hop_err = follow_checked_hops(url, _do_request)
+            if hop_err:
+                return {"error": hop_err}
+            current = str(getattr(resp, "url", "") or url)
         finally:
             if own_client:
                 client.close()
     except Exception as exc:
         return {"error": f"Fetch failed for {url}: {exc}"}
-    final = str(getattr(resp, "url", "") or current)
-    blocked = destination_error(final)
-    if blocked:
-        return {"error": blocked}
+    if resp is None:
+        return {"error": f"Fetch failed for {url}"}
     if resp.status_code != 200:
         return {"error": f"Fetch failed for {url}: HTTP {resp.status_code}"}
     content_type = resp.headers.get("content-type", "")
