@@ -107,7 +107,7 @@ class SearchFaultIsolationTests(unittest.TestCase):
                 "adzuna": _BrokenBoard(_ADZUNA_REASON),
             }
         )
-        with self.assertLogs("job-apply-mcp", level="WARNING") as logs:
+        with self.assertLogs("veto-mcp", level="WARNING") as logs:
             jobs = server.search_jobs("software engineer", "Remote", board="all")
         self.assertEqual(len(jobs), 1)
         self.assertEqual(jobs[0]["board"], "greenhouse")
@@ -126,7 +126,7 @@ class SearchFaultIsolationTests(unittest.TestCase):
         server._risk_policy = _RiskPolicyStub(
             {"lever": "daily search budget exhausted"}
         )
-        with self.assertLogs("job-apply-mcp", level="WARNING"):
+        with self.assertLogs("veto-mcp", level="WARNING"):
             jobs = server.search_jobs("software engineer", "Remote", board="all")
         self.assertEqual(len(jobs), 1)
         self.assertEqual(jobs[0]["board"], "greenhouse")
