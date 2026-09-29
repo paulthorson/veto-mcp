@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "veto": {
+      "args": [
+        "/path/to/veto-mcp/server.py"
+      ],
+      "command": "/path/to/veto-mcp/.venv/bin/python",
+      "env": {
+        "VETO_EXTENSIONS_DIR": "/path/to/veto-mcp/extensions"
+      }
+    }
+  }
+}

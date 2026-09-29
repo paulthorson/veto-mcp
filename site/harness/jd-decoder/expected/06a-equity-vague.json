@@ -1,0 +1,41 @@
+{
+  "verdict": "mixed",
+  "score": 45,
+  "reasons": [
+    {
+      "impact": 5,
+      "reason": "Equity mentioned without details",
+      "quote": "Engineer, WindowCo We offer stock options to all employees. The paperwork describing the schedule, the cliff, and …"
+    },
+    {
+      "impact": -10,
+      "reason": "No compensation information listed",
+      "quote": null
+    }
+  ],
+  "signals": {
+    "transparency": {
+      "score": 15,
+      "salary_range": null,
+      "salary_mention": null,
+      "equity": {
+        "term": "stock options",
+        "concrete": false,
+        "quote": "Engineer, WindowCo We offer stock options to all employees. The paperwork describing the schedule, the cliff, and …"
+      }
+    },
+    "overwork": [],
+    "vagueness": {
+      "score": 50,
+      "buzzwords": [],
+      "buzzword_count": 0,
+      "buzzword_density_per_100_words": 0.0,
+      "responsibilities": 0,
+      "word_count": 42
+    },
+    "growth": [],
+    "green_flags": [],
+    "markdown": "# JD decode\n\n## Transparency: 15/100\n- No compensation information listed\n- Equity (vague): stock options\n\n## Overwork language: 0 flag(s)\n\n## Vagueness: 50/100 concrete (0 buzzwords, 0 responsibilities)\n\n## Growth signals: 0\n\n## Green flags: 0"
+  },
+  "markdown": "# JD verdict: mixed (45/100)\n\n- [+5] Equity mentioned without details\n  > Engineer, WindowCo We offer stock options to all employees. The paperwork describing the schedule, the cliff, and …\n- [-10] No compensation information listed"
+}

@@ -1,0 +1,20 @@
+Senior Platform Engineer, Brightline
+
+Salary: $180,000 - $220,000. Stock options with a 4-year vesting schedule and annual refreshers.
+
+This is a remote-first role on a distributed team. We offer flexible hours.
+
+What you will do:
+- Design and run our event pipeline
+- Own on-call for the platform team
+- Mentor junior engineers
+- Write the runbooks nobody writes
+
+Must-haves:
+- 5+ years of backend work
+- Production Kubernetes
+
+Nice-to-haves:
+- Rust
+
+We offer a learning budget, conference stipend, and a clear promotion track. Career growth is a first-class goal here.

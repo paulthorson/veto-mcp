@@ -1,0 +1,12 @@
+{
+  "verdict": "mixed",
+  "score": 50,
+  "reasons": [
+    {
+      "impact": 0,
+      "reason": "No job description text provided",
+      "quote": null
+    }
+  ],
+  "markdown": "# JD verdict: mixed (50/100)\n\nNo job description text provided."
+}
