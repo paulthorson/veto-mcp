@@ -57,7 +57,7 @@ from providers import _common as provider_common  # noqa: E402
 from providers._common import VETO_USER_AGENT, make_job_id, robots_allows  # noqa: E402
 
 # The final User-Agent string, asserted VERBATIM (spec section 14 item 4).
-FINAL_USER_AGENT = "veto/0.1.0 (+https://github.com/paulthorson/veto-mcp)"
+FINAL_USER_AGENT = "veto/1.0.0 (+https://github.com/paulthorson/veto-mcp)"
 
 #: Tokens a browser-impersonating User-Agent would carry; none may appear
 #: in Veto's User-Agent (spec section 11).

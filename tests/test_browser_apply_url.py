@@ -52,6 +52,7 @@ class ApplyUrlTest(unittest.TestCase):
 
     def test_landing_on_private_url_aborts_fill(self):
         page = _FakePage("http://169.254.169.254/latest/meta-data")
+        page.goto("https://careers.example.com/apply")
         err = browser_apply.confirm_apply_landing(
             page, "https://careers.example.com/apply"
         )

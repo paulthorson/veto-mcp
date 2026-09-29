@@ -232,7 +232,7 @@ class UrlFetchTest(ByolStoreTest):
         class _RecordingFactoryClient(_FakeClient):
             pass
 
-        def fake_make_client(timeout=20.0):
+        def fake_make_client(timeout=20.0, **_kwargs):
             seen["called"] = True
             return _FakeClient("<html><body><h1>T</h1></body></html>")
 
