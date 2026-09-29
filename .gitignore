@@ -6,12 +6,23 @@ screenshots/
 applications.json
 watches.json
 profiles/*.json
+profiles/
 sessions/
 preferences.json
 compliance.json
 apply_queue.json
 .DS_Store
 .env
+.env.*
+*.pem
+*.key
+*.token
+*.db
+*.sqlite
+*.sqlite3
+node_modules/
+dist/
+listings/
 
 # Initiative 05 application studio: user data stores (resume text is PII —
 # never commit).

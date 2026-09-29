@@ -884,11 +884,53 @@ function diffHtml(s) {
   return '<pre class="dump diff">' + lines + "</pre>";
 }
 
+function sanitizeSvgNode(svg) {
+  var banned = { script: 1, foreignobject: 1, iframe: 1, object: 1, embed: 1 };
+  function walk(node) {
+    if (!node || node.nodeType !== 1) return;
+    var tag = String(node.tagName || "").toLowerCase();
+    if (banned[tag]) {
+      if (node.parentNode) node.parentNode.removeChild(node);
+      return;
+    }
+    var attrs = Array.prototype.slice.call(node.attributes || []);
+    attrs.forEach(function (a) {
+      var name = String(a.name || "").toLowerCase();
+      var val = String(a.value || "");
+      if (name.indexOf("on") === 0 || /javascript:/i.test(val)) {
+        node.removeAttribute(a.name);
+      }
+    });
+    Array.prototype.slice.call(node.children || []).forEach(walk);
+  }
+  walk(svg);
+  return svg;
+}
+
+function renderSafeSvg(container, s) {
+  var w = el("div", "radar-wrap", "");
+  var doc;
+  try {
+    doc = new DOMParser().parseFromString(s, "image/svg+xml");
+  } catch (e) {
+    w.textContent = s;
+    container.appendChild(w);
+    return;
+  }
+  var root = doc && doc.documentElement;
+  if (!root || String(root.tagName || "").toLowerCase() !== "svg") {
+    w.textContent = s;
+    container.appendChild(w);
+    return;
+  }
+  var clean = sanitizeSvgNode(root);
+  w.appendChild(document.importNode(clean, true));
+  container.appendChild(w);
+}
+
 function renderString(container, s) {
   if (looksLikeSvg(s)) {
-    var w = el("div", "radar-wrap", "");
-    w.innerHTML = s; /* server-generated radar chart */
-    container.appendChild(w);
+    renderSafeSvg(container, s);
     return;
   }
   if (looksLikeMarkdown(s)) {

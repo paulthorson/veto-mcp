@@ -52,6 +52,7 @@ class TestSend(unittest.TestCase):
         self.addCleanup(self.env_patch.stop)
         os.environ.pop("NTFY_TOPIC", None)
         os.environ.pop("JOB_MCP_WEBHOOK", None)
+        os.environ.pop("JOB_MCP_WEBHOOK_ALLOWED_HOSTS", None)
 
     def _log_entries(self):
         return [
@@ -159,6 +160,7 @@ class TestSend(unittest.TestCase):
 
     def test_webhook_delivery(self):
         os.environ["JOB_MCP_WEBHOOK"] = "https://example.com/hook"
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
         prefs = self._enabled_prefs("webhook")
         captured = {}
 
@@ -178,6 +180,7 @@ class TestSend(unittest.TestCase):
         topic = notify.generate_ntfy_topic()
         os.environ["NTFY_TOPIC"] = topic
         os.environ["JOB_MCP_WEBHOOK"] = "https://example.com/hook"
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
         prefs = self._enabled_prefs("ntfy", "webhook")
         with mock.patch(
             "urllib.request.urlopen", return_value=_FakeResponse(200)
@@ -190,6 +193,7 @@ class TestSend(unittest.TestCase):
     def test_sink_failure_never_raises(self):
         os.environ["NTFY_TOPIC"] = notify.generate_ntfy_topic()
         os.environ["JOB_MCP_WEBHOOK"] = "https://example.com/hook"
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
         prefs = self._enabled_prefs("ntfy", "webhook")
 
         def boom(req, timeout=None):
@@ -228,6 +232,52 @@ class TestSend(unittest.TestCase):
         prefs = notify.load_prefs()
         self.assertIn("ntfy", prefs["channels"])
         self.assertEqual(prefs["ntfy_topic"], result["topic"])
+
+    def test_webhook_empty_allowlist_is_refused(self):
+        os.environ["JOB_MCP_WEBHOOK"] = "https://example.com/hook"
+        prefs = self._enabled_prefs("webhook")
+        called = []
+
+        def boom(req, timeout=None):
+            called.append(req.full_url)
+            raise AssertionError("must not POST when allowlist is empty")
+
+        with mock.patch("urllib.request.urlopen", boom):
+            result = notify.send("T", "B", prefs=prefs)
+        self.assertEqual(result["delivered_via"], ["log"])
+        self.assertTrue(result.get("sink_warnings"))
+        self.assertEqual(called, [])
+        self.assertFalse(notify._post_webhook("https://example.com/hook", "T", "B"))
+
+    def test_webhook_http_and_private_hosts_are_refused(self):
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com,127.0.0.1,169.254.169.254"
+        prefs = self._enabled_prefs("webhook")
+
+        def boom(req, timeout=None):
+            raise AssertionError("must not POST a refused webhook")
+
+        with mock.patch("urllib.request.urlopen", boom):
+            os.environ["JOB_MCP_WEBHOOK"] = "http://example.com/hook"
+            result = notify.send("T", "B", prefs=prefs)
+            self.assertEqual(result["delivered_via"], ["log"])
+            os.environ["JOB_MCP_WEBHOOK"] = "https://127.0.0.1/hook"
+            result = notify.send("T", "B", prefs=prefs)
+            self.assertEqual(result["delivered_via"], ["log"])
+            os.environ["JOB_MCP_WEBHOOK"] = "https://169.254.169.254/latest/meta-data"
+            result = notify.send("T", "B", prefs=prefs)
+            self.assertEqual(result["delivered_via"], ["log"])
+
+    def test_webhook_host_must_be_allowlisted(self):
+        os.environ["JOB_MCP_WEBHOOK"] = "https://evil.example/hook"
+        os.environ["JOB_MCP_WEBHOOK_ALLOWED_HOSTS"] = "example.com"
+        prefs = self._enabled_prefs("webhook")
+
+        def boom(req, timeout=None):
+            raise AssertionError("must not POST a host outside the allowlist")
+
+        with mock.patch("urllib.request.urlopen", boom):
+            result = notify.send("T", "B", prefs=prefs)
+        self.assertEqual(result["delivered_via"], ["log"])
 
     def test_setup_ntfy_warns_about_public_topics(self):
         result = notify.setup_ntfy()

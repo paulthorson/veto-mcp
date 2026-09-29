@@ -81,6 +81,13 @@ from typing import Any
 
 from providers import session_rescue
 from providers._common import VETO_USER_AGENT
+from url_policy import destination_error
+
+
+def confirm_apply_landing(page: Any, apply_url: str) -> str | None:
+    """Refuse a landed apply page whose final URL is a blocked destination."""
+    final_url = getattr(page, "url", apply_url) or apply_url
+    return destination_error(str(final_url), allow_file=True)
 
 log = logging.getLogger("veto-mcp.browser")
 
@@ -1116,6 +1123,20 @@ def apply_via_browser(
         in the dict.
     """
     profile = dict(profile or {})
+    blocked = destination_error(apply_url, allow_file=True)
+    if blocked:
+        result: dict[str, Any] = {
+            "ok": False,
+            "fields_filled": {},
+            "fields_detected": 0,
+            "screenshot": None,
+            "final_url": apply_url,
+            "browser_open": False,
+            "handoff": None,
+            "screenshot_cleanup": {"deleted": [], "kept": 0, "errors": []},
+            "error": blocked,
+        }
+        return result
     if confirm:
         log.warning(
             "browser_apply.apply_via_browser: confirm= is deprecated and "
@@ -1224,6 +1245,12 @@ def apply_via_browser(
                 page.goto(apply_url, wait_until="domcontentloaded", timeout=timeout_ms)
             except Exception as exc:
                 result["error"] = f"Navigation to apply_url failed: {exc}"
+                return result
+
+            landed = confirm_apply_landing(page, apply_url)
+            result["final_url"] = getattr(page, "url", apply_url) or apply_url
+            if landed:
+                result["error"] = landed
                 return result
 
             dismiss_consent_banners(page)

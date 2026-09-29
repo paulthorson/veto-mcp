@@ -62,6 +62,12 @@ from providers._common import (
     robots_allows,
     strip_html,
 )
+from url_policy import (
+    ALLOWED_SCHEMES,
+    PathDenied,
+    confine_user_path,
+    destination_error,
+)
 
 log = logging.getLogger("veto-mcp.byol")
 
@@ -80,7 +86,9 @@ MAX_HTML_BYTES = 2 * 1024 * 1024
 
 #: Schemes we will fetch. Anything else (file:, javascript:, data:, ...)
 #: is rejected outright.
-_ALLOWED_SCHEMES = ("http", "https")
+_ALLOWED_SCHEMES = ALLOWED_SCHEMES
+_MAX_REDIRECTS = 8
+_REDIRECT_STATUS = frozenset({301, 302, 303, 307, 308})
 
 
 # ---------------------------------------------------------------------------
@@ -382,34 +390,66 @@ def parse_html(html: str, *, source_url: str = "") -> dict[str, Any]:
     }
 
 
+def _client_get(client: Any, url: str) -> Any:
+    """GET ``url`` without following redirects when the client supports it."""
+    try:
+        return client.get(url, follow_redirects=False)
+    except TypeError:
+        return client.get(url)
+
+
 def fetch_url(url: str, client: Any = None) -> dict[str, Any]:
     """Fetch a posting URL exactly once and return its HTML.
 
     Uses the single honest Veto User-Agent plus the existing request
     hygiene: a robots.txt check and a polite delay before the request.
-    Returns ``{"html": ...}`` or ``{"error": ...}`` — never raises for
-    network trouble. ``client`` is injectable for tests.
+    Private, loopback, and cloud-metadata destinations are refused
+    before each hop and after any redirect. Returns ``{"html": ...}``
+    or ``{"error": ...}`` — never raises for network trouble.
+    ``client`` is injectable for tests.
     """
     url = (url or "").strip()
-    try:
-        scheme = urllib.parse.urlsplit(url).scheme.lower()
-    except ValueError:
-        scheme = ""
-    if scheme not in _ALLOWED_SCHEMES:
-        return {"error": f"Refusing to fetch non-http(s) URL: {url!r}"}
+    blocked = destination_error(url)
+    if blocked:
+        return {"error": blocked}
     if not robots_allows(BOARD, url):
         return {"error": f"robots.txt disallows fetching {url}"}
     try:
         polite_delay()
         own_client = client is None
-        client = client or make_client()
+        client = client or make_client(follow_redirects=False)
         try:
-            resp = client.get(url)
+            current = url
+            resp = None
+            for _hop in range(_MAX_REDIRECTS + 1):
+                blocked = destination_error(current)
+                if blocked:
+                    return {"error": blocked}
+                resp = _client_get(client, current)
+                if resp.status_code in _REDIRECT_STATUS:
+                    location = (
+                        resp.headers.get("location")
+                        or resp.headers.get("Location")
+                        or ""
+                    )
+                    if not location:
+                        return {
+                            "error": f"Redirect from {current} had no Location header"
+                        }
+                    current = urllib.parse.urljoin(current, location)
+                    continue
+                break
+            else:
+                return {"error": f"Too many redirects fetching {url}"}
         finally:
             if own_client:
                 client.close()
     except Exception as exc:
         return {"error": f"Fetch failed for {url}: {exc}"}
+    final = str(getattr(resp, "url", "") or current)
+    blocked = destination_error(final)
+    if blocked:
+        return {"error": blocked}
     if resp.status_code != 200:
         return {"error": f"Fetch failed for {url}: HTTP {resp.status_code}"}
     content_type = resp.headers.get("content-type", "")
@@ -428,7 +468,10 @@ def fetch_url(url: str, client: Any = None) -> dict[str, Any]:
 
 def parse_html_file(path: str) -> dict[str, Any]:
     """Build a standard job dict from a saved HTML file. Zero network."""
-    file_path = Path(path).expanduser()
+    try:
+        file_path = confine_user_path(path, purpose="HTML file path")
+    except PathDenied as exc:
+        return {"error": str(exc)}
     if not file_path.is_file():
         return {"error": f"No file at {file_path}"}
     try:
@@ -475,7 +518,12 @@ def add_listing(
             return parsed
         listing = parsed
         listing["source"] = "html_file"
-        listing["source_detail"] = str(Path(html_file).expanduser())
+        try:
+            listing["source_detail"] = str(
+                confine_user_path(html_file, purpose="HTML file path")
+            )
+        except PathDenied:
+            listing["source_detail"] = str(Path(html_file).expanduser())
     else:
         listing = parse_text(
             text,

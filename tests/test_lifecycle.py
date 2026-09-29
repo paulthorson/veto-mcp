@@ -131,8 +131,9 @@ class LifecycleTest(unittest.TestCase):
 
     def test_export_csv(self):
         entries = [_sample_entry(), _sample_entry(job_id="b", stage="offer")]
-        out = Path(self.tmp.name) / "applications.csv"
-        n = lifecycle.export_csv(entries, out)
+        with mock.patch.dict(os.environ, {"VETO_DATA_DIR": self.tmp.name}):
+            out = Path(self.tmp.name) / "applications.csv"
+            n = lifecycle.export_csv(entries, out)
         self.assertEqual(n, 2)
         with open(out, newline="", encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh))
@@ -140,6 +141,21 @@ class LifecycleTest(unittest.TestCase):
         self.assertEqual(rows[0]["stage"], "applied")
         self.assertEqual(rows[1]["stage"], "offer")
         self.assertEqual(rows[0]["job_id"], "linkedin:abc123")
+
+    def test_export_csv_rejects_path_escape(self):
+        from url_policy import PathDenied
+
+        entries = [_sample_entry()]
+        with self.assertRaises(PathDenied):
+            lifecycle.export_csv(entries, Path("/tmp/veto-escape.csv"))
+        with self.assertRaises(PathDenied):
+            lifecycle.export_csv(entries, Path("../escape.csv"))
+        import server
+
+        result = server.export_applications_csv("/etc/passwd")
+        self.assertIn("error", result)
+        result = server.export_applications_csv("../outside.csv")
+        self.assertIn("error", result)
 
     def test_corrupt_store_quarantined_and_reported(self):
         garbage = "NOT JSON AT ALL {{{"

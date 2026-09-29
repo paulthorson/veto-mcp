@@ -28,6 +28,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from url_policy import confine_user_path
+
 log = logging.getLogger("veto-mcp.lifecycle")
 
 #: Allowed application stages, in rough pipeline order.
@@ -314,6 +316,7 @@ CSV_COLUMNS = [
 
 def export_csv(entries: list[dict[str, Any]], path: Path) -> int:
     """Write applications to CSV. Returns the number of data rows written."""
+    path = confine_user_path(path, purpose="CSV export path")
     rows = [backfill_entry(e) for e in entries if isinstance(e, dict)]
     with open(path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=CSV_COLUMNS, extrasaction="ignore")

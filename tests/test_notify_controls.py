@@ -51,6 +51,7 @@ class _IsoMixin:
         self.addCleanup(env.stop)
         os.environ.pop("NTFY_TOPIC", None)
         os.environ.pop("JOB_MCP_WEBHOOK", None)
+        os.environ.pop("JOB_MCP_WEBHOOK_ALLOWED_HOSTS", None)
 
 
 class TestPrefs(_IsoMixin, unittest.TestCase):

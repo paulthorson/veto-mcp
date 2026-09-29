@@ -62,7 +62,7 @@ except ImportError as exc:  # defensive: the server must still start
     # Fallback copy of the honest User-Agent, defined only when the providers
     # package itself is unimportable. The canonical definition is
     # providers._common.VETO_USER_AGENT; this literal must match it.
-    VETO_USER_AGENT = "veto/0.1.0 (+https://github.com/paulthorson/veto-mcp)"  # noqa: F811
+    VETO_USER_AGENT = "veto/1.0.0 (+https://github.com/paulthorson/veto-mcp)"  # noqa: F811
 
 # Application-quality helpers (dedup.py, prefs.py, filters.py, tailor.py).
 # Imported defensively: the server must start even if one is missing.
@@ -212,6 +212,7 @@ WATCHES_FILE = BASE_DIR / "watches.json"
 # thin. They use stdlib + local code only (no heavy deps).
 import lifecycle
 import watch as watch_store
+from url_policy import PathDenied, confine_user_path
 
 # In-memory cache of jobs returned by recent search_jobs calls, keyed by
 # job_id. Enriches previews/details; job_ids are also self-describing
@@ -1279,9 +1280,10 @@ def export_applications_csv(path: str = "applications.csv") -> dict[str, Any]:
         path: Destination file; relative paths resolve under the project
             directory. Defaults to ``applications.csv``.
     """
-    out = Path(path)
-    if not out.is_absolute():
-        out = BASE_DIR / out
+    try:
+        out = confine_user_path(path, purpose="CSV export path")
+    except PathDenied as exc:
+        return {"error": str(exc)}
     rows = lifecycle.export_csv(lifecycle.load_entries(APPLICATIONS_FILE), out)
     return {"path": str(out), "rows": rows}
 

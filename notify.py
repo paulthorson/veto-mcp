@@ -18,7 +18,10 @@ never POSTs anywhere:
   migration path, and only if it passes the entropy gate.
 * ``webhook`` — POSTs ``{"title", "body", "ts"}`` as JSON to the URL in
   ``JOB_MCP_WEBHOOK``. Enabled only when ``"webhook"`` is in the
-  user's ``channels`` preference.
+  user's ``channels`` preference. Delivery is https-only and the host
+  must appear in ``JOB_MCP_WEBHOOK_ALLOWED_HOSTS`` (comma-separated).
+  An empty allowlist refuses every webhook. Private and metadata
+  destinations are refused even when listed.
 
 Delivery is stdlib-only (``urllib``), best-effort with a 5s timeout,
 and ``send`` never raises: a failing or rejected sink is simply left
@@ -40,6 +43,8 @@ import urllib.request
 from datetime import datetime, time as _time, timezone
 from pathlib import Path
 from typing import Any
+
+from url_policy import webhook_error
 
 BASE_DIR = Path(__file__).resolve().parent
 NOTIFY_LOG = BASE_DIR / "notifications.jsonl"
@@ -448,8 +453,12 @@ def _deliver(
             delivered.append("ntfy")
     if channel in ("auto", "webhook") and "webhook" in allowed:
         webhook = os.environ.get("JOB_MCP_WEBHOOK", "").strip()
-        if webhook and _post_webhook(webhook, title, body):
-            delivered.append("webhook")
+        if webhook:
+            reason = webhook_error(webhook)
+            if reason:
+                warnings.append(reason)
+            elif _post_webhook(webhook, title, body):
+                delivered.append("webhook")
     result: dict[str, Any] = {"ok": True, "delivered_via": delivered}
     if warnings:
         result["sink_warnings"] = warnings
@@ -473,6 +482,8 @@ def _post_ntfy(topic: str, title: str, body: str) -> bool:
 
 def _post_webhook(url: str, title: str, body: str) -> bool:
     """POST JSON to a generic webhook. Returns True on 2xx; never raises."""
+    if webhook_error(url):
+        return False
     try:
         payload = json.dumps(
             {

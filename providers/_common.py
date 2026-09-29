@@ -66,7 +66,9 @@ def sanitize_proxy_env() -> None:
 sanitize_proxy_env()
 
 
-def make_client(timeout: float = 20.0) -> httpx.Client:
+def make_client(
+    timeout: float = 20.0, *, follow_redirects: bool = True
+) -> httpx.Client:
     """Return an httpx client that identifies with the single honest Veto User-Agent."""
     return httpx.Client(
         headers={
@@ -75,7 +77,7 @@ def make_client(timeout: float = 20.0) -> httpx.Client:
             "Accept-Language": "en-US,en;q=0.9",
         },
         timeout=timeout,
-        follow_redirects=True,
+        follow_redirects=follow_redirects,
     )
 
 

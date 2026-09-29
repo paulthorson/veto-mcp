@@ -14,6 +14,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -34,24 +35,41 @@ Remote — $150k-$180k base + equity with 4-year vesting.
 
 
 class _FakeResponse:
-    def __init__(self, text, status_code=200, content_type="text/html"):
+    def __init__(
+        self,
+        text,
+        status_code=200,
+        content_type="text/html",
+        location="",
+        url="",
+    ):
         self.text = text
         self.status_code = status_code
         self.headers = {"content-type": content_type}
+        if location:
+            self.headers["location"] = location
+        self.url = url
 
 
 class _FakeClient:
     """httpx-shaped fake: records requests, returns canned HTML."""
 
-    def __init__(self, html, status_code=200):
+    def __init__(self, html, status_code=200, location="", final_url=""):
         self.html = html
         self.status_code = status_code
+        self.location = location
+        self.final_url = final_url
         self.requests: list[str] = []
         self.closed = False
 
-    def get(self, url):
+    def get(self, url, follow_redirects=False):
         self.requests.append(url)
-        return _FakeResponse(self.html, self.status_code)
+        return _FakeResponse(
+            self.html,
+            self.status_code,
+            location=self.location,
+            url=self.final_url or url,
+        )
 
     def close(self):
         self.closed = True
@@ -140,6 +158,18 @@ class HtmlFileTest(ByolStoreTest):
         self.assertNotIn("error", parsed)
         self.assertEqual(calls, [])
 
+    def test_html_file_outside_workspace_is_refused(self):
+        result = byol.parse_html_file("/etc/passwd")
+        self.assertIn("error", result)
+        result = byol.add_listing(html_file="/tmp/veto-not-a-listing.html")
+        self.assertIn("error", result)
+
+    def test_html_file_parent_traversal_is_refused(self):
+        result = byol.parse_html_file(str(Path("..") / "etc" / "passwd"))
+        self.assertIn("error", result)
+        result = byol.parse_html_file(str(FIXTURES / ".." / ".." / "etc" / "passwd"))
+        self.assertIn("error", result)
+
 
 class UrlFetchTest(ByolStoreTest):
     def setUp(self):
@@ -148,8 +178,23 @@ class UrlFetchTest(ByolStoreTest):
         self._orig_delay = byol.polite_delay
         byol.robots_allows = lambda board, url, timeout=5.0: True
         byol.polite_delay = lambda *a, **k: None
+        import ipaddress
+
+        import url_policy
+
+        def _public_ips(host):
+            try:
+                return [ipaddress.ip_address(host)]
+            except ValueError:
+                return [ipaddress.ip_address("93.184.216.34")]
+
+        self._resolve_patch = unittest.mock.patch.object(
+            url_policy, "resolve_host_ips", side_effect=_public_ips
+        )
+        self._resolve_patch.start()
 
     def tearDown(self):
+        self._resolve_patch.stop()
         byol.robots_allows = self._orig_robots
         byol.polite_delay = self._orig_delay
         super().tearDown()
@@ -215,6 +260,46 @@ class UrlFetchTest(ByolStoreTest):
         result = byol.fetch_url("https://careers.example.com/j/404",
                                 client=_FakeClient("", status_code=404))
         self.assertIn("error", result)
+
+    def test_loopback_destination_refused(self):
+        client = _FakeClient("<html></html>")
+        result = byol.fetch_url("http://127.0.0.1/latest/meta-data", client=client)
+        self.assertIn("error", result)
+        self.assertEqual(client.requests, [])
+
+    def test_private_rfc1918_destination_refused(self):
+        for url in (
+            "http://10.0.0.8/job",
+            "http://172.16.0.4/job",
+            "http://192.168.1.10/job",
+        ):
+            result = byol.fetch_url(url, client=_FakeClient("<html></html>"))
+            self.assertIn("error", result, url)
+
+    def test_imds_and_link_local_refused(self):
+        client = _FakeClient("<html></html>")
+        result = byol.fetch_url("http://169.254.169.254/latest/meta-data", client=client)
+        self.assertIn("error", result)
+        self.assertEqual(client.requests, [])
+        result = byol.fetch_url("http://metadata.google.internal/", client=client)
+        self.assertIn("error", result)
+        self.assertEqual(client.requests, [])
+
+    def test_ipv6_loopback_and_unique_local_refused(self):
+        for url in ("http://[::1]/", "http://[fc00::1]/", "http://[fe80::1]/"):
+            result = byol.fetch_url(url, client=_FakeClient("<html></html>"))
+            self.assertIn("error", result, url)
+
+    def test_redirect_to_private_refused(self):
+        client = _FakeClient(
+            "",
+            status_code=302,
+            location="http://127.0.0.1/secret",
+        )
+        result = byol.fetch_url("https://careers.example.com/j/1", client=client)
+        self.assertIn("error", result)
+        self.assertEqual(client.requests, ["https://careers.example.com/j/1"])
+        self.assertNotIn("http://127.0.0.1/secret", client.requests)
 
 
 class ProviderHandoffTest(ByolStoreTest):
