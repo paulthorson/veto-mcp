@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        # E2E browser tests skip gracefully when Chromium is missing,
+        # so a failed install must not fail the workflow.
+        continue-on-error: true
+        run: python -m playwright install --with-deps chromium
+
+      - name: Compile check (all .py, excluding venv/git)
+        run: |
+          python - <<'EOF'
+          import compileall, re, sys
+          ok = compileall.compile_dir(
+              ".",
+              rx=re.compile(r"^\./(\.venv|\.git|__pycache__|\.pytest_cache)"),
+              quiet=1,
+          )
+          sys.exit(0 if ok else 1)
+          EOF
+
+      - name: Run test suite
+        run: python tests/run.py
+
+      - name: Plugin wiring smoke check
+        run: |
+          python - <<'EOF'
+          import server, cli, argparse
+
+          # every plugin in the server tuple must import with register_tools
+          missing = [n for n, m in server._PLUGIN_MODULES
+                     if getattr(m, "register_tools", None) is None]
+          assert not missing, f"plugins without register_tools: {missing}"
+
+          # every CLI plugin must expose register_cli returning {cmd: handler}
+          parser = argparse.ArgumentParser(prog="veto")
+          sub = parser.add_subparsers()
+          cmds = cli._plugin_cli_handlers(sub)
+          assert isinstance(cmds, dict) and len(cmds) >= len(cli._PLUGIN_CLI_MODULES), (
+              f"expected >= {len(cli._PLUGIN_CLI_MODULES)} CLI commands, got {len(cmds)}"
+          )
+          print(f"OK: {len(server._PLUGIN_MODULES)} MCP plugins, {len(cmds)} CLI commands")
+          EOF
