@@ -1160,7 +1160,7 @@ section[id] {
 }
 .demo-level-kicker {
   font-family: var(--font-terminal);
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--amber);
@@ -1227,7 +1227,7 @@ section[id] {
 }
 .demo-msg-tag {
   font-family: var(--font-terminal);
-  font-size: 15px;
+  font-size: 18px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1353,7 +1353,7 @@ section[id] {
 }
 .demo-tailor-label {
   font-family: var(--font-terminal);
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
