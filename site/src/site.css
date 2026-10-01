@@ -137,7 +137,7 @@ html {
   padding: 14px 24px;
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 18px;
 }
 .brand {
   display: inline-flex;
@@ -165,14 +165,14 @@ html {
 }
 .nav-links {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   margin-left: 8px;
 }
 .nav-links a {
   color: var(--muted);
   text-decoration: none;
   font-family: var(--font-terminal);
-  font-size: 19px;
+  font-size: 18px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1167,7 +1167,10 @@ section[id] {
 }
 .demo-level-name {
   font-family: var(--font-display);
-  font-size: 30px;
+  /* Press Start 2P advances ~1em/glyph: 8-char names ("Standard") need
+     <=20px to stay inside the 3-col card (~173px content width). */
+  font-size: clamp(17px, 2.4vw, 20px);
+  line-height: 1.5;
 }
 .demo-level-desc {
   color: var(--muted);
@@ -1575,12 +1578,12 @@ section[id] {
 /* Radar */
 .radar-grid {
   display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 400px) 1fr;
+  gap: 32px;
   align-items: center;
   margin-bottom: 20px;
 }
-.radar-svg { width: 100%; max-width: 300px; }
+.radar-svg { width: 100%; max-width: 400px; }
 .radar-side { text-align: left; }
 .radar-score {
   font-family: var(--font-display);
@@ -1616,7 +1619,7 @@ section[id] {
 .radar-sliders {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 24px;
+  gap: 10px 24px;
 }
 
 /* Diff */
@@ -2067,7 +2070,7 @@ section[id] {
 }
 
 /* Playbook group sections on homepage */
-.group-sec { margin-bottom: 8px; }
+.group-sec { margin-bottom: 72px; }
 .group-head { margin-bottom: 28px; }
 .group-cards { margin-bottom: 8px; }
 
