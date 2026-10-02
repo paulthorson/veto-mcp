@@ -52,6 +52,36 @@ export default function RadarDemo() {
 
   return (
     <DemoShell title="> live fit-score demo" label="Interactive radar chart: five sliders recompute the job fit score live">
+      {/* Verdict hero: the product decision, the score, and where it sits vs the bar. */}
+      <div className={`fit-hero ${vetoed ? 'bad' : ''}`}>
+        <div className="fit-hero-top">
+          <p className="fit-verdict">{vetoed ? 'X VETOED' : '+ PROCEED'}</p>
+          <p className="fit-score">
+            <b>{score}</b>
+            <span>/ 100</span>
+          </p>
+        </div>
+        <div className="fit-bar">
+          <div className="fit-bar-track">
+            <div className="fit-bar-fill" style={{ width: `${score}%` }} />
+            <div
+              className="fit-bar-marker"
+              style={{ left: `${VETO_BAR}%` }}
+              title={`Veto bar: ${VETO_BAR}`}
+            />
+          </div>
+          <div className="fit-bar-scale" aria-hidden="true">
+            <span>0</span>
+            <span>bar {VETO_BAR}</span>
+            <span>100</span>
+          </div>
+        </div>
+        <p className="fit-margin">
+          {vetoed
+            ? `${margin} under the bar — Veto skips this one.`
+            : `${margin} over the bar — worth one of your five daily shots.`}
+        </p>
+      </div>
       <div className="radar-grid">
         <svg viewBox="0 0 340 260" className="radar-svg" aria-hidden="true">
           {rings.map((ring) => (
@@ -117,25 +147,31 @@ export default function RadarDemo() {
             );
           })}
         </svg>
-        <div className="radar-side">
-          <p className={`radar-score ${vetoed ? 'bad' : ''}`}>{score}</p>
-          <p className="radar-score-label">fit score / 100</p>
-          {vetoed ? (
-            <p className="radar-verdict bad">X VETOED: {score}, {margin} under the {VETO_BAR} bar</p>
-          ) : (
-            <p className="radar-verdict good">+ PROCEED: {score}, {margin} over the {VETO_BAR} bar</p>
-          )}
-          <p className="radar-note">
-            {AXES.map((a) => (
-              <span key={a} className="radar-contrib">
-                {a} {vals[a]} x{WEIGHTS[a].toFixed(2)} = {(vals[a] * WEIGHTS[a]).toFixed(1)}
-                <br />
-              </span>
-            ))}
-          </p>
+        <div className="fit-factors">
+          <p className="fit-factors-title">&gt; what moves the score</p>
+          {AXES.map((a) => {
+            const contrib = vals[a] * WEIGHTS[a];
+            return (
+              <div className="fit-factor" key={a}>
+                <div className="fit-factor-head">
+                  <span>{a}</span>
+                  <span>
+                    {vals[a]} x {WEIGHTS[a].toFixed(2)} = <b>{contrib.toFixed(1)}</b>
+                  </span>
+                </div>
+                <div className="fit-factor-track">
+                  <div
+                    className="fit-factor-fill"
+                    style={{ width: `${(contrib / 50) * 100}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-      <div className="radar-sliders">
+      <p className="fit-sliders-title">&gt; tune the signals</p>
+      <div className="fit-sliders">
         {AXES.map((a) => (
           <PxSlider
             key={a}
