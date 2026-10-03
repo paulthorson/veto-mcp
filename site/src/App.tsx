@@ -541,6 +541,15 @@ const INSTALL_CLI = `.venv/bin/python cli.py search "software engineer" --locati
 /* Routing                                                              */
 /* ------------------------------------------------------------------ */
 
+/* #/install and #install land in the same place; treat them as one.
+   These are in-page anchors (the install section on the home page), NOT
+   route changes — the router must never scroll-to-top for them. */
+const INSTALL_HASHES = new Set(['#/install', '#install']);
+
+function scrollToInstallSection() {
+  document.getElementById('install')?.scrollIntoView({ behavior: 'smooth' });
+}
+
 function useRoute(): string {
   const [hash, setHash] = useState(() =>
     typeof window === 'undefined' ? '' : window.location.hash,
@@ -551,10 +560,28 @@ function useRoute(): string {
       const h = window.location.hash;
       setHash(h);
       trackRouteView(h);
-      if (h.startsWith('#/')) window.scrollTo({ top: 0, behavior: 'instant' });
+      if (INSTALL_HASHES.has(h)) {
+        // In-page anchor: glide to the install section. The old code hit the
+        // startsWith('#/') branch below and jumped to top instead.
+        requestAnimationFrame(scrollToInstallSection);
+      } else if (h.startsWith('#/')) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    };
+    // Same-hash taps don't fire hashchange (e.g. tapping "Start with one job"
+    // while already at #/install), so scroll directly on the click too.
+    const onClick = (e: PointerEvent) => {
+      const anchor = (e.target as HTMLElement).closest?.(
+        'a[href="#/install"], a[href="#install"]',
+      );
+      if (anchor) requestAnimationFrame(scrollToInstallSection);
     };
     window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
+    document.addEventListener('click', onClick);
+    return () => {
+      window.removeEventListener('hashchange', onChange);
+      document.removeEventListener('click', onClick);
+    };
   }, []);
   return hash;
 }
@@ -613,9 +640,6 @@ const MOBILE_PAGES = [
   { href: '#/docs', label: 'Docs' },
   { href: '#/dashboard', label: 'Dashboard' },
 ];
-
-/* #/install and #install land in the same place; treat them as one. */
-const INSTALL_HASHES = new Set(['#/install', '#install']);
 
 function MobileNav({ routeHash }: { routeHash: string }) {
   const [open, setOpen] = useState(false);
