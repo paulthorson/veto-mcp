@@ -1,7 +1,7 @@
 /* Fit-score radar: five sliders recompute the match score live.
    Mirrors match.py: skills 50 / seniority 15 / salary 15 / location 15 / recency 5.
    Anything under the 60 veto bar is rejected. */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { DemoShell, PxSlider } from './shared';
 
 const AXES = ['skills', 'seniority', 'salary', 'location', 'recency'] as const;
@@ -46,6 +46,7 @@ export default function RadarDemo() {
   const cy = 130;
   const r = 88;
   const rings = [25, 50, 75, 100];
+  const gradientId = useId();
   /* Label sits in the bottom gap (between the salary and location spokes,
      just outside the dashed ring), where no axis label sits. */
   const [barLabelX, barLabelY] = ptAt(90, 68, cx, cy, r).split(',').map(Number);
@@ -84,6 +85,21 @@ export default function RadarDemo() {
       </div>
       <div className="radar-grid">
         <svg viewBox="0 0 340 260" className="radar-svg" aria-hidden="true">
+          <defs>
+            {/* Dataviz gradient: red at the core (low values) through amber
+                at the veto bar to green at the rim (high values). */}
+            <radialGradient
+              id={gradientId}
+              gradientUnits="userSpaceOnUse"
+              cx={cx}
+              cy={cy}
+              r={r * 1.08}
+            >
+              <stop offset="0%" stopColor="#ff4d5e" stopOpacity="0.6" />
+              <stop offset="56%" stopColor="#ffb020" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#3dff73" stopOpacity="0.6" />
+            </radialGradient>
+          </defs>
           {rings.map((ring) => (
             <polygon
               key={ring}
@@ -125,7 +141,7 @@ export default function RadarDemo() {
           ))}
           <polygon
             points={AXES.map((a, i) => pt(i, vals[a], cx, cy, r)).join(' ')}
-            fill={vetoed ? 'rgba(255,77,94,.25)' : 'rgba(61,255,115,.22)'}
+            fill={`url(#${gradientId})`}
             stroke={vetoed ? '#ff4d5e' : '#3dff73'}
             strokeWidth="3"
           />
