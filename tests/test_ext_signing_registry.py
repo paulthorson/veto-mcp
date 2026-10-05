@@ -46,6 +46,71 @@ def _set_version(ext: Path, version: str) -> None:
                              encoding="utf-8")
 
 
+def _ref_version() -> str:
+    """The reference extension's current manifest version.
+
+    Tests that revoke/downgrade the reference must use its ACTUAL
+    version: hardcoding an old literal silently no-ops once the manifest
+    is bumped (the revocation/downgrade targets a version that is not the
+    registered one).
+    """
+    manifest = json.loads((REF_EXT / "manifest.json").read_text(
+        encoding="utf-8"))
+    return str(manifest["version"])
+
+
+def _bump(version: str, *, minor_delta: int = 1, major_delta: int = 0) -> str:
+    """Return a version strictly greater than `version` for upgrade tests."""
+    parts = [int(p) if p.isdigit() else 0 for p in str(version).split(".")]
+    while len(parts) < 3:
+        parts.append(0)
+    parts[0] += major_delta
+    parts[1] += minor_delta
+    return ".".join(str(p) for p in parts)
+
+
+def _drop(version: str, *, minor_delta: int = 1) -> str:
+    """Return a version strictly lower than `version` for downgrade tests."""
+    parts = [int(p) if p.isdigit() else 0 for p in str(version).split(".")]
+    while len(parts) < 3:
+        parts.append(0)
+    if parts[1] >= minor_delta:
+        parts[1] -= minor_delta
+    elif parts[0] > 0:
+        parts[0] -= 1
+    else:
+        parts[1] = 0
+        parts[2] = 0
+        return "0.0.0"
+    return ".".join(str(p) for p in parts)
+
+
+def _spelling_variant(version: str) -> str:
+    """A differently-spelled but compare-equal form of `version`.
+
+    Used by the revocation spelling-variant tests: a revocation recorded
+    under one spelling must block every compare-equal spelling. Numeric
+    segments are zero-padded so ``compare_versions`` still reports
+    equality (e.g. ``1.0.0`` -> ``01.00.00``).
+    """
+    parts = str(version).split(".")
+    out = []
+    for i, p in enumerate(parts):
+        if p.isdigit():
+            out.append(p.zfill(2))
+        else:
+            out.append(p)
+    # Ensure at least three segments then re-pad so the variant differs
+    # as a string but not numerically.
+    while len(out) < 3:
+        out.append("00")
+    variant = ".".join(out)
+    from initiatives.i11.signing.sign import compare_versions
+    assert compare_versions(variant, version) == 0, (
+        f"spelling variant {variant!r} must compare equal to {version!r}")
+    return variant
+
+
 def _signed(ext, key=_PRIV, publisher="tester"):
     return sign_package(ext, publisher=publisher, private_key=key)
 
@@ -696,12 +761,14 @@ class TestRegistry(unittest.TestCase):
         ext = _copy_ref()
         reg = self._registry()
         self._submitted(reg, ext)
-        _set_version(ext, "0.2.0")
+        base = _ref_version()
+        upgraded = _bump(base)
+        _set_version(ext, upgraded)
         _signed(ext)
         res = reg.submit(ext, publisher="tester", publisher_pubkey=_PUB)
         self.assertTrue(res["ok"], res)
-        self.assertEqual(res["entry"]["version"], "0.2.0")
-        _set_version(ext, "0.1.9")
+        self.assertEqual(res["entry"]["version"], upgraded)
+        _set_version(ext, _drop(upgraded))
         _signed(ext)
         res = reg.submit(ext, publisher="tester", publisher_pubkey=_PUB)
         self.assertFalse(res["ok"])
@@ -715,7 +782,7 @@ class TestRegistry(unittest.TestCase):
             reg.record_gate("role-radar-digest", gate, verdict="pass",
                             reviewer="human", notes="ok")
         self.assertTrue(reg.installable("role-radar-digest")["ok"])
-        _set_version(ext, "0.2.0")
+        _set_version(ext, _bump(_ref_version()))
         _signed(ext)
         res = reg.submit(ext, publisher="tester", publisher_pubkey=_PUB)
         self.assertTrue(res["ok"], res)
@@ -789,34 +856,36 @@ class TestRegistry(unittest.TestCase):
                             reviewer="human", notes="ok")
         self.assertTrue(reg.installable("role-radar-digest")["ok"])
         reason = "exfiltration found post-review"
-        sig = sign_revocation(_PRIV, "role-radar-digest", "0.1.0", reason)
-        res = reg.revoke("role-radar-digest", "0.1.0", reason,
+        sig = sign_revocation(_PRIV, "role-radar-digest", _ref_version(), reason)
+        res = reg.revoke("role-radar-digest", _ref_version(), reason,
                          signature=sig)
         self.assertTrue(res["ok"], res)
         self.assertFalse(reg.installable("role-radar-digest")["ok"])
         # A signature from anyone else is refused.
         bad_sig = sign_revocation(_OTHER_PRIV, "role-radar-digest",
-                                  "0.1.0", reason)
-        res = reg.revoke("role-radar-digest", "0.1.0", reason,
+                                  _ref_version(), reason)
+        res = reg.revoke("role-radar-digest", _ref_version(), reason,
                          signature=bad_sig)
         self.assertFalse(res["ok"])
 
     def test_submit_refuses_revoked_version_spelling_variant(self):
-        # Install path: the registry entry is 0.1.0 and the revocation
-        # was authenticated as '0.1.0'; a resubmission under the
-        # compare-equal spelling '0.01.0' (valid semver per the manifest
-        # schema) must be refused as revoked, not re-run through the
-        # gates.
+        # Install path: the registry entry is the reference version and the
+        # revocation was authenticated as that same version; a resubmission
+        # under a compare-equal but differently-spelled variant must be
+        # refused as revoked, not re-run through the gates. The variant is
+        # derived from the real version so the two always compare equal.
         ext = _copy_ref()
         reg = self._registry()
         self._submitted(reg, ext)
+        base = _ref_version()
+        variant_version = _spelling_variant(base)
         reason = "exfiltration found post-review"
-        sig = sign_revocation(_PRIV, "role-radar-digest", "0.1.0", reason)
-        res = reg.revoke("role-radar-digest", "0.1.0", reason,
+        sig = sign_revocation(_PRIV, "role-radar-digest", base, reason)
+        res = reg.revoke("role-radar-digest", base, reason,
                          signature=sig)
         self.assertTrue(res["ok"], res)
         variant = _copy_ref()
-        _set_version(variant, "0.01.0")
+        _set_version(variant, variant_version)
         _signed(variant)
         bad = reg.submit(variant, publisher="tester",
                          publisher_pubkey=_PUB)
@@ -824,9 +893,9 @@ class TestRegistry(unittest.TestCase):
         self.assertIn("revoked", bad["error"])
 
     def test_installable_refuses_revoked_version_spelling_variant(self):
-        # Load path: the revocation was authenticated as '0.01.0' while
-        # the registered entry is 0.1.0 — installable() must still
-        # refuse it as revoked. The revocation check precedes gate
+        # Load path: the revocation was authenticated under a compare-equal
+        # spelling variant of the registered version — installable() must
+        # still refuse it as revoked. The revocation check precedes gate
         # evaluation, so the refusal names the revocation itself.
         ext = _copy_ref()
         reg = self._registry()
@@ -835,10 +904,15 @@ class TestRegistry(unittest.TestCase):
             reg.record_gate("role-radar-digest", gate, verdict="pass",
                             reviewer="human", notes="ok")
         reason = "exfiltration found post-review"
-        sig = sign_revocation(_PRIV, "role-radar-digest", "0.01.0", reason)
-        res = reg.revoke("role-radar-digest", "0.01.0", reason,
+        variant_version = _spelling_variant(_ref_version())
+        sig = sign_revocation(_PRIV, "role-radar-digest", variant_version, reason)
+        res = reg.revoke("role-radar-digest", variant_version, reason,
                          signature=sig)
         self.assertTrue(res["ok"], res)
+        # Register-side spelling variant of the SAME version must be
+        # treated as revoked (compare_versions semantics, not string
+        # equality). Derive the '0.01.0' spelling from the reference's
+        # real version so the variant always maps to the registered one.
         bad = reg.installable("role-radar-digest")
         self.assertFalse(bad["ok"], bad)
         self.assertIn("revoked", bad["error"])

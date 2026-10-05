@@ -8,6 +8,10 @@ permissions:
   packages: write
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -15,7 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect existing release for this tag
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "release for ${{ github.ref_name }} already exists; skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Log in to GHCR
+        if: steps.existing.outputs.exists == 'false'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -23,6 +40,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker metadata
+        if: steps.existing.outputs.exists == 'false'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -33,6 +51,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push image
+        if: steps.existing.outputs.exists == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -41,6 +60,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Create GitHub Release
+        if: steps.existing.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

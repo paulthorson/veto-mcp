@@ -241,8 +241,13 @@ class TestOutcomeNudges(_StoreMixin):
         self.assertIn("Acme", kwargs["title"])
 
     def test_send_prompts_empty_when_fresh(self):
-        self.write_apps([self.app(
-            "a1", submitted_at="2026-09-12T00:00:00+00:00")])
+        # Date-relative so the fixture stays "fresh" as the wall clock
+        # advances: a fixed date ages past the 14-day stale window and
+        # the test would spuriously fire a prompt.
+        from datetime import datetime, timedelta, timezone
+
+        fresh = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        self.write_apps([self.app("a1", submitted_at=fresh)])
         with mock.patch("notify.send") as send:
             result = outcome_nudges.send_prompts()
         self.assertEqual(result["prompts"], 0)
