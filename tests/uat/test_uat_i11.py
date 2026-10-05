@@ -663,13 +663,22 @@ class TestExtensionPlatformJourney(JourneyCase):
         self.assertIn("key substitution", sub["error"])
 
         # Downgrade: a newer version registers; resubmitting the older
-        # version is rejected outright.
-        down_id, down_dir, _ = submit_clean("uat-registry-downgrade")
+        # version is rejected outright. Versions are derived from the
+        # scaffolded manifest's real version so the upgrade is genuinely
+        # newer than the base (a hardcoded literal silently becomes a
+        # downgrade once the scaffold's default version is bumped).
+        down_id, down_dir, down_base = submit_clean("uat-registry-downgrade")
         v1_copy = self.workdir / "downgrade-v1"
         shutil.copytree(down_dir, v1_copy)
         manifest = json.loads(
             (down_dir / "manifest.json").read_text(encoding="utf-8"))
-        manifest["version"] = "0.2.0"
+        _base_parts = [int(p) if p.isdigit() else 0
+                       for p in str(down_base).split(".")]
+        while len(_base_parts) < 3:
+            _base_parts.append(0)
+        _base_parts[1] += 1
+        down_newer = ".".join(str(p) for p in _base_parts)
+        manifest["version"] = down_newer
         (down_dir / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
@@ -677,7 +686,7 @@ class TestExtensionPlatformJourney(JourneyCase):
         up = registry.submit(down_dir, publisher="uat-test",
                              publisher_pubkey=pub)
         self.assertTrue(up["ok"], up)
-        self.assertEqual(up["entry"]["version"], "0.2.0")
+        self.assertEqual(up["entry"]["version"], down_newer)
         down = registry.submit(v1_copy, publisher="uat-test",
                                publisher_pubkey=pub)
         self.assertFalse(down["ok"])
