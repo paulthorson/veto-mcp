@@ -1,5 +1,5 @@
 # MCP SDK v2 (FastMCP was renamed to MCPServer; server.py uses the new API)
-mcp==2.2.0
+mcp==2.3.0
 httpx==0.28.1
 beautifulsoup4==4.15.0
 lxml==6.1.3
