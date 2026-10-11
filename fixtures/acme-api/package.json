@@ -1,0 +1,1 @@
+{"description":"Acme demo orders API — fixture repo for the Veto grill","name":"acme-api","private":true,"scripts":{"start":"node src/server.js","test":"node --test tests/smoke.test.js"},"type":"module","version":"1.0.0"}
