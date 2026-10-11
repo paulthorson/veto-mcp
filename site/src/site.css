@@ -3086,3 +3086,124 @@ button.px-btn {
   min-height: 44px;
   font-family: var(--font-display);
 }
+
+/* ---------- Chakra E/G: job + resume input steps (integrator) ---------- */
+/* Pixel/mono language, same as the rest of the demo. */
+.job-input-step,
+.resume-input-step {
+  margin: 24px 0 32px;
+}
+.job-input-title,
+.resume-input-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+.job-input-help,
+.resume-input-help {
+  color: var(--muted);
+  font-size: 15.5px;
+  margin: 0 0 16px;
+  max-width: 60ch;
+}
+.job-input-form,
+.resume-input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.job-input-label,
+.resume-input-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ink);
+}
+.job-input-textarea,
+.resume-input-textarea {
+  font-family: var(--font-terminal);
+  font-size: 15px;
+  padding: 12px 14px;
+  background: var(--veto-deep);
+  color: var(--ink);
+  border: 3px solid var(--border);
+  border-radius: 0;
+  min-height: 160px;
+  resize: vertical;
+}
+.job-input-textarea:focus,
+.resume-input-textarea:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.job-input-textarea::placeholder,
+.resume-input-textarea::placeholder {
+  color: var(--ink-faint);
+}
+.job-input-actions,
+.resume-input-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.job-input-submit,
+.resume-input-submit {
+  font-family: var(--font-display);
+  font-size: 12px;
+  padding: 14px 20px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 3px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.job-input-submit:hover:not(:disabled),
+.resume-input-submit:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--green);
+  color: var(--green);
+}
+.job-input-submit:disabled,
+.resume-input-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.job-input-skip,
+.resume-input-skip {
+  font-family: var(--font-display);
+  font-size: 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 14px 8px;
+}
+.job-input-skip:hover,
+.resume-input-skip:hover {
+  color: var(--green);
+}
+
+/* ---------- Chakra D/E/F: verdict fit note, bonus + companion sections ---------- */
+.demo-fit-note {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--green);
+  background: var(--panel);
+  font-size: 15.5px;
+}
+.demo-repo-bonus {
+  margin-top: 48px;
+}
+.demo-repo-bonus .section-title {
+  margin-bottom: 8px;
+}
+.companion-sec .demo-companion {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.demo-companion-advance {
+  margin: 4px 0;
+}

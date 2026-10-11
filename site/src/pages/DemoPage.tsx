@@ -25,10 +25,37 @@ import {
   FULL_QUESTIONS,
   classifyAnswer,
   computeFullResult,
+  type AnswerClass,
   type FullAnswer,
   type GrillQuestion,
   type Level,
 } from "../lib/demoGrill";
+
+/* Chakra features A–H: additive mounts into the demo below. */
+import { ReasoningNarrative } from '../demos/grill/ReasoningNarrative';
+import { buildReasoningNarrative } from '../lib/reasoningNarrative';
+import AiFluencyPanel from '../demos/grill/AiFluencyPanel';
+import { scoreAiFluency } from '../lib/aiFluency';
+import DefendStep from '../demos/grill/DefendStep';
+import {
+  assessDefense,
+  getDefendPrompt,
+  shouldDemandDefense,
+} from '../lib/defendFlow';
+import { getRepoTasks } from '../lib/repoTasks';
+import { RepoTaskView } from '../demos/grill/RepoTaskView';
+import { JobInputStep } from '../demos/grill/JobInputStep';
+import { tailorQuestions, jobFitNote } from '../lib/jobTargeting';
+import { ResumeInputStep } from '../demos/grill/ResumeInputStep';
+import { scoreResumeMatch } from '../lib/resumeMatch';
+import ResumeMatchPanel from '../demos/grill/ResumeMatchPanel';
+import DeliveryPanel from '../demos/grill/DeliveryPanel';
+import { analyzeDeliveryAcross } from '../lib/deliveryCoaching';
+import CompanionDashboard from '../demos/grill/CompanionDashboard';
+import PipelineBoard from '../demos/grill/PipelineBoard';
+import { FIXTURE_NETWORK } from '../lib/fixtures/network';
+import type { JobContext, DefenseAssessment } from '../lib/chakraTypes';
+import type { Prospect, ProspectStage } from '../lib/companionTypes';
 
 type Verdict = { pass: false; reason: string } | { pass: true };
 
@@ -139,11 +166,22 @@ function friendlyVerdict(years: string, k8s: boolean, auth: boolean): Verdict {
   return { pass: true };
 }
 
-function FriendlyGrill({ onSwitchLevel }: { onSwitchLevel: () => void }) {
+function FriendlyGrill({
+  job,
+  onSwitchLevel,
+}: {
+  job: JobContext | null;
+  onSwitchLevel: () => void;
+}) {
   const [step, setStep] = useState(0); // 0..2 questions, 3 = verdict
   const [years, setYears] = useState<string | null>(null);
   const [k8s, setK8s] = useState<boolean | null>(null);
   const [auth, setAuth] = useState<boolean | null>(null);
+
+  /* Feature E: a fed job tailors the question text; only text changes. */
+  const tailored = useMemo(() => tailorQuestions(job), [job]);
+  const tailoredText = (qid: string, fallback: string): string =>
+    tailored.find((t) => t.qid === qid)?.text ?? fallback;
 
   const { swapRef, markSwap } = useSwapAnchor(step);
   const goStep = (next: number) => {
@@ -171,7 +209,7 @@ function FriendlyGrill({ onSwitchLevel }: { onSwitchLevel: () => void }) {
           {step === 0 && (
             <Card className="demo-q">
               <Heading level={3} className="feature-title">
-                How many years of backend experience do you have?
+                {tailoredText('years', 'How many years of backend experience do you have?')}
               </Heading>
               <div className="demo-opts">
                 {YEAR_OPTIONS.map((o) => (
@@ -193,7 +231,7 @@ function FriendlyGrill({ onSwitchLevel }: { onSwitchLevel: () => void }) {
           {step === 1 && (
             <Card className="demo-q">
               <Heading level={3} className="feature-title">
-                Have you run Kubernetes in production?
+                {tailoredText('k8s', 'Have you run Kubernetes in production?')}
               </Heading>
               <div className="demo-opts">
                 <button
@@ -281,6 +319,16 @@ function FriendlyGrill({ onSwitchLevel }: { onSwitchLevel: () => void }) {
               </div>
             )}
             <ShareLinks level="friendly" vetoed={!verdict.pass} reason={!verdict.pass ? verdict.reason : ''} />
+            {/* Feature E: role-specific fit note when a job was fed. */}
+            {job && (
+              <p className="demo-fit-note" data-testid="job-fit-note">
+                {jobFitNote(job, [
+                  { qid: 'years', text: years ?? '', cls: 'specific' },
+                  { qid: 'k8s', text: k8s ? 'yes' : 'no', cls: 'specific' },
+                  { qid: 'logistics', text: auth ? 'yes' : 'no', cls: 'specific' },
+                ])}
+              </p>
+            )}
             <div className="demo-again">
               <button className="demo-opt" onClick={reset}>
                 {'>'} Play again
@@ -358,19 +406,35 @@ function throttleSubmit(
 
 function FullGrill({
   level,
+  job,
+  resumeText,
   onSwitchLevel,
 }: {
   level: 'standard' | 'brutal';
+  job: JobContext | null;
+  resumeText: string | null;
   onSwitchLevel: () => void;
 }) {
   const [stage, setStage] = useState<Stage>('grill');
   const [qi, setQi] = useState(0);
   const [depth, setDepth] = useState(0);
+
+  /* Feature E: a fed job tailors question text only — picks, follow-ups,
+     placeholders, order, classification, and scoring are untouched. */
+  const displayQuestions: GrillQuestion[] = useMemo(() => {
+    if (!job) return FULL_QUESTIONS;
+    const t = tailorQuestions(job);
+    return FULL_QUESTIONS.map((fq) => {
+      const ov = t.find((x) => x.qid === fq.id);
+      return ov ? { ...fq, text: ov.text } : fq;
+    });
+  }, [job]);
+
   const [msgs, setMsgs] = useState<ChatMsg[]>([
     {
       id: 0,
       from: 'veto',
-      text: FULL_QUESTIONS[0].text,
+      text: displayQuestions[0].text,
       tag: `Q1 · ${FULL_QUESTIONS[0].type}`,
     },
   ]);
@@ -378,12 +442,21 @@ function FullGrill({
   const [draft, setDraft] = useState('');
   const idRef = useRef(1);
 
+  /* Feature C: pending defend-your-answer demand, brutal level only. */
+  const [defense, setDefense] = useState<null | {
+    qid: string;
+    text: string;
+    cls: AnswerClass;
+    prompt: string;
+  }>(null);
+  const [, setDefenseNotes] = useState<Record<string, DefenseAssessment>>({});
+
   const { swapRef, markSwap } = useSwapAnchor(stage);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const lastSubmitRef = useRef<{ time: number; key: string; text: string } | null>(null);
 
   const maxDepth = level === 'brutal' ? 2 : 1;
-  const q = FULL_QUESTIONS[qi];
+  const q = displayQuestions[qi];
   const done = answers.length === FULL_QUESTIONS.length;
 
   /* Keep the newest exchange in view as the conversation scrolls. */
@@ -397,6 +470,27 @@ function FullGrill({
     [done, level, answers],
   );
 
+  /* Feature B: AI fluency dimension, scored once the run completes. */
+  const fluency = useMemo(
+    () => (done ? scoreAiFluency(answers, job ?? undefined) : null),
+    [done, answers, job],
+  );
+
+  /* Feature H: delivery coaching — HOW the candidate answered. */
+  const delivery = useMemo(
+    () => (done ? analyzeDeliveryAcross(answers) : null),
+    [done, answers],
+  );
+
+  /* Feature G: resume-vs-job match, scored once at the verdict. */
+  const match = useMemo(
+    () =>
+      resumeText != null && resumeText.trim() && job != null && job.roleKeywords.length > 0
+        ? scoreResumeMatch(resumeText, job)
+        : null,
+    [resumeText, job],
+  );
+
   const goStage = (next: Stage) => {
     markSwap();
     setStage(next);
@@ -404,6 +498,35 @@ function FullGrill({
 
   const followupText = (fq: GrillQuestion, nd: number): string =>
     nd === 1 ? (level === 'brutal' ? fq.followupBrutal : fq.followup) : fq.followupBrutalLast;
+
+  /* Feature C: the record-and-advance continuation, shared by submit()
+     and the defend-stage onComplete. The original answer is recorded
+     exactly as classified; a defense is evidence, not a re-classification. */
+  const recordAnswer = (qid: string, text: string, cls: AnswerClass) => {
+    const rec: FullAnswer = { qid, text, cls };
+    const nextAnswers = [...answers, rec];
+    setAnswers(nextAnswers);
+    const vetoId = idRef.current++;
+    if (qi + 1 < displayQuestions.length) {
+      const nq = displayQuestions[qi + 1];
+      setMsgs((prev) => [
+        ...prev,
+        { id: vetoId, from: 'veto', text: nq.text, tag: `Q${qi + 2} · ${nq.type}` },
+      ]);
+      setQi(qi + 1);
+      setDepth(0);
+    } else {
+      setMsgs((prev) => [
+        ...prev,
+        {
+          id: vetoId,
+          from: 'veto',
+          text: '> Grill complete. 5/5 answered. Running the honesty check next.',
+          tag: 'system',
+        },
+      ]);
+    }
+  };
 
   const submit = (raw: string) => {
     if (done) return;
@@ -422,28 +545,22 @@ function FullGrill({
     const vetoId = idRef.current++;
     setMsgs((prev) => [...prev, { id: youId, from: 'you', text, tag: 'you' }]);
     if (cls === 'specific' || nd > maxDepth) {
-      const rec: FullAnswer = { qid: q.id, text, cls };
-      const nextAnswers = [...answers, rec];
-      setAnswers(nextAnswers);
-      if (qi + 1 < FULL_QUESTIONS.length) {
-        const nq = FULL_QUESTIONS[qi + 1];
-        setMsgs((prev) => [
-          ...prev,
-          { id: vetoId, from: 'veto', text: nq.text, tag: `Q${qi + 2} · ${nq.type}` },
-        ]);
-        setQi(qi + 1);
-        setDepth(0);
-      } else {
-        setMsgs((prev) => [
-          ...prev,
-          {
-            id: vetoId,
-            from: 'veto',
-            text: '> Grill complete. 5/5 answered. Running the honesty check next.',
-            tag: 'system',
-          },
-        ]);
+      /* Feature C: brutal may demand a defense before the answer is
+         recorded and the grill moves on. Vague answers with follow-up
+         depth remaining go through the normal brutal follow-ups first;
+         the defense fires when the grill would otherwise accept the
+         answer. */
+      if (level === 'brutal' && shouldDemandDefense(q.id, text, cls)) {
+        setDefense({
+          qid: q.id,
+          text,
+          cls,
+          prompt: getDefendPrompt({ id: q.id, text: q.text }, text),
+        });
+        setDraft('');
+        return;
       }
+      recordAnswer(q.id, text, cls);
     } else {
       setMsgs((prev) => [
         ...prev,
@@ -461,6 +578,9 @@ function FullGrill({
     setDepth(0);
     setAnswers([]);
     setDraft('');
+    /* Feature C: a fresh run clears any pending defense. */
+    setDefense(null);
+    setDefenseNotes({});
     /* Fresh run = fresh prompt identities: the throttle must not mistake
        the restarted base prompt for a double-submit of the old run. */
     lastSubmitRef.current = null;
@@ -468,7 +588,7 @@ function FullGrill({
       {
         id: idRef.current++,
         from: 'veto',
-        text: FULL_QUESTIONS[0].text,
+        text: displayQuestions[0].text,
         tag: `Q1 · ${FULL_QUESTIONS[0].type}`,
       },
     ]);
@@ -495,6 +615,7 @@ function FullGrill({
                 <div
                   key={m.id}
                   className={`demo-msg ${m.from === 'veto' ? (m.tag === 'follow-up' ? 'q followup' : 'q') : 'a'}`}
+                  {...(m.tag === 'defense verdict' ? { 'data-testid': 'defense-assessment' } : {})}
                   aria-live={i === msgs.length - 1 ? 'polite' : undefined}
                 >
                   <span className="demo-msg-tag">{m.from === 'veto' ? `veto · ${m.tag}` : m.tag}</span>
@@ -502,7 +623,7 @@ function FullGrill({
                 </div>
               ))}
             </div>
-            {!done && (
+            {!done && defense == null && (
               <>
                 <div className="demo-opts demo-picks">
                   {q.picks.map((p) => (
@@ -533,6 +654,28 @@ function FullGrill({
                     : '(In the real grill these arrive over WhatsApp, and your answers shape the resume tailoring.)'}
                 </p>
               </>
+            )}
+            {/* Feature C: the defend stage renders instead of the input row
+                while a defense is pending — the candidate defends, not
+                dodges by clicking another pick. */}
+            {defense != null && (
+              <DefendStep
+                questionText={q.text}
+                candidateAnswer={defense.text}
+                defendPrompt={defense.prompt}
+                onComplete={(d) => {
+                  const a = assessDefense(defense.qid, defense.text, d);
+                  setDefenseNotes((prev) => ({ ...prev, [defense.qid]: a }));
+                  setMsgs((prev) => [
+                    ...prev,
+                    { id: idRef.current++, from: 'you', text: d, tag: 'defense' },
+                    { id: idRef.current++, from: 'veto', text: a.note, tag: 'defense verdict' },
+                  ]);
+                  const held = defense;
+                  setDefense(null);
+                  recordAnswer(held.qid, held.text, held.cls);
+                }}
+              />
             )}
             {done && (
               <div className="demo-opts">
@@ -657,6 +800,8 @@ function FullGrill({
 
         {stage === 'verdict' && result && (
           <div className="demo-verdict">
+            {/* Feature G: resume-vs-job match, at the top of the verdict. */}
+            {match != null && <ResumeMatchPanel match={match} />}
             {result.pass ? (
               <Card
                 className="demo-pass"
@@ -695,6 +840,18 @@ function FullGrill({
                   <div className="tline t-veto">X VETOED: {result.reason}</div>
                 </div>
               </div>
+            )}
+            {/* Feature A: HOW the candidate approached the grill. */}
+            <ReasoningNarrative narrative={buildReasoningNarrative(answers, job ?? undefined)} />
+            {/* Feature B: AI fluency dimension, beside the fit-score verdict. */}
+            {fluency && <AiFluencyPanel fluency={fluency} />}
+            {/* Feature H: delivery coaching — HOW the candidate answered. */}
+            {delivery && <DeliveryPanel feedback={delivery} />}
+            {/* Feature E: role-specific fit note when a job was fed. */}
+            {job && (
+              <p className="demo-fit-note" data-testid="job-fit-note">
+                {jobFitNote(job, answers)}
+              </p>
             )}
             <ShareLinks level={level} vetoed={!result.pass} reason={result.reason} score={result.score} />
             <div className="demo-opts">
@@ -786,6 +943,167 @@ function LedgerStage({
   );
 }
 
+/* ---------------- Feature F: daily companion check-in ---------------- */
+/* The coach around the grill: the pipeline board (where applications stand)
+   plus the companion dashboard (check-in summary, follow-ups, warm paths).
+   Prospects persist in localStorage under veto.companion.v1; a fresh
+   profile seeds three fictional demo prospects so the surface is alive on
+   load. Mutations live here — the board and dashboard stay presentational. */
+
+const COMPANION_PROSPECTS_KEY = 'veto.companion.v1.prospects';
+const COMPANION_CHECKINS_KEY = 'veto.companion.v1.checkins';
+
+const NEXT_STAGE: Partial<Record<ProspectStage, ProspectStage>> = {
+  interested: 'applied',
+  applied: 'interviewing',
+  interviewing: 'offer',
+};
+
+/* Fictional demo prospects — no real people, no real companies. Dates are
+   relative to load time so the staleness signals stay stable: one heating
+   up (interviewing, active yesterday), one needing a follow-up (applied,
+   quiet 6 days), one fresh with no warm path in the fixture network. */
+function seedCompanionProspects(): Prospect[] {
+  const day = 86_400_000;
+  const now = Date.now();
+  const mkJob = (title: string, company: string): JobContext => ({
+    title,
+    company,
+    rawText: `${title} — ${company} (fictional demo prospect)`,
+    requirements: ['3+ years backend', 'Kubernetes in production'],
+    roleKeywords: ['backend', 'platform'],
+    source: 'paste',
+  });
+  const iso = (t: number) => new Date(t).toISOString();
+  return [
+    {
+      id: 'demo-p1',
+      job: mkJob('Staff Platform Engineer', 'Acme Robotics'),
+      stage: 'interviewing',
+      notes: ['phone screen done'],
+      lastActivity: iso(now - day),
+      addedAt: iso(now - 21 * day),
+    },
+    {
+      id: 'demo-p2',
+      job: mkJob('Product Designer', 'Northwind Labs'),
+      stage: 'applied',
+      notes: [],
+      lastActivity: iso(now - 6 * day),
+      addedAt: iso(now - 16 * day),
+    },
+    {
+      id: 'demo-p3',
+      job: mkJob('Data Engineer', 'Vandelay Industries'),
+      stage: 'interested',
+      notes: ['saw posting, looks promising'],
+      lastActivity: iso(now),
+      addedAt: iso(now),
+    },
+  ];
+}
+
+function loadCompanionProspects(): Prospect[] {
+  try {
+    const raw = localStorage.getItem(COMPANION_PROSPECTS_KEY);
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Prospect[];
+    }
+  } catch {
+    /* Private-mode browsers: fall through to the seeds. */
+  }
+  return seedCompanionProspects();
+}
+
+function CompanionCheckin({ job }: { job: JobContext | null }) {
+  const [prospects, setProspects] = useState<Prospect[]>(loadCompanionProspects);
+
+  /* One check-in entry per day the pane is opened. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(COMPANION_CHECKINS_KEY);
+      const checkins: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+      const today = new Date().toISOString().slice(0, 10);
+      if (!checkins.includes(today)) {
+        localStorage.setItem(COMPANION_CHECKINS_KEY, JSON.stringify([...checkins, today]));
+      }
+    } catch {
+      /* Private-mode browsers: in-memory state only. */
+    }
+  }, []);
+
+  /* Persist every mutation. */
+  useEffect(() => {
+    try {
+      localStorage.setItem(COMPANION_PROSPECTS_KEY, JSON.stringify(prospects));
+    } catch {
+      /* Private-mode browsers: in-memory state only. */
+    }
+  }, [prospects]);
+
+  const advance = (id: string) => {
+    setProspects((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const next = NEXT_STAGE[p.stage];
+        if (!next) return p;
+        const now = new Date().toISOString();
+        return {
+          ...p,
+          stage: next,
+          lastActivity: now,
+          notes: [...p.notes, `advanced to ${next}`],
+        };
+      }),
+    );
+  };
+
+  /* Feature E seam: the fed job can be saved as a prospect. */
+  const trackFedJob = () => {
+    if (!job) return;
+    const now = new Date().toISOString();
+    setProspects((prev) => [
+      ...prev,
+      {
+        id: `p-${Date.now()}`,
+        job,
+        stage: 'interested',
+        notes: [],
+        lastActivity: now,
+        addedAt: now,
+      },
+    ]);
+  };
+
+  return (
+    <div className="demo-companion">
+      <p className="demo-fine">
+        The coach around the grill — where your applications stand, who to follow up with,
+        and who in your network can open the door.
+      </p>
+      {job && (
+        <div className="demo-opts">
+          <button className="demo-opt" onClick={trackFedJob}>
+            {'>'} Track the fed job as a prospect
+          </button>
+        </div>
+      )}
+      <PipelineBoard prospects={prospects} />
+      <div className="demo-opts demo-companion-advance">
+        {prospects
+          .filter((p) => NEXT_STAGE[p.stage] != null)
+          .map((p) => (
+            <button key={p.id} className="demo-opt" onClick={() => advance(p.id)}>
+              {'>'} Advance: {p.job.title} at {p.job.company}
+            </button>
+          ))}
+      </div>
+      <CompanionDashboard prospects={prospects} network={FIXTURE_NETWORK} />
+    </div>
+  );
+}
+
 /* ---------------- Level select ---------------- */
 
 const LEVELS: {
@@ -845,6 +1163,13 @@ export default function DemoPage() {
   const [level, setLevel] = useState<Level | null>(null);
   const { swapRef, markSwap } = useSwapAnchor(level);
 
+  /* Feature E: the fed job posting (null = skipped, default posting). */
+  const [jobAsked, setJobAsked] = useState(false);
+  const [job, setJob] = useState<JobContext | null>(null);
+  /* Feature G: the pasted resume (null = skipped, no match panel). */
+  const [resumeAsked, setResumeAsked] = useState(false);
+  const [resumeText, setResumeText] = useState<string | null>(null);
+
   const pick = (l: Level | null) => {
     if (l != null) {
       /* Entering a run: jump to the top; no anchor compensation wanted. */
@@ -856,6 +1181,9 @@ export default function DemoPage() {
       setLevel(l);
     }
   };
+
+  /* Feature D: real-repo tasks; the fed job only biases fixture choice. */
+  const repoTasks = useMemo(() => getRepoTasks(job ?? undefined), [job]);
 
   return (
     <div className="page">
@@ -879,11 +1207,69 @@ export default function DemoPage() {
 
         <section className="section demo-sec">
           <div className="wrap narrow" ref={swapRef}>
-            {level == null && <LevelSelect onPick={pick} />}
-            {level === 'friendly' && <FriendlyGrill onSwitchLevel={() => pick(null)} />}
-            {(level === 'standard' || level === 'brutal') && (
-              <FullGrill level={level} onSwitchLevel={() => pick(null)} />
+            {/* Feature E: the job-input step comes first — the visitor can
+                paste a posting so the grill interviews them for that role.
+                Skipping keeps the default posting; the demo is unchanged. */}
+            {!jobAsked && (
+              <JobInputStep
+                onSubmit={(j) => {
+                  setJob(j);
+                  setJobAsked(true);
+                  window.scrollTo({ top: 0, behavior: 'instant' });
+                }}
+                onSkip={() => {
+                  setJob(null);
+                  setJobAsked(true);
+                  window.scrollTo({ top: 0, behavior: 'instant' });
+                }}
+              />
             )}
+            {/* Feature G: the resume step follows the job step. Skipping
+                means no resume match — the verdict is exactly today's. */}
+            {jobAsked && !resumeAsked && (
+              <ResumeInputStep
+                onSubmit={(t) => {
+                  setResumeText(t);
+                  setResumeAsked(true);
+                  window.scrollTo({ top: 0, behavior: 'instant' });
+                }}
+                onSkip={() => {
+                  setResumeText(null);
+                  setResumeAsked(true);
+                  window.scrollTo({ top: 0, behavior: 'instant' });
+                }}
+              />
+            )}
+            {jobAsked && resumeAsked && level == null && <LevelSelect onPick={pick} />}
+            {jobAsked && resumeAsked && level === 'friendly' && (
+              <FriendlyGrill job={job} onSwitchLevel={() => pick(null)} />
+            )}
+            {jobAsked && resumeAsked && (level === 'standard' || level === 'brutal') && (
+              <FullGrill
+                level={level}
+                job={job}
+                resumeText={resumeText}
+                onSwitchLevel={() => pick(null)}
+              />
+            )}
+            {/* Feature D: bonus stage — a real-repo task against the fixture
+                repo (the Acme orders API, bugs included). */}
+            <div className="demo-repo-bonus">
+              <h2 className="section-title">Bonus stage — the real-repo task</h2>
+              <p className="demo-fine">
+                Toy questions only go so far. This one runs against a real
+                codebase — the Acme orders API, bugs included.
+              </p>
+              <RepoTaskView task={repoTasks[0]} />
+            </div>
+          </div>
+        </section>
+
+        {/* Feature F: the daily companion loop — pipeline board plus the
+            check-in dashboard. Ambient, outside the grill question flow. */}
+        <section className="section companion-sec">
+          <div className="wrap narrow">
+            <CompanionCheckin job={job} />
           </div>
         </section>
 
