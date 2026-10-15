@@ -1,14 +1,18 @@
 # Veto positioning brief — the core differentiator
 
-Status: bake-out v15, 2026-10-15 (rework round 2 after the fresh
-blind audit of v14 returned KICK_BACK — 6 blockers / 26 majors /
+Status: bake-out v16, 2026-10-15 (rework round 3 after the fresh
+blind audit of v15 returned KICK_BACK — 4 blockers / 18 majors /
 23 minors standing after the refutation pass; this version
-re-corrects the Jobscan, LazyApply, and Sonara rows from the
-products' own current pages, adds MaxCV and the five missing scaled
-competitors to §5, restates the open ground as the narrower
-combination that remains unoccupied, conforms the headline to its
-own qualifier rule, and re-sweeps the claims-debt list by claim
-concept — see §10). Companion documents: `feature-sets.md` (what
+changes the form of the landscape claim itself — every
+completeness-dependent claim is deleted and the differentiator is
+restated as named contrasts against named products' verified
+behaviour, with Career-Ops, AI Applyd, and Adzuna ApplyIQ added to
+§5 under stated inclusion criteria — corrects the LoopCV row and
+flags Jobscan's self-contradicting prep record in its cell, adds
+claims-debt items CD-33…CD-39, corrects CD-17…CD-19's surfaces
+and severities, names the two retained surfaces §7 omitted, and
+re-scopes the outcome-report and bias-waiver claims to what their
+mechanisms actually give — see §10). Companion documents: `feature-sets.md` (what
 gets built) and `roadmap.md` (in what order). Evidence base:
 `code-grounding.md` (read-only audit of this repo's code) and
 `competitive-landscape.md` (research seat, sources cited inline in §5).
@@ -112,49 +116,86 @@ competitors in §5 — only the auto-apply tools sell volume. "Gets to
 know you" and "based on your real experience" are already claimed by
 Sonara and Teal. Prep wording is contested ground too: job-specific
 prep is already sold by Final Round AI, Teal, LinkedIn, Rezi,
-Jobscan, JobCopilot, and EarnBetter
-(§5), so a readiness claim alone carries nothing.
-**What remains open ground is narrower than earlier versions of
-this brief claimed, and it is stated as a combination, scoped to
-the §5 table as now constituted (twenty competitor rows, checked
-2026-10-15).** Refusal of unbacked claims as a stated mechanism is
-**already occupied**: MaxCV markets a hard fabrication ban — only
-skills and experience already in the CV are used, skills the user
-lacks are not added, risky claims are stripped, softer claims wait
-for approval, and each requirement is mapped to evidence in the CV
-versus not in the CV (§5). JobCopilot's FAQ and AI Applyd's
-comparison copy state no-invention postures in the same direction,
-and Enhancv's tailoring copy states real-experience-only tailoring
-with a placeholder used instead of an invented figure. The
-narrowing is plain: Veto cannot claim refusal, a fabrication ban,
-or requirement-to-evidence mapping as its own ground. What no row
-in the corrected table combines is the full set together:
-**refusal of unbacked claims + the four-state proof classification
-(supported / evidence gap / skill gap / contested, split by proof
-state and not only by whether an item is on record) + an
-inspectable verdict record that shows its own overturn data +
-prep driven by that delta and graded against the user's own
-evidence.** MaxCV is the nearest occupant: it holds the first
-element and a record-presence mapping (in the CV versus not in the
-CV); it does not split on-record-but-unproven from absent, publish
-a verdict record with overturn data, or drive prep from that
-split. That combination — not any single word in it — is the open
-ground this brief claims, and only for the table as constituted:
-products outside the table were not checked, and the claim must be
-re-checked before any public use (§5).
+JobCopilot, and EarnBetter
+(§5), so a readiness claim alone carries nothing. (Jobscan is not
+in that list in this version: its own pages contradict each other
+on whether individual job seekers can access its interview
+practice at all — see the flagged cell in §5.)
+**How the differentiator is stated from this version on — named
+contrasts only.** Earlier versions of this brief stated the
+differentiator as ground the market had left empty ("nearest
+occupant", "unoccupied", "no competitor combines"), and three
+consecutive audits each found a scaled product the landscape had
+missed (the round-1 additions, MaxCV, then Career-Ops). A claim
+whose truth needs the whole market surveyed cannot be kept true
+by this document, so that form is deleted, not patched: this
+brief makes **no** market-completeness claim anywhere, and the
+§5 table is a named comparison set under stated inclusion
+criteria (§5), not a survey of the market. The differentiator is
+stated only as contrasts against named products' verified
+behaviour (§5, checked 2026-10-15):
 
-- **Not unqualified — unproven.** The short form of the delta
+- **Career-Ops** (open-source, MIT, local-first; about 74,800
+  stars on its repository at check date) scores each job 1–5
+  against the user's CV, tells the user not to apply below
+  4.0/5 (the user may override; its README states the tool "will
+  say so" — whether an override is logged is **not** stated in
+  the README checked, and this brief does not assert it), never
+  submits (it fills in the application; the user presses
+  Submit), and runs a check in code that stops PDF generation
+  when numbers or facts appear in neither the CV nor the user's
+  article digest; it also carries a job-description skill-gap
+  module and an interview suite (prep plans, practice with
+  feedback, debriefs). Career-Ops therefore holds, in one
+  shipped free product, the do-not-apply verdict, the
+  never-submits posture, an in-code fabrication check, gap
+  analysis, and prep. Veto claims **none** of those as its
+  difference from Career-Ops.
+- **MaxCV** markets a hard fabrication ban — only skills and
+  experience already in the CV are used, skills the user lacks
+  are not added, risky claims are stripped, softer claims wait
+  for approval — and maps each requirement to evidence in the CV
+  versus not in the CV (§5). JobCopilot's FAQ and AI Applyd's
+  showcase state no-invention postures in the same direction,
+  and Enhancv's tailoring copy states real-experience-only
+  tailoring with a placeholder used instead of an invented
+  figure. Veto claims neither refusal, nor a fabrication ban,
+  nor requirement-to-evidence mapping as its difference from
+  those named products.
+
+**The difference Veto does claim, against those named products,
+is exactly these four things, and the list is the same in §2 and
+§5:** (1) the classification input is an **evidence ledger the
+user approves claim by claim**, not the CV the user gave the
+tool; (2) every requirement is classified into **four proof
+states** (supported / evidence gap / skill gap / contested),
+split by proof state — an item on record but unproven is a
+different class from an item absent — where Career-Ops' check
+and MaxCV's mapping split by record presence (in the CV or
+digest versus not); (3) the **verdict record is inspectable and
+publishes its own overturn rate**, where neither named product's
+public record states an overturn figure for its verdicts; and
+(4) **prep is driven by that delta and graded against the user's
+own evidence**, where Career-Ops' interview suite and MaxCV's
+cheat sheet are not stated to be graded that way. Each element
+is a **[bet]** or partial today (§6); the claim is that these
+four differences from the named products are the positioning —
+not that no other product anywhere holds any of them.
+
+- **Not unqualified for this posting as written — unproven.**
+  The short form of the delta
   split (§3, Pillar 2) — a form of words for the evidence-gap case
   only, under the production rule above, never a label for a veto
   class as such.
 - **Free, open-source, local-first [P]** (posture — claim 11). A
   posture, not a unique one: Resume Matcher already occupies free +
-  open-source + local tailoring and scoring (§5), and AIHawk's
+  open-source + local tailoring and scoring (§5), AIHawk's
   original form occupied free + open-source + locally run bulk
-  applying at scale before the project pivoted (§5). What no row
-  in the corrected table combines with that posture is the
-  combination stated above; the posture alone differentiates
-  nothing, and this brief no longer presents it as if it did. No user data
+  applying at scale before the project pivoted (§5), and
+  Career-Ops occupies free + open-source + local-first operation
+  at a larger repository scale than either (§5). The posture
+  alone differentiates nothing, and this brief no longer presents
+  it as if it did. No user data
   flows to author infrastructure — that is the exact claim (Rule 2,
   §7). Profile-derived text leaves the machine only over delivery
   channels the user chose (their own email or chat, inside a
@@ -258,7 +299,12 @@ headline word. And the headline's
 second half has no exemption: contested requirements also get a
 named "what would change the answer" — the proof, the changed fact,
 or the different posting — exactly as the skill-gap and
-evidence-gap classes do.
+evidence-gap classes do. A veto that fires on score alone, with
+every must-have supported, gets no headline word (above) and its
+"what would change the answer" is the score statement itself: the
+axis or axes whose movement would lift the score to the bar, as
+the fit-score breakdown shows them — no class-based path is
+invented for it.
 
 The classification is deliberately conservative: it can mistake a
 real-but-paraphrased history for an evidence gap (cost: one grill
@@ -268,16 +314,18 @@ that report gaps at all (Teal, Jobscan, Rezi, Simplify, LinkedIn)
 report missing items **categorised** — by skill type, section, or
 keyword class: Jobscan's report separates hard skills, soft skills,
 and other keywords, with frequencies, and LinkedIn publishes a
-met/missing qualification list for a posting. None of the rows in
-the §5 table, as checked 2026-10-15,
-categorises by **proof state** — whether a missing-looking item is
-on the user's record without proof, or not on record at all. The
-nearest case is MaxCV (§5): it maps each requirement to evidence
-in the CV versus not in the CV — a split by whether an item is on
-record, not by proof state, because an on-record item is not
-further split into proven and on-record-but-unproven. That
-proof-state split, not categorisation itself, is the distinction,
-and it is the only form of the claim this brief makes. (Earlier
+met/missing qualification list for a posting. Against those named
+products, and against the two named products that go further —
+MaxCV, which maps each requirement to evidence in the CV versus
+not in the CV, and Career-Ops, whose fabrication check asks
+whether a fact is in the CV or the user's article digest — the
+distinction this brief claims is categorisation by **proof
+state**: whether a missing-looking item is on the user's record
+without proof, or not on record at all. A record-presence split
+does not further split an on-record item into proven and
+on-record-but-unproven. That proof-state split, not categorisation
+itself, is the distinction, stated against named products only.
+(Earlier
 versions of this paragraph said competitors report "one blended
 list" and that LinkedIn reports a judgement "without the list";
 both statements were false and are withdrawn — see §5 source notes.)
@@ -448,11 +496,31 @@ standard and carries its §6 status per cell.** [S] = ships,
 [B] = bet, [P] = posture (a program fact outside this package's
 evidence exhibits — claim 11).
 
+**Table inclusion criteria (new in round 3 — an omission from
+this table is a criteria question, not a completeness failure,
+and no claim in this brief depends on the table being the whole
+market).** A product earns a row when all three hold, on its own
+public record at the check date: (1) **availability** — it is
+publicly available to job seekers, or is a publicly documented
+historical form labelled as such in its row (the AIHawk row);
+(2) **a scale signal** — at least one of: a vendor-claimed user
+or reach figure, repository stars/forks, a platform's stated
+audience, or publicly offered paid plans; and (3) **overlap** —
+it overlaps Veto on at least two of this table's dimensions
+(profile model; proof-versus-skill gap handling; a do-not-apply
+statement; refusal of unbacked claims; prep; price/posture).
+Platform-embedded tools are in scope on the same criteria (the
+LinkedIn Premium and Adzuna ApplyIQ rows); a tool failing any
+criterion is out of scope by the criterion, and the criteria —
+not the market — are what a future omission is judged against.
+The table as now constituted has **twenty-three competitor
+rows**, checked 2026-10-15.
+
 | Product | What it owns | Profile model | Proof vs skill gap | Says don't apply? | Refuses unbacked claims? | Prep graded vs user evidence? | Price shape |
 |---|---|---|---|---|---|---|---|
 | Teal | Organize + tailor + job-specific prep in one workspace | Resume + versions | No — missing terms by category; AI generates bullets for them | No | No | No — job-specific sessions built from saved postings, feedback on response quality and delivery; not evidence-graded | Freemium, Teal+ paid |
 | LinkedIn Premium | The hiring graph; rank vs other applicants; Job Match | LinkedIn profile text | No — publishes met/missing qualification lists; no proof-state split | No — steers to strong fits | No | No — job-specific prep from real job descriptions, with readiness score and feedback; not evidence-graded | Paid subscription |
-| Jobscan | The ATS match score, job matching + tracker, and Auto Apply (launched June 2026) | One resume vs one posting; saved preferences for matching | No — missing items categorised (hard skills / soft skills / other keywords, with frequencies); no proof-state split | No — surfaces matched roles and steers by fit; review-before-submit is the **default**, not a requirement: its own pages state an optional auto-submit / Auto mode exists that the user can enable (checked 2026-10-15) | No — user approves generated edits | No — consumer mock-interview practice is sold as an **optional add-on, not included in a standard subscription** (job description + CV in, timed video/audio answers, feedback on answers and delivery plus a proposed answer; page published 2026-08-04, checked 2026-10-15); not evidence-graded | Freemium / paid |
+| Jobscan | The ATS match score, job matching + tracker, and Auto Apply (launched June 2026) | One resume vs one posting; saved preferences for matching | No — missing items categorised (hard skills / soft skills / other keywords, with frequencies); no proof-state split | No — surfaces matched roles and steers by fit; review-before-submit is the **default**, not a requirement: its own pages state an optional auto-submit / Auto mode exists that the user can enable (checked 2026-10-15) | No — user approves generated edits | No — **vendor record contradicts itself; flagged, not settled:** its interview-practice product page (published 2026-08-04, checked 2026-10-15) markets the tool to individual job seekers and its FAQ describes practice as an optional add-on not included in a standard subscription, while its own vs-Rezi comparison page (checked 2026-10-15) lists interview prep as "Enterprise only" and states it is currently enterprise-only and individual job seekers cannot access it. Neither page retracts the other, so this row asserts neither consumer availability nor its absence; in either reading the practice described is not evidence-graded | Freemium / paid |
 | Yoodli | How you sound | None — session from a job title, a roleplay scenario, or an uploaded job description | No | No | n/a — writes no resume | No — delivery-focused per consumer reviews (vendor enterprise material also claims content scoring); not evidence-graded | Freemium / paid |
 | LazyApply | Application volume | Form-fill data + resume profiles by plan tier (1 on Basic, 5 on Premium, 20 on Ultimate, on its own current pricing — checked 2026-10-15) | No — volume-first; its Job GPT fills applications from the user's information and a user can hold multiple resume profiles by plan, so it is not one same resume sent to every job; no proof-state split | No — the opposite | No | No | Paid per year on its own current pricing, checked 2026-10-15 on lazyapply.com: Basic $99/yr, 15 applications/day, 1 resume profile; Premium $149/yr, 150 applications/day, 5 resume profiles; Ultimate $999/yr, 1500 applications/day, 20 resume profiles; older lifetime-billing listings exist in secondary sources and are not relied on |
 | Sonara | Automated apply under BOLD (the brand was acquired in 2024): on its own current site, continuous matching and applying to relevant openings on the user's behalf (checked 2026-10-15, sonara.ai) | Short profile + preferences (its site's own sequence: it gets to know you, finds jobs, applies for you) | No | No — the opposite: it applies for the user | No | No | Paid — no price is stated on the home page checked 2026-10-15, and no price figure is relied on |
@@ -467,10 +535,13 @@ evidence exhibits — claim 11).
 | MaxCV | Truthful tailoring + ATS match score, with each requirement mapped to evidence in the CV versus not in the CV (checked 2026-10-15, maxcv.ai) | Master CV, uploaded once and reused per offer | No — its split is by record presence (in the CV / not in the CV), not by proof state: an on-record item is not split into proven versus on-record-but-unproven | No | **Yes, as a stated mechanism** — its FAQ states a hard fabrication ban (only skills and experience already in the CV are used); its feature copy states skills the user lacks are not added, risky claims are stripped, and softer claims wait for the user's approval | No — an interview cheat sheet for the role is included; it is not graded practice against the user's evidence | Free tier (tailorings without an account, more after free sign-up) + paid pack / per-30-days unlimited, per its site |
 | Enhancv | Resume building at scale — vendor-claimed 10M+ job applicants, 15M+ resumes created, 11 years operating — with AI writing, ATS check, and one-click job tailoring (checked 2026-10-15, enhancv.com) | Resume + versions | No — ATS match shows terms present versus missing and gaps such as a bullet with no number; no proof-state split | No | Partly, as copy — its tailoring is stated to be built from the user's real experience only, with no invented facts, its writing help uses a placeholder rather than inventing a figure it cannot know, and tailoring changes are highlighted and not applied automatically; no blocking refusal mechanism is stated | No — its site bundles interview prep with building, checking, tailoring, and tracking; not evidence-graded | Free entry + paid plans; no price figure is relied on from the home page checked |
 | JobCopilot | Auto-apply at scale — vendor-stated applications across 500,000+ company career pages, up to 50 applications a day on its top tier (checked 2026-10-15, jobcopilot.com) | Resume + screening answers per copilot; multiple copilots allow different resumes for different searches | No — matching and filtering; no proof-state split | No — auto-apply is the product; a review mode exists and the user can switch a copilot to auto-apply | Partly, as copy — its FAQ states auto-filled answers are generated from the data the user provided and that it does not invent information about the user; no stripping or blocking refusal mechanism is stated | No — its AI mock interviewer tailors questions by job title and description and gives feedback on content, relevance, and structure; not evidence-graded | Paid tiers (Premium / Elite in its FAQ) |
-| LoopCV | Bulk auto-apply "loops" — server-side scanning of 30+ job boards, with Auto-Apply and Mass Apply (checked 2026-10-15, loopcv.pro) | CV + personal details + preferences per job search | No — stored CV and details are used for each application; Premium AI answers can tailor responses to job-specific questions; no proof-state split | No — the opposite; Auto-Apply can be disabled per search, leaving review / one-click apply | No | No — no prep product is stated on the auto-apply page checked | Free plan with a limited monthly application count + paid plans and extra credit packs, per its page |
+| LoopCV | Bulk auto-apply — server-side scanning of 30+ job boards, with Auto-Apply and Mass Apply, and a current AI job-application agent page (checked 2026-10-15, loopcv.pro/ai-job-application-agent/) | CV + personal details + preferences per job search; **its current agent page states the AI rewrites and optimises the CV for each job description** (checked 2026-10-15) — the earlier stored-CV-to-every-application reading, sourced only to its older auto-apply page, is withdrawn | No — per-role CV tailoring as above; no proof-state split | No — the opposite; the agent applies on the user's behalf | Partly, as copy — **its agent-page FAQ states no fake information is ever submitted on the user's behalf and every application uses the user's real CV and profile data** (checked 2026-10-15); no blocking or stripping mechanism is stated | No — no prep product is stated on the agent page checked | Free plan with a limited monthly application count + paid plans and extra credit packs, per its auto-apply page |
 | EarnBetter (now Earn Better by EarnIn) | Free job-search assistant: resume rewrite, personalised matches, per-job tailored documents, and interview prep (checked 2026-10-15, earnbetter.com) | Uploaded resume + profile and preferences | No — matches are ranked by fit; no proof-state split | No | No — it rewrites the resume; no refusal mechanism is stated on the site checked | No — a role-tailored cheat sheet and mock interview; not evidence-graded | Free — inside the EarnIn app, with no subscription or credit card, per its FAQ; the original launch was funded free (a $4.5M seed, per its launch post), so free in this space is not only a community posture |
 | AIHawk | **Historical / pivoted row, not a current competitor:** bulk job-application automation in its original form; the repository that housed it had roughly 29,000 stars in the audit's record and about 32,000 on the repo checked 2026-10-15, which now redirects to a different project, and secondary summaries record the original job applier as archived / pivoting in 2026 | Resume + preferences (original form) | No | No — the opposite (original form) | No | No | Free, open source (MIT), locally run in its original form — its existence, at that star count, is why free + open-source + local applying cannot be treated as ground only Resume Matcher and Veto occupy |
-| **Veto** | **The tool that refuses: no invented claims by construction [S]; proof-state labels [B]; a named delta [B]** | **Evidence ledger [B] — thin flat profile [S]** | **[B] — core matching is binary [S]** | **Yes [S] — score veto (this branch tree); classified veto with a path [B]** | **Partly [S] — by construction in tailoring; the standalone letter scan flags but does not block; the blocking gate checks skills/years/keywords only and is framework-conditional (see §3); resume-wide blocking at approval [B] — "backed" means proven in A1's sense: traced to an `approved` ledger entry with proof attached** | **[B] — craft grading [S]** | **Free, open source, local-first [P] — a posture Resume Matcher also holds; differentiating only in combination with refusal and the split** |
+| Career-Ops | Open-source, local-first job-search agent run in the user's AI coding CLI: board scanning, per-job scoring and evaluation, tailored CV and cover letter, interview suite, tracker (checked 2026-10-15, github.com/career-ops-hq/career-ops — about 74,800 stars and about 14,000 forks at check date) | CV + profile held locally; the tool works from the CV and the user's article digest | No — a job-description skill-gap module and per-requirement evaluation exist, and its fabrication check splits by record presence (in the CV or the digest versus in neither); an on-record item is not split into proven versus on-record-but-unproven, and there is no four-state proof classification | **Yes** — scores each job 1–5 against the CV and tells the user not to apply below 4.0/5; the user may override (its README states the tool "will say so"; whether an override is logged is not stated in the README checked and is not asserted here) | **Yes, in code as its README states** — a check stops PDF generation when numbers or facts appear in neither the CV nor the user's article digest; the README itself limits this: the check cannot judge every rewording yet | No — an interview suite (prep plans, practice with feedback, debriefs) and a story bank exist; not stated to be graded against a proof-state ledger or the user's own evidence | Free, open source (MIT), local-first; the user supplies their own AI CLI / model |
+| AI Applyd | Auto-apply agent with ATS scoring, per-job tailoring, a structured receipt or proof screenshot per submission with a public anonymised proof wall, and a public MCP server (checked 2026-10-15, its public showcase, github.com/whateverneveranywhere/aiapplyd-showcase, fronting the live product at aiapplyd.com) | Uploaded resume parsed into a profile | No — job-description demands the user lacks are surfaced as a gap rather than forged (its showcase's wording); no proof-state split, and a gap is not split into on-record-but-unproven versus absent | No — the opposite (auto-apply); its showcase states the default is manual approval with a preview of each application before it sends | Yes, as stated guardrails in its showcase — it states the system refuses to invent job titles, certifications, metrics, or skills not on the resume; the showcase is documentation for a live product, not the product's source, so this cell grades the statement, not verified code | No — company-specific questions and practice answers grounded in the resume (its showcase's wording); not evidence-graded against a proof-state ledger | Free tier + paid plans at $39 / $79 per month, per its showcase pricing |
+| Adzuna ApplyIQ | Platform-embedded free AI application agent on the Adzuna job platform (checked 2026-10-15, adzuna.com/apply-iq; the platform claims 10m+ jobseekers a month on that page) | Uploaded resume + stated preferences | No — applications are targeted to strong matches; no proof-state split is stated | Qualified-only applying, not a user-facing verdict — its page states it only applies when the user's skills match the role and the job fits their needs; no do-not-apply verdict shown to the user is stated | Partly, as copy — its page states it applies "never rewriting your resume" and "We don't fake your resume"; no blocking or stripping mechanism is stated | No prep is stated on the ApplyIQ page checked | Free — its page states no premium tier and 100% free for users |
+| **Veto** | **The tool that refuses: no invented claims by construction [S]; proof-state labels [B]; a named delta [B]** | **Evidence ledger [B] — thin flat profile [S]** | **[B] — core matching is binary [S]** | **Yes [S] — score veto (this branch tree); classified veto with a path [B]** | **Partly [S] — by construction in tailoring; the standalone letter scan flags but does not block; the blocking gate checks skills/years/keywords only and is framework-conditional (see §3); resume-wide blocking at approval [B] — "backed" means proven in A1's sense: traced to an `approved` ledger entry with proof attached** | **[B] — craft grading [S]** | **Free, open source, local-first [P] — a posture Resume Matcher and Career-Ops also hold; the claimed differences from named products are the four stated in §2, not this posture** |
 
 **Source notes for the corrected and new cells** (checked
 2026-10-15; the audit's verification pass re-fetched the F3 sources
@@ -536,7 +607,12 @@ jobcopilot.com/automate-job-applications/ FAQ (application counts,
 multiple copilots, per-job tailoring on its top tier, the
 no-invention FAQ answer, its mock interviewer page for the prep
 cell). LoopCV — loopcv.pro/autoapply/ (boards, Mass Apply,
-per-search disable, credits). EarnBetter — earnbetter.com
+per-search disable, credits) **and, from round 3,
+loopcv.pro/ai-job-application-agent/ — its current agent page,
+which states per-role CV rewriting/optimisation and, in its FAQ,
+that no fake information is ever submitted and every application
+uses the user's real CV and profile data; where the two pages
+differ, the row follows the current agent page and says so.** EarnBetter — earnbetter.com
 (current Earn Better by EarnIn page and FAQ; the seed figure is
 from its own launch post). AIHawk — the GitHub repository record
 checked 2026-10-15 (the original job-applier repo now redirects
@@ -545,28 +621,69 @@ roughly-29,000 figure and the roughly-32,000 shown on the checked
 repo) plus secondary summaries of its 2026 archive/pivot, which
 the row labels as secondary.
 
-Open ground — **scoped to the twenty competitor products in this
-table as now constituted**, on their public record as checked
-2026-10-15: no checked competitor combines the evidence-ledger
-profile, the proof-state split (on-record-but-unproven versus
-not-on-record, across the four classes), refusal of unbacked
-claims as a stated mechanism, a do-not-apply verdict with the
-reason and the path, an inspectable verdict record showing its
-own overturn data, and prep graded against the user's own
-evidence and driven by that delta. Stated item by item, most of
-the set is **not** open: refusal as a stated mechanism is occupied
-by MaxCV; requirement-to-evidence mapping is occupied by MaxCV in
-record-presence form; no-invention copy is occupied by JobCopilot
-and Enhancv as well. What remains unoccupied, per this table, is
-the **combination** in §2, with MaxCV named as the nearest
-occupant and the narrowing stated there. The claim
-is scoped to this table, not to the market: products outside the
-table were not checked, the table must be re-checked before any
-public use of this paragraph, and the six rows added in this round
-(MaxCV, Enhancv, JobCopilot, LoopCV, EarnBetter, AIHawk) are a reminder of how fast
-the set changes. Every element of the combination is a Veto **bet or
-partial today** — the ground that remains is open, and Veto has not taken it
-yet. That is what the roadmap is for.
+**Round-3 methods note — new and re-corrected rows (all fetched
+2026-10-15 from the products' own pages or repositories; no
+absolute is stated beyond what the source itself states).**
+Career-Ops — github.com/career-ops-hq/career-ops (README and
+repository record: MIT, local-first, created 2026-04-04, about
+74,800 stars / about 14,000 forks at check date; the 1–5 score,
+the do-not-apply-below-4.0/5 statement with user override, the
+never-submits posture, and the in-code PDF fact check against the
+CV and article digest are all README statements; the skill-gap
+module `jd-skill-gap.mjs`, the fact-check module
+`verify-cv-facts.mjs`, and the `interview-prep/` material are in
+its tree). **One sub-claim is expressly not made: the round-2
+adversary's statement that an override is "put on the record"
+could not be verified from the README (the refutation pass
+reached the same result), so the row states the override and the
+tool's "will say so" wording, and nothing about logging.** AI
+Applyd — its public showcase
+(github.com/whateverneveranywhere/aiapplyd-showcase), which
+fronts a live, priced product: per-job tailoring grounded in the
+user's real history, anti-fabrication guardrails refusing to
+invent titles, certifications, metrics, or skills, gaps surfaced
+rather than forged, preview before sending, a structured receipt
+or proof screenshot per submission with a public anonymised
+proof wall, interview prep, a public MCP server, free tier plus
+$39/$79 per month. Adzuna ApplyIQ — adzuna.com/apply-iq (free;
+the platform's 10m+ jobseekers-a-month claim is the vendor's, on
+that page; applies only to strong matches; never rewrites the
+resume; "We don't fake your resume"). Jobscan prep — **both**
+vendor pages are now cited in the cell itself
+(jobscan.co/ai-interview-practice, published 2026-08-04, and
+jobscan.co/blog/jobscan-vs-rezi/): the two pages contradict each
+other on consumer access, neither retracts the other, and the
+cell flags the contradiction instead of asserting either half —
+the same treatment the round-2 note applied to Jobscan's split
+Auto Apply wording.
+
+**Named contrasts — this section replaces the former
+open-ground claim, which is deleted.** This brief no longer
+states that any combination is unoccupied, that any named
+product is the "nearest" occupant of anything, or that no
+competitor combines any set of elements. Those statements
+depended on the landscape being complete, and three consecutive
+audits falsified that dependence (round-1 additions; MaxCV;
+Career-Ops). What this brief states instead is §2's four
+differences, worded identically there and here: against
+**Career-Ops** and **MaxCV** — the two named products whose
+verified behaviour comes closest on the elements they hold —
+Veto's claimed differences are (1) an evidence ledger the user
+approves claim by claim as the classification input, not the CV
+the user gave the tool; (2) a four-state proof classification
+(supported / evidence gap / skill gap / contested) split by
+proof state, where both named products split by record
+presence; (3) an inspectable verdict record that publishes its
+own overturn rate, which neither named product's public record
+states; and (4) prep driven by that delta and graded against the
+user's own evidence, which neither named product's prep is
+stated to be. Refusal of unbacked claims and a do-not-apply
+verdict are **not** in that list: MaxCV states the first as a
+mechanism, Career-Ops holds both, and AI Applyd states refusal
+guardrails and gap-surfacing in its showcase. Every element of
+the four differences is a Veto **bet or partial today** — the
+differences are claimed as the positioning to build, not as
+ground already taken. That is what the roadmap is for.
 
 Contested ground (do not claim as new): per-job tailoring with a
 score; "know your fit" (LinkedIn owns it with applicant-pool data
@@ -579,12 +696,17 @@ wider); refusal / fabrication-ban / no-invention wording in
 general form (MaxCV's hard fabrication ban, JobCopilot's and
 AI Applyd's no-invention copy, Enhancv's real-experience-only
 tailoring); requirement-to-evidence mapping in record-presence
-form (MaxCV); job-specific prep in general form (Final Round AI, Teal,
-LinkedIn, Rezi, Jobscan, JobCopilot, EarnBetter); free, open-source, local-first tailoring and
-scoring (Resume Matcher; AIHawk's original form for free,
+form (MaxCV; Career-Ops' CV/digest fact check); a do-not-apply
+verdict below a score threshold, with user override (Career-Ops);
+job-specific prep in general form (Final Round AI, Teal,
+LinkedIn, Rezi, JobCopilot, EarnBetter — Jobscan's consumer prep
+availability is contradicted on its own pages and is not counted
+either way, see its flagged cell); free, open-source, local-first tailoring and
+scoring (Resume Matcher; Career-Ops; AIHawk's original form for free,
 open-source, locally run applying); free as a funded offer, not
-only a community posture (EarnBetter); "gets to know you" phrasing (Sonara,
-Teal). Veto's defensible versions are the narrower ones stated in
+only a community posture (EarnBetter; Adzuna ApplyIQ as a free
+platform offer); "gets to know you" phrasing (Sonara,
+Teal). Veto's defensible versions are the named contrasts stated in
 §2–§3.
 
 ## 6. Claims register — what is true today, what is a bet
@@ -625,11 +747,12 @@ stated inside the entry.
 ### Claims debt — public statements to correct, before any launch
 
 The marketing site and docs currently state things the code does not
-support. The list has four layers: the original thirteen items
+support. The list has five layers: the original thirteen items
 (CD-01…CD-13, from the code audit's fourteen claim risks), nine more
 found by the adversarial audit (CD-14…CD-22), three more found by
-the re-sweep in rework round 1 (CD-23…CD-25), and seven more found
-in rework round 2 (CD-26…CD-32), with locations and scope added to
+the re-sweep in rework round 1 (CD-23…CD-25), seven more found
+in rework round 2 (CD-26…CD-32), and seven more found by the
+round-2 audit and added in rework round 3 (CD-33…CD-39), with locations and scope added to
 CD-01, CD-02, CD-05, CD-14, and CD-22 and CD-11 rewritten (its
 stated code reality was itself false). **Round-2 sweep method —
 changed because the list missed surfaces in two consecutive
@@ -817,12 +940,23 @@ product's own site must pass the check first.
     refusal demo is roadmap work (initiative 2.7), not a present
     asset (§4). CD-02 covers a salary question in a different spec's
     demo script, not this labelling.
-17. (CD-17) **[Major]** The veto-to-go package sold as current
-    product. Surface: `site/src/pages/specs/veto-to-go.ts` ("One
+17. (CD-17) **[Minor — corrected in round 3; previously graded
+    Major on a surface description that was wrong]** The veto-to-go
+    package described in an unreachable file. Surface, corrected:
+    `site/src/pages/specs/veto-to-go.ts` **in the live tree only**
+    (`job-apply-mcp/site/src/pages/specs/`) — the branch tree's
+    site does not contain the file at all. The file is an
+    **orphan**: it is not imported by the live site's spec registry
+    (`site/src/App.tsx` imports 29 spec files; this is not among
+    them), is referenced nowhere else in `site/src`, and no visitor
+    can reach it, so its text ("One
     command installs Veto", a real PWA with manifest, service
     worker and offline page, an IndexedDB offline action queue,
-    encrypted backups, opt-in end-to-end encrypted device sync).
-    Code reality: the whole i10 package is built, unwired — its own
+    encrypted backups, opt-in end-to-end encrypted device sync) is
+    **sold to no one today**; CD-17 has no other public surface (no
+    Changelog entry). The correction this item actually orders is
+    deletion (or honest wiring) of the dead file, not a copy fix
+    on a live page. Code reality (held from the original item): the whole i10 package is built, unwired — its own
     integration notes state the modules do not touch `cli.py`,
     `webui.py`, or `dashboard.py` and the MCP registration snippet
     is "provided but NOT applied"
@@ -830,12 +964,24 @@ product's own site must pass the check first.
     phone path is the web dashboard over home Wi-Fi or a private
     mesh VPN with a login token (`docs/phone-access.md`). CD-12's
     list is closed to four i04/i05 features and does not name i10.
-18. (CD-18) **[Major]** Calendar handoff presented as an end-to-end
-    working feature. Surfaces: `site/src/pages/specs/calendar-handoff.ts`
+18. (CD-18) **[Minor — corrected in round 3; previously graded
+    Major on a surface description that was wrong]** Calendar
+    handoff described in an unreachable file; the reachable
+    Changelog entry is honestly hedged and needs no correction.
+    Surfaces, corrected: `site/src/pages/specs/calendar-handoff.ts`
+    **in the live tree only** — an **orphan file** (not imported by
+    `site/src/App.tsx`'s spec registry, referenced nowhere else in
+    `site/src`, unreachable by any visitor; the branch tree's site
+    does not contain it), whose text states
     ("the handoff payload goes to your connected calendar, which
     does the writing", with demo commands `veto calendar
-    propose-prep …` / `veto calendar handoff --draft … --confirm`)
-    and the Changelog page's "Calendar handoff" entry. Code reality:
+    propose-prep …` / `veto calendar handoff --draft … --confirm`);
+    and the Changelog page's "Calendar handoff" entry, which sits
+    in that page's **"In testing"** section (framed on the page as
+    built but not yet accepted) and is **future-tense** ("Veto
+    **will** hand interview times off…") — that entry is not debt.
+    The correction ordered is deletion (or honest wiring) of the
+    orphan file. Code reality (held from the original item):
     those commands exist in no CLI registration and no core surface
     references the handoff functions (grep across `server.py`,
     `cli.py`, `webui.py`, `dashboard.py`, `briefs.py`, `followup.py`:
@@ -844,11 +990,23 @@ product's own site must pass the check first.
     calendar" — and that wiring layer was never built
     (`initiatives/i09/calendar_handoff.py`,
     `initiatives/i09/integration_notes.md`).
-19. (CD-19) **[Major]** Mentor consent handshake presented as
-    `veto mentor` commands. Surfaces:
-    `site/src/pages/specs/consent-handshake.ts` (demo: `veto mentor
-    request --mentor …`, `veto mentor respond … --decision approve`)
-    and the Changelog page's "Consent handshake" entry. Code reality:
+19. (CD-19) **[Minor — corrected in round 3; previously graded
+    Major on a surface description that was wrong]** Mentor consent
+    handshake described in an unreachable file; the reachable
+    Changelog entry is honestly hedged and needs no correction.
+    Surfaces, corrected:
+    `site/src/pages/specs/consent-handshake.ts` **in the live tree
+    only** — an **orphan file** (not imported by `site/src/App.tsx`'s
+    spec registry, referenced nowhere else in `site/src`,
+    unreachable by any visitor; the branch tree's site does not
+    contain it) (demo: `veto mentor
+    request --mentor …`, `veto mentor respond … --decision approve`);
+    and the Changelog page's "Consent handshake" entry, which sits
+    in the **"In testing"** section and is **future-tense**
+    ("Mentors and mentees **will** both confirm…") — that entry is
+    not debt. The correction ordered is deletion (or honest
+    wiring) of the orphan file. Code reality (held from the
+    original item):
     no such commands exist in the main CLI, which registers only the
     core `mentors` category; the real entry point is an in-package
     module (`python -m initiatives.i07.cli intro request …`), main-CLI
@@ -1058,11 +1216,175 @@ product's own site must pass the check first.
     named paths (prep proof lines, the LinkedIn about draft's
     quantified bullets), not of every module the sentence names.
 
+33. (CD-33) **[Major]** (round 3, A2-01) The qualification-scoring
+    spec promises a warn/block behaviour that is framework-
+    conditional in one direction and blocking in the other, and
+    its own limit sentence contradicts both. Surfaces:
+    `site/src/pages/specs/qualification-scoring.ts` lede (in both
+    trees: the score bands stated unconditionally — at or above
+    0.65 proceeds silently, 0.40–0.65 proceeds with a visible
+    warning, below 0.40 or a severe experience gap blocks with an
+    explanation) and its limits line ("Fail-open on framework
+    errors, it warns, never blocks"), plus the home page's
+    qualification-scoring card (`site/src/App.tsx`: clear misses
+    refused with an explanation, borderline ones proceed with a
+    warning). Code reality, both directions: the thresholds exist
+    (`governance/adapter.py:61-62`), but `assess_qualification()`
+    has exactly one production caller — step 3 of
+    `governance_gate()` (`adapter.py:820`) — and that gate returns
+    disabled **before** any assessment when the framework checkout
+    cannot be loaded (`adapter.py:712,724`), with the server
+    precheck then returning no warnings at all (`server.py:621,623`).
+    So with the framework absent — the default for a user who
+    clones only this repo — there is no score, no warning, and no
+    block, and the spec never states the condition. With the
+    framework present, a score below 0.40 or a severe gap **does
+    block** (`adapter.py:826-857`, `blocked: True`,
+    `reason: "qualification"`) — so "it warns, never blocks" is
+    false in both directions. The code's fail-open covers only
+    assessment exceptions and missing data (`adapter.py:819-824`),
+    not framework absence. **This item also corrects this
+    register itself:** the round-2 sweep disposition below
+    classified this spec's fail-open sentences as "accurate" —
+    that disposition was wrong and is withdrawn in the sweep table
+    in this version; a register that calls a contradicted page
+    accurate cannot claim completeness about itself.
+34. (CD-34) **[Major]** (round 3, A2-02) The fit-score "veto" sold
+    as slot-protecting enforcement that no apply path consults.
+    Surfaces: `site/src/pages/specs/fit-score.ts` lede ("Veto
+    spends your five daily applications only on postings scoring
+    60+… Anything under 60 is vetoed with a concrete reason") and
+    its "Veto under 60" point ("A score below 60 blocks the
+    application and says exactly why… No silent skips, no
+    mystery"), and `site/src/pages/DocsPage.tsx` FAQ ("How do the
+    5/day cap and the fit-score veto relate?" — postings under 60
+    "are vetoed with a reason and never consume a slot… a posting
+    has to clear both to become an application"). Code reality:
+    `score_job()` computes a flag and nothing enforces it —
+    `match.py:336` sets `veto = score < VETO_THRESHOLD` and returns
+    it in the result dict (`match.py:336-358`); `server.py`
+    (`apply_to_job()`), `apply_queue.py` (`run_queue()`), and
+    `cli.py` contain no `score_job`/`rank_jobs` call and never read
+    a `veto` flag; the queue checks only the compliance cap and
+    the risk policy. Production callers of `score_job` are
+    display/scoring surfaces only (`briefs.py:793`,
+    `dashboard.py:281,303`, `near_miss.py:75`, `webui.py:129`). A
+    posting under 60 can therefore be confirmed, recorded, and
+    consume one of the five daily slots. CD-03 covers only this
+    spec's fixed-weights wording; the blocking and slot claims are
+    this item's, and they are the product's namesake mechanism
+    sold as an enforcement that is, in code, an annotation.
+35. (CD-35) **[Blocker]** (round 3, D2-01, first note) The grill's
+    own runtime outbound instruction authorises standing approval
+    for later sends. Surface: the product's own returned
+    instruction — the Gmail deliverable note in `grill.py:
+    outbound_for_channel()` (branch tree, about `:784-789`), which
+    states, in substance, that the email is to be sent only with
+    the user's explicit go-ahead on the exact text, and then that
+    **standing approval covers later grill emails**. Code reality:
+    that parenthetical is the operative instruction the sending
+    agent acts on, and it contradicts the governing principle
+    (§7) and the roadmap CUT list: consent captured in advance is
+    not initiation at the moment of a later send. No CD item
+    before this one named it. **Fix vehicle (roadmap, round 3):
+    new task 0-C4, inside Slot 0-C2's scope — an inventory and
+    rewrite of every `grill.py outbound_for_channel()` note, with
+    a zero-standing-approval test; Slot 0 does not close until
+    0-C4 passes.** Feature A2's reuse of `outbound_for_channel()`
+    is dispositioned in the feature-sets document. This item is
+    the claims-debt half: the instruction as shipped is
+    product-surfaced behaviour that must be corrected under
+    0-C4, not carried forward.
+36. (CD-36) **[Blocker]** (round 3, D2-01, second note) The grill's
+    WhatsApp deliverable routes proactive grilling through a
+    scheduled task. Surface: the WhatsApp deliverable note in
+    `grill.py: outbound_for_channel()` (branch tree, about
+    `:796-801`), which states, in substance, that WhatsApp is the
+    only proactive channel, that the message can only be sent from
+    the WhatsApp side chat, and that from the main chat proactive
+    grilling **needs a scheduled task created inside the WhatsApp
+    side chat** that calls the grill status/answer functions.
+    Code reality: a scheduled send is the behaviour the governing
+    principle and the CUT list forbid, and the note presents it as
+    the product's routing instruction. No CD item before this one
+    named it. **Fix vehicle: roadmap task 0-C4 (see CD-35) — its
+    inventory-and-rewrite scope covers this note as an
+    `outbound_for_channel()` note, and Slot 0 does not close
+    until 0-C4 passes.**
+37. (CD-37) **[Minor]** (round 3, A2-04) The ledger "you'll see a
+    warning, not a silent gap" promise is not kept on the apply
+    path. Surfaces: the Changelog page's **Shipped** "Decision
+    ledger" entry ("If the ledger can't be written, the action
+    still goes through — you'll see a warning, not a silent gap")
+    and `site/src/pages/specs/verdict-ledger.ts` ("Ledger outage
+    ≠ action outage" — the failure "is reported as a warning, not
+    hidden"). Code reality: on the application path the recording
+    result is discarded before it can reach the user —
+    `server.py`'s `_governance_record_outcome()` returns nothing,
+    returns silently when governance is not enabled, and drops the
+    result of the recording call inside its `try`; the only trace
+    of a failure is a server log line. The called function does
+    report failure in its return value (`adapter.py:362-375`), but
+    no caller on the allow path surfaces it, and the precheck
+    returns empty warnings in the framework-absent case
+    (`server.py:621,623`) — precisely the case CD-05 establishes,
+    where the user sees no warning and the gap is silent. CD-05's
+    round-2 expansion quoted this entry's universality sentence
+    but not this warning sentence; this item is the warning half.
+38. (CD-38) **[Minor]** (round 3, A2-05) Tailoring copy misdescribes
+    the tailor in two directions. Surfaces:
+    `site/src/pages/specs/tailoring.ts` ("Your real experience
+    bullets are reordered and rephrased around the posting's
+    keywords"; its FAQ repeats "reorders and rephrases"; and its
+    honesty point states "The cover letter gets honesty-scanned
+    before anything proceeds") and `site/src/pages/DocsPage.tsx`
+    module row ("honesty_scan flags invented numbers, companies,
+    and skills before you see the letter" — the DocsPage surface
+    is also a CD-15 surface for the cover-letter draft path; this
+    item covers it as a statement about the tailor path).
+    Code reality: the tailor is reorder-only — `_render_resume_md()`
+    sorts bullets by keyword score (`tailor.py:179`) and emits them
+    verbatim; no function in `tailor.py` rewrites bullet text (the
+    module docstring's own "rephrases" wording overstates the code
+    the same way). On the scan: the MCP `tailor_application()`
+    (`server.py:1324`) calls `tailor_resume()` and returns its
+    letter with no scan of any kind; `honesty_scan` has no caller
+    in `tailor.py` or on that path. The separate draft path runs
+    the scan as a self-check returned **with** the letter
+    (`cover_letters.py:253`), and its CLI text mode prints the
+    letter alone — in no flow do flags arrive before the user sees
+    the letter.
+39. (CD-39) **[Minor]** (round 3, A2-06) The module count contradicts
+    itself across two public surfaces. Surfaces, **live tree**:
+    `site/src/pages/DocsPage.tsx` ("The playbooks: eighteen modules
+    around the engine, grouped by phase") against
+    `site/src/App.tsx` FAQ ("Seventeen modules grouped by job-hunt
+    phase"). Code reality: DocsPage's own module-group list names
+    15 module rows, and App.tsx's seventeen matches its own feature
+    list of 17; "eighteen" matches neither page's module list — it
+    equals DocsPage's tool-row count (18), a different list on the
+    same page. (Tree note: the branch tree's DocsPage already
+    reads "seventeen"; the contradiction as stated is the live
+    tree's, which is the tree a visitor sees.)
+
+
 **Round-2 concept sweep — disposition of the remaining hits.**
 The grep described in this section's introduction returned 579
-hit lines; the numbered items above (CD-01…CD-32, including the
-round-2 expansions of CD-01, CD-02, CD-05, and CD-14) account for
-every hit that states a product guarantee the code contradicts.
+hit lines; the numbered items above (CD-01…CD-39, including the
+round-2 expansions of CD-01, CD-02, CD-05, and CD-14 and the
+round-3 additions CD-33…CD-39) account for every hit **identified
+by that sweep and by the round-2 audit's assigned finds** that
+states a product guarantee the code contradicts. **Stated
+plainly, because the round-2 version of this sentence claimed
+more and was false:** the round-2 sentence claimed the same
+completeness for CD-01…CD-32, and that claim did not hold — the
+qualification-scoring page (CD-33), the fit-score veto claims
+(CD-34), the grill's outbound notes (CD-35/CD-36), and the hits
+in CD-37…CD-39 were all standing text the sweep had read and not
+dispositioned, and one of them (CD-33) it had dispositioned as
+accurate. This version therefore claims completeness only over
+the hits the sweep plus the round-2 audit together identified,
+and no wider.
 The remaining hits disposition as follows, by class — each class
 was read in context, not assumed:
 
@@ -1083,11 +1405,14 @@ was read in context, not assumed:
   estimated-figures sentences (derived figures are labelled
   estimated in `offer_compare`'s output); the streaks share-card
   sentence (`streaks.py: share_card()` builds the card from rep
-  counts); the honesty-check spec's skills-and-years sentences
+  counts); and the honesty-check spec's skills-and-years sentences
   (that is the blocking gate's actual scope — its missing
-  conditionality is CD-08/CD-14, not a new item); and the
-  qualification-scoring spec's fail-open sentences (they state the
-  opposite of a guarantee, accurately, for that advisory check).
+  conditionality is CD-08/CD-14, not a new item). **Correction
+  (round 3): the round-2 version of this bullet also listed the
+  qualification-scoring spec's fail-open sentences here as
+  accurate. That classification was wrong — the page is CD-33 —
+  and it is removed; the sentence that carried it is not repeated
+  in this version.**
 - **Demo and display scripts (site):** `site/src/demos/diff.tsx`
   and `cover.tsx` restate the tailoring and honesty concepts in
   demo form — dispositioned under CD-08, CD-15, CD-22, and CD-23,
@@ -1149,7 +1474,7 @@ talked out of a bad application produces fewer submissions and less
 platform contact. The repositioning moves **new effort** away from
 the highest-exposure surfaces (search/apply automation) toward the
 lowest (knowing the user) — it does not remove the existing
-retained surfaces, which are four, named, and dispositioned in
+retained surfaces, which are six groups, named, and dispositioned in
 item 6. Every artefact
 the pillars produce (tailored resume, letter, outreach draft,
 follow-up draft) stops at a human approval step **at creation
@@ -1189,10 +1514,20 @@ answer:**
    older than 90 days, whichever limit is reached first, not an
    accumulating plaintext trail (the pre-migration backup follows
    its own hard-limit rule in A1's data-lifecycle table: it is
-   deleted automatically at the earlier of 30 days after the user
-   verifies the migration or 90 days after it was created, with
-   notice in the prepared check-in 7 days and 1 day before, and
-   the deletion noted in the work log);
+   deleted at the earlier of 30 days after the user verifies
+   the migration or 90 days after it was created — the sole
+   pre-migration copy is deleted on schedule whether or not a
+   restore was needed — with notice by the Phase-0-operable
+   mechanism feature-sets specifies: a banner in the profile
+   view and the dashboard at 30 days, 7 days, and 1 day before
+   the limit, naming the deletion date and the backup's
+   sole-copy status, and the same notice printed by the CLI on
+   any run in that window; at the limit the backup is flagged
+   delete-due and the deletion executes in a local surface
+   whose own confirmation act carries the notice, and the
+   deletion is noted in the work log; no part of this notice
+   depends on the prepared check-in, which does not exist
+   until Phase 5);
    (c) encryption at rest for the ledger and its backups is
    **scheduled roadmap work, not a present mechanism**: it is a
    requirement on roadmap initiative 0.8 (the encrypted ledger
@@ -1233,7 +1568,12 @@ answer:**
    **superseded, not current flows of this package**: notifications
    to remote endpoints on per-event opt-in, and scheduled check-in
    and grill sends under standing per-event consent. Remote-endpoint
-   / webhook delivery is removed as a channel class (feature E1);
+   / webhook delivery is removed as a channel class **for check-ins
+   or grill questions** (feature E1 — the scope qualifier is part
+   of the rule: E1's separate paragraph for the pre-existing
+   `notify.py` paths gives those paths the re-scope / local-log /
+   remove menu the roadmap's task 0-C3 implements, and this brief
+   does not state the removal more widely than E1 does);
    existing `notify.py` behaviour can post notifications to
    user-configured webhook/ntfy endpoints today — that is current
    code, corrected as claims debt CD-24 — but this package does
@@ -1351,15 +1691,62 @@ answer:**
    rule specified anywhere except the verdict record. Indefinite
    retention by default is a decision; the roadmap must disposition
    each store explicitly rather than by silence.
-6. **Retained surfaces — four of them, named — an open exposure.**
+6. **Retained surfaces — six groups, named — an open exposure.**
    The repositioning does not leave the search surface, and this
    item corrects the opening of this section wherever it implied
-   otherwise. The retained set is **four surfaces**, and this brief
-   does not present a smaller set anywhere: board search stays as
+   otherwise. The retained set is **six groups**, enumerated from
+   the code, and this brief does not present a smaller set
+   anywhere: board search stays as
    the secondary source (feature E2), `watch.py` keeps watched
    companies, `providers/` search carries forward, and — **named
    in round 2 (D-02); previous versions of this brief never named
-   it at all** — the **drip-apply scheduler, `apply_queue.py`**.
+   it at all** — the **drip-apply scheduler, `apply_queue.py`**;
+   and — **named in round 3 (D2-04); previous versions of this
+   brief presented the set as closed at four, and it was not** —
+   (5) the **Gmail surface: `email_sync.py` + `reply_radar.py`**,
+   and (6) the **company-brief web fetch (`briefs.py:
+   company_brief()`)**. Their postures, stated here so the
+   inventory is the code-enumerated one: the Gmail surface reads
+   the user's own Gmail through an external CLI that is not
+   publicly distributed (CD-20) — `scan_recruiter_emails()`
+   classifies recruiter mail, and `reply_radar.py` persists
+   proposals derived from it and applies stage updates only on
+   confirmation; the same module also carries the one wired
+   third-party send, the approval-gated follow-up send
+   dispositioned at claim 9 / CD-11 — **and dispositioned in the
+   roadmap's Row X as a keep-as-model named exception: kept
+   because its approval is interactive approval of the exact
+   content (recipient, subject, body), single-use, with a
+   15-minute TTL, and refused without an interactive terminal.
+   That disposition is this package's send inventory for that
+   surface: one named exception, on those terms, not a general
+   sending permission.** No keep / scope-down / cut
+   decision, authentication or terms posture, or conformance work
+   for this surface as a whole appears in any earlier version of
+   this package (the follow-up send's Row X exception above is
+   round-3 work), and the channel-terms audit named at item 2 gates
+   these existing Gmail flows as it gates the new grill launch
+   (initiative 1.1): as the roadmap's Row X records, an adverse
+   or missing Gmail verdict gates the existing `email_sync.py`
+   scan, grill-over-Gmail, and `reply_radar.py` flows on the
+   same audit outcome as 1.1, with a user-initiated manual
+   export / import path as the named fallback (the user exports
+   or downloads their own mail, or pastes recruiter message
+   text, and the product works on that copy locally) and a
+   recorded suspension where that path cannot serve a flow;
+   the same shape applies to the existing WhatsApp grill
+   deliverable, with in-product chat as its fallback. The company-brief fetch issues automated
+   queries from `default_fetch()` to a search engine's HTML
+   endpoint (`https://html.duckduckgo.com/html/?…`) — not a public
+   API — transmitting the company name (and, per item 2, role
+   context) to a third party; it is user-triggered (a brief is
+   requested), and no initiation rule, automated-access terms
+   posture, or disposition for this fetch path was stated in any
+   earlier version. **The full enumerated set this item uses —
+   the set the feature-sets and roadmap documents must conform
+   their lists to — is: board search; `providers/`; `watch.py`;
+   `apply_queue.py`; `email_sync.py` + `reply_radar.py` (the
+   Gmail surface); and the company-brief fetch in `briefs.py`.**
    The roadmap PAUSEs only **new** providers and search expansion.
    The scheduler's exposure, stated plainly: it is a scheduled
    application pipeline — items can be added with a
@@ -1382,7 +1769,7 @@ answer:**
    provider uses, what rate limits apply, or each board's terms
    posture for automated access — and the surfaces are unaudited
    by this package, stated plainly. The disposition story is the
-   roadmap's, and it is the same for all four surfaces: the
+   roadmap's, and it is the same for all six groups: the
    Phase 0 standing Row X slice records a keep / scope-down / cut
    decision per surface against feature E2's posture —
    user-initiated operation only, no standing periodic sends or
@@ -1391,8 +1778,11 @@ answer:**
    surface unchanged is not an available outcome, recorded before
    Phase 0 closes and before the repositioning's legal story is
    used publicly. **New roadmap initiative 0.9 then performs the
-   conformance implementation** the decision records — named work
-   includes removing or re-scoping `watch.py`'s cron entry point
+   conformance implementation** the decision records. As the
+   roadmap now records them, the Row X disposition and 0.9's
+   conformance scope cover all six groups named in this item,
+   including the two named for the first time in round 3. Named
+   work includes removing or re-scoping `watch.py`'s cron entry point
    and re-scoping `apply_queue.py`'s scheduled-for / queue-run
    preset path so no scheduled or preset-consent run performs the
    browser form-fill / resume upload (that path runs only on a
@@ -1443,12 +1833,16 @@ so and names who owns finding one.
    interviews-per-application flat against the user's own baseline
    — each counted on the user's own machine, per user, with no
    population form claimed. One half of the old trigger **is**
-   publicly observable and stays: whether a competitor ships the
-   combination in §2 is visible on its public record — MaxCV's
-   occupation of the refusal element (§5) is exactly that kind of
-   observation — and if a competitor ships the full combination,
-   the advantage claim narrows again in the open, as it did this
-   round. The record's portability cuts both ways — the user can
+   publicly observable and stays, restated in named form in
+   round 3: whether one of the named contrast products
+   (Career-Ops, MaxCV) ships the four differences §2 claims
+   against it — the proof-state split, the claim-by-claim
+   approved ledger, the overturn-publishing verdict record,
+   delta-driven evidence-graded prep — is visible on its public
+   record, as MaxCV's and Career-Ops' occupation of the refusal
+   and do-not-apply elements (§5) already was. If a named product
+   ships those differences, the contrast claim against it
+   narrows again in the open, as it did this round. The record's portability cuts both ways — the user can
    take their ledger elsewhere — so the advantage lasts only while
    the product keeps earning it.
 2. **The classification is against the posting as written — not
@@ -1488,13 +1882,28 @@ so and names who owns finding one.
    in the outcome store and labelled user-reported in every report
    — never presented as employer-side data. The reports state
    which vetoes carry only this self-reported evidence and which
-   carry none. **Timing, pulled earlier:** 5.11's first report is
-   a **preliminary report four weeks after initiative 2.8 ships**
-   (small sample, user-reported veto outcomes included, limits
-   stated on its face); the first full report follows one quarter
-   after 2.8 ships, then per quarter. The preliminary report does
-   not lift the fit-weight PAUSE, which stays conditioned on the
-   first full report.
+   carry none. **What the reports may decide — narrowed in round
+   3 (B2-07):** 5.11's first report is **preliminary and
+   descriptive only**: it reports what was captured, on what
+   sample, with its limits stated on its face, and **no threshold
+   or wording decision rests on it** — the sample it can draw on
+   is doubly self-selected (users who return to a check-in, and
+   among obeyed vetoes only those whose outcome the user happens
+   to learn another way), and the users who obey a veto and
+   disengage — the decisive case — are the least likely to be in
+   it. Threshold and wording decisions wait for the **first full
+   report**, whose own capture limits (user-reported,
+   check-in-captured, the same selection effects) are stated on
+   its face alongside its figures; the preliminary report is not
+   a decision point, and this brief does not describe it as one.
+   **Clocks (as the roadmap's initiative 5.11 now states them):
+   both report clocks start when the capture machinery ships —
+   the preliminary report follows four weeks after the capture
+   gate, and the first full report one quarter after it** — not
+   from 2.8's ship date, which preceded the machinery that could
+   capture anything. Decisions attach to the first full report.
+   Neither report lifts the fit-weight PAUSE on a preliminary
+   basis: the PAUSE stays conditioned on the first full report.
 3. **Classification falls hardest on the users least able to fix
    it.** *Supported* requires the proof the requirement's kind
    requires (feature B2's per-kind test): verbatim quantified proof
@@ -1531,11 +1940,29 @@ so and names who owns finding one.
    package — its corpus is synthetic fixtures with
    spec-owner-authored expected classifications, and a
    ship-with-disparity waiver exists**: if measured disparity
-   exceeds the threshold, the release rule can be satisfied by the
-   owner recording a decision to ship with the disparity
-   published. That is a waiver, held by the same person who sets
-   the threshold and authors the corpus, and the brief names it as
-   one rather than presenting 2.9 as an external check. There is
+   exceeds the threshold, the release rule can be satisfied by a
+   recorded decision to ship with the disparity
+   published. That is a waiver, and in its round-2 form it was
+   held by the same person who sets the threshold and authors the
+   corpus — the brief named it as one rather than presenting 2.9
+   as an external check, and disclosure alone is not a treatment.
+   **The arrangement changes in round 3 (B2-06; the mechanism is
+   the roadmap's, initiative 2.9, and this paragraph describes
+   exactly what it gives and no more): the owner keeps the
+   threshold; the disparity measurement is re-run by the QA
+   (verifying) seat; and a ship-with-disparity waiver takes
+   effect only with a compliance reviewer seat countersign — a
+   seat that did not author the corpus** — recorded against the
+   re-run measurement before the release rule is satisfied. That
+   is the external check, stated at its full strength and no
+   stronger: an independent re-run of the measurement, plus a
+   countersign on the waiver by a seat other than the corpus's
+   author. What it does **not** give, and this brief does not
+   claim: the threshold is still set by the project owner and the
+   corpus's expected classifications are still
+   spec-owner-authored, so neither the threshold nor the corpus
+   is independently set, and 2.9 is still not an external audit
+   of either. There is
    also no real-user bias measurement anywhere in the package —
    and under Rule 2 there cannot be a population one; that
    constraint is part of this risk, not a footnote to it.
@@ -1584,7 +2011,14 @@ so and names who owns finding one.
    on a recorded owner decision, not silently passed. **1.6b owns
    the first-delta half** — time and question count from intake
    start to the first delta shown, target: a new user who pastes
-   one posting reaches a first delta within one sitting. A first
+   one posting reaches a first delta within one sitting, **where
+   "one sitting" is bounded in round 3 (B2-08) so the target can
+   fail: no more than 60 minutes and no more than 20 questions
+   from intake start to the first delta shown — 61 minutes, or a
+   21st question, fails (the bound as the roadmap states it for
+   initiative 1.6b, adopted identically here). A run exceeding
+   either bound misses the target, however it felt to sit
+   through.** A first
    delta is a Phase 2 artefact, so **no Phase 1 gate measures or
    reports a first-delta figure**: 1.6b builds its instrument in
    Phase 1 and is built, gate pending until the Phase 2 delta gate
@@ -1724,7 +2158,11 @@ yet count.
   built, gate pending on a recorded owner decision. **(b) time to
   first delta** — minutes and questions from intake start to the
   first delta shown; target: a new user who pastes one posting
-  reaches a first delta within one sitting. Owner: roadmap
+  reaches a first delta within one sitting, **bounded (round 3,
+  B2-08): within 60 minutes and within 20 questions from intake
+  start — 61 minutes, or a 21st question, is a miss (the bound
+  as the roadmap states it for initiative 1.6b, adopted
+  identically here)**. Owner: roadmap
   initiative **1.6b** — it builds the instrument in Phase 1 and is
   built, gate pending until the Phase 2 delta gate, where the
   Phase 2 seeded new-user run records the figure. No Phase 1 gate
@@ -1785,12 +2223,17 @@ yet count.
   B5's veto analyses consume. Timing: the
   interviews-per-application figure is first countable when B5
   ships (Phase 5); before that it is reported as not yet countable,
-  never as zero. 5.11's own reporting starts earlier than the
-  previous version of this package said — a **first preliminary
-  report four weeks after initiative 2.8 ships**, then the first
-  full report one quarter after 2.8, then quarterly (round 2,
-  B-08). The preliminary report does not lift the fit-weight
-  PAUSE, which stays conditioned on the first full report.
+  never as zero. 5.11's own reporting has two grades (round 3,
+  B2-07): a **first preliminary report, which is descriptive
+  only** — it states what was captured, its sample, and its
+  limits, and **no threshold or wording decision rests on it** —
+  and the **first full report**, on which threshold and wording
+  decisions wait, with its capture limits stated on its face.
+  Both clocks start when the capture machinery ships (roadmap
+  initiative 5.11): the preliminary report four weeks after the
+  capture gate, the first full report one quarter after it.
+  Neither report lifts the fit-weight PAUSE on a preliminary
+  basis, which stays conditioned on the first full report.
 - **Return between applications (per user; countable only once
   E1 ships its session typing, Phase 5).** Today this cannot be
   counted: `streaks.py` counts reps by type, and neither delta
@@ -2081,3 +2524,83 @@ veto-moment return measure — the 14-day return. §9's time-to-first-value meas
 1.6a (intake budget, Phase 1 gate) and 1.6b (first delta,
 gate-pending on the Phase 2 delta gate) — no Phase 1 first-delta
 measurement is claimed.
+
+v16 (2026-10-15) folds in round 3 of the same audit's fix loop —
+the findings that stood after the round-2 refutation pass (4
+blockers, 18 majors, 23 minors across the package; this document
+owns its share, dispositioned in
+`~/workspace/veto-differentiator-audit/fix-r3/dispositions-brief.md`).
+What changed here, by family. **Landscape (final-strike family):
+the claim's form changed, not just its rows.** Every
+completeness-dependent claim is deleted — "nearest occupant",
+"unoccupied", "no competitor combines", and every phrasing whose
+truth needs the whole market surveyed — and the differentiator is
+restated in §2 and §5 as four named contrasts against named
+products' verified behaviour (Career-Ops and MaxCV in
+particular), worded identically in both sections. §5 gains
+explicit inclusion criteria (availability, a scale signal,
+overlap on at least two table dimensions; platform-embedded tools
+in scope on the same criteria), so an omission is a criteria
+question. Career-Ops (about 74,800 stars, MIT, local-first; 1–5
+score with a do-not-apply threshold and user override, a
+never-submits posture, an in-code PDF fact check against the CV
+and article digest, a skill-gap module, an interview suite), AI
+Applyd (refusal guardrails, gap-surfacing, preview-before-send,
+receipt/proof wall — graded as showcase statements), and Adzuna
+ApplyIQ (free, platform-embedded, qualified-only applying,
+never-rewrites copy) were added from their own pages/repositories
+checked 2026-10-15, bringing the table to twenty-three competitor
+rows; the "override on the record" sub-claim about Career-Ops is
+expressly not asserted, as the refutation could not verify it
+from the README. The LoopCV row was corrected from its current
+agent page (per-role CV rewriting/optimisation; no-fake-information
+FAQ graded "Partly, as copy" instead of a flat "No"), and the
+Jobscan prep cell now flags Jobscan's self-contradiction
+(consumer add-on on its product page versus enterprise-only on
+its own comparison page) in the cell itself, with §2's and §5's
+prep lists conformed. **Claims debt:** CD-33 (qualification
+scoring: framework-conditional in one direction, blocking in the
+other; the round-2 sweep's "accurate" disposition of that page is
+withdrawn in the sweep table, and the register's completeness
+sentence is narrowed to the hits the sweep plus the round-2 audit
+together identified, with the round-2 overclaim stated as false),
+CD-34 (the fit-score veto blocks nothing and protects no slot),
+CD-35/CD-36 (the grill's two runtime outbound notes — standing
+approval covering later grill emails, and scheduled-task routing
+for proactive WhatsApp grilling — as product-surfaced debt, with
+roadmap task 0-C4 named as their fix vehicle),
+CD-37 (the ledger warning promise not kept on the apply path),
+CD-38 (tailoring "rephrased" and scan-timing copy), and CD-39
+(the live tree's eighteen/seventeen module count) were added;
+CD-17/CD-18/CD-19 were corrected and downgraded to Minor — their
+spec files are orphan files in the live tree only (the branch
+tree's site lacks all three), unreachable by any visitor, and the
+reachable Changelog entries are future-tense items in the "In
+testing" section that need no correction. **Retained surfaces:**
+§7 item 6 no longer presents a closed set of four — the Gmail
+surface (`email_sync.py` scan plus `reply_radar.py`) and the
+company-brief DuckDuckGo HTML fetch are named with their
+postures, and the full enumerated set is stated for the other
+documents to conform to. **Argumentative majors:** §8 risk 3 now
+describes the round-3 bias-waiver arrangement as the roadmap
+states it — a waiver requires a countersign by a seat that did
+not author the corpus: the owner keeps the threshold, the QA
+(verifying) seat re-runs the disparity measurement, and a waiver
+takes effect only with a compliance reviewer seat countersign —
+and states what that does not give (threshold and corpus remain
+owner-set and owner-authored; it is not an external audit); §8
+risk 2 and §9 now grade 5.11's preliminary report as descriptive
+only, with no threshold or wording decision resting on it and
+decisions waiting for the first full report with its capture
+limits stated, both report clocks starting when the capture
+machinery ships (preliminary four weeks after the capture gate,
+first full report one quarter after). **Cold start:** "within
+one sitting" is bounded in §8 risk 5 and §9 identically to the
+roadmap's 1.6b bound — no more than 60 minutes and no more than
+20 questions from intake start — so the 1.6b target can fail. Two brief-side minors from the C2 family are
+also closed here: the short form at §2 now carries its qualifier
+("Not unqualified for this posting as written — unproven"), §2's
+and §5's difference lists are the same four elements, §7 item 2's
+webhook removal now carries E1's "for check-ins or grill
+questions" scope, and a score-only veto's "what would change the
+answer" is stated as its axis-movement score statement.
