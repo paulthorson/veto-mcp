@@ -1,9 +1,13 @@
 # Veto positioning brief — the core differentiator
 
-Status: bake-out v16, 2026-10-15 (rework round 3 after the fresh
+Status: bake-out v17, 2026-10-15 (rework round 4 — integration
+pass: claims register extended to CD-01…CD-52, the
+pre-migration backup rule stated as one rule across all three
+documents, and an accepted-debt appendix added; see §10.
+Previously v16, rework round 3 after the fresh
 blind audit of v15 returned KICK_BACK — 4 blockers / 18 majors /
-23 minors standing after the refutation pass; this version
-changes the form of the landscape claim itself — every
+23 minors standing after the refutation pass; that version
+changed the form of the landscape claim itself — every
 completeness-dependent claim is deleted and the differentiator is
 restated as named contrasts against named products' verified
 behaviour, with Career-Ops, AI Applyd, and Adzuna ApplyIQ added to
@@ -116,7 +120,7 @@ competitors in §5 — only the auto-apply tools sell volume. "Gets to
 know you" and "based on your real experience" are already claimed by
 Sonara and Teal. Prep wording is contested ground too: job-specific
 prep is already sold by Final Round AI, Teal, LinkedIn, Rezi,
-JobCopilot, and EarnBetter
+JobCopilot, EarnBetter, and Resume Matcher
 (§5), so a readiness claim alone carries nothing. (Jobscan is not
 in that list in this version: its own pages contradict each other
 on whether individual job seekers can access its interview
@@ -496,25 +500,91 @@ standard and carries its §6 status per cell.** [S] = ships,
 [B] = bet, [P] = posture (a program fact outside this package's
 evidence exhibits — claim 11).
 
-**Table inclusion criteria (new in round 3 — an omission from
+**Table inclusion criteria (new in round 3; the scale floor in
+criterion (2) added in round 4 — an omission from
 this table is a criteria question, not a completeness failure,
 and no claim in this brief depends on the table being the whole
 market).** A product earns a row when all three hold, on its own
 public record at the check date: (1) **availability** — it is
 publicly available to job seekers, or is a publicly documented
 historical form labelled as such in its row (the AIHawk row);
-(2) **a scale signal** — at least one of: a vendor-claimed user
-or reach figure, repository stars/forks, a platform's stated
-audience, or publicly offered paid plans; and (3) **overlap** —
-it overlaps Veto on at least two of this table's dimensions
-(profile model; proof-versus-skill gap handling; a do-not-apply
-statement; refusal of unbacked claims; prep; price/posture).
+(2) **a scale signal that clears a materiality floor** — at
+least one of: **(a)** a public repository with at least **1,000
+stars** at the check date; **(b)** a vendor-claimed figure of at
+least **10,000 users, or monthly reach of at least 10,000**,
+claimed for the product itself; **(c)** a platform's stated
+audience of at least 10,000, for a tool embedded in or
+distributed through that platform; or **(d)** publicly offered
+paid plans a job seeker can buy. **Why a floor, and why these
+forms:** this table exists to compare Veto against products a
+job seeker could plausibly meet and that exert real pressure on
+the positioning — not to catalogue every project in the space.
+Repository stars and vendor-claimed figures are the two signals
+any project can present at any size, so each needs a minimum
+that separates demonstrated reach from a newly published or
+personal project: 1,000 stars is the smallest repository signal
+that shows an independent user and contributor base beyond a
+project's makers, and 10,000 is the smallest claimed audience
+that shows reach beyond a pilot. Two forms carry no numeric
+floor because the form itself is the materiality evidence: a
+paid plan offered publicly is a commercial operation a job
+seeker can buy today, and platform distribution is measured by
+the platform's stated audience under (c), not by the tool's own
+claims. A vendor-claimed **activity count** — submissions made,
+applications processed, or a similar throughput figure for a
+private or related pipeline — is **not** a scale signal under
+(b): it measures one operator's volume, not the public
+product's adoption, however honestly it is counted; and (3)
+**overlap** — it overlaps Veto on at least two of this table's
+dimensions (profile model; proof-versus-skill gap handling; a
+do-not-apply statement; refusal of unbacked claims; prep;
+price/posture).
 Platform-embedded tools are in scope on the same criteria (the
 LinkedIn Premium and Adzuna ApplyIQ rows); a tool failing any
 criterion is out of scope by the criterion, and the criteria —
 not the market — are what a future omission is judged against.
 The table as now constituted has **twenty-three competitor
 rows**, checked 2026-10-15.
+
+**The floor applied — the worked case and the consistency
+check (round 4).** **Keel** (github.com/KeelDev-tech/keel,
+checked 2026-10-15) is the case that exposed the missing floor:
+publicly available, Apache-2.0, marketed to job seekers with fit
+scoring, truthful tailoring from a user-verified profile,
+prescreen gates, and a stated never-invents and never-submits
+contract — overlap on at least four dimensions, so criterion
+(3) is met and criterion (1) is met. It earns **no row**,
+because no scale signal clears the floor: its repository
+stands at 3 stars and 4 forks at the check date; it offers no
+publicly priced paid plans (it is free and open source, with a
+hosted tier described but no plan a job seeker can buy on its
+public record); and the one figure its README claims — 271
+verified submissions in the ledger of a **private** production
+pipeline, as of 2026-10-05 — is an activity count for a related
+private pipeline, not a user or reach figure for the public
+product, and would fall below the 10,000 floor in any case. If
+Keel's repository or claimed audience later clears a floor
+form, it earns a row on the same terms as every other product;
+the exclusion is the floor's, applied as written, not a
+judgement on its honesty contract — which, as the round-3 audit
+noted, would not disturb any of §2's four named contrasts in
+any case, since those are stated only against Career-Ops and
+MaxCV. **Consistency check on the standing rows:** every
+current row was re-tested against the revised criterion (2) at
+the same check date, and **no current row changes status**.
+The free and open-source rows clear (a) on repository stars —
+Resume Matcher (about 28,700 stars on its repository at the
+check date), Career-Ops (about 74,800), and AIHawk's historical
+form (roughly 29,000–32,000, as its row states). The
+platform-embedded rows clear (c) — Adzuna ApplyIQ on Adzuna's
+stated 10m+ jobseekers a month, LinkedIn Premium on LinkedIn's
+platform, and EarnBetter (now Earn Better by EarnIn) as a free
+offer inside the EarnIn app, whose own page states 29M+ app
+downloads (checked 2026-10-15, earnbetter.com). Every remaining
+row offers publicly priced paid plans and clears (d) — several
+also clear (b) on their own claimed figures as their rows state
+(Enhancv's 10M+ applicants, JobCopilot's 500,000+ career pages,
+Careerflow's seven-figure user base).
 
 | Product | What it owns | Profile model | Proof vs skill gap | Says don't apply? | Refuses unbacked claims? | Prep graded vs user evidence? | Price shape |
 |---|---|---|---|---|---|---|---|
@@ -531,7 +601,7 @@ rows**, checked 2026-10-15.
 | Careerflow | Tracker + LinkedIn optimiser + resume/ATS workspace, application autofill, and a Job Fit Analyzer that tailors documents per job (vendor-claimed seven-figure user base; checked 2026-10-15, careerflow.ai) | Resume + LinkedIn profile | No — keyword and ATS gaps, and a named Skill Gap Analyzer; still no proof-state split | No | No | No — mock interviews with feedback on the top plan; not evidence-graded | Freemium / paid |
 | Huntr | Tracker + AI tailoring + autofill workspace | Resume + form-fill data | No — match score across qualifications, responsibilities, and keywords | No | No — generates achievements and summaries | No | Freemium / paid |
 | AIApply | End-to-end builder / scanner / auto-apply | Resume + preferences | No — missing keywords | No — the opposite (auto-apply) | No | No — mock prep plus a live Interview Buddy that supplies answers during the real interview; not evidence-graded | Freemium / paid (credits) |
-| Resume Matcher | Free, open-source, local tailoring + ATS scoring | Resume | No — keyword gaps | No | No | No | Free, open source; runs locally if self-hosted |
+| Resume Matcher | Free, open-source, local tailoring + ATS scoring | Resume | No — keyword gaps | No | No | No — ships resume-grounded interview prep; not evidence-graded | Free, open source; runs locally if self-hosted |
 | MaxCV | Truthful tailoring + ATS match score, with each requirement mapped to evidence in the CV versus not in the CV (checked 2026-10-15, maxcv.ai) | Master CV, uploaded once and reused per offer | No — its split is by record presence (in the CV / not in the CV), not by proof state: an on-record item is not split into proven versus on-record-but-unproven | No | **Yes, as a stated mechanism** — its FAQ states a hard fabrication ban (only skills and experience already in the CV are used); its feature copy states skills the user lacks are not added, risky claims are stripped, and softer claims wait for the user's approval | No — an interview cheat sheet for the role is included; it is not graded practice against the user's evidence | Free tier (tailorings without an account, more after free sign-up) + paid pack / per-30-days unlimited, per its site |
 | Enhancv | Resume building at scale — vendor-claimed 10M+ job applicants, 15M+ resumes created, 11 years operating — with AI writing, ATS check, and one-click job tailoring (checked 2026-10-15, enhancv.com) | Resume + versions | No — ATS match shows terms present versus missing and gaps such as a bullet with no number; no proof-state split | No | Partly, as copy — its tailoring is stated to be built from the user's real experience only, with no invented facts, its writing help uses a placeholder rather than inventing a figure it cannot know, and tailoring changes are highlighted and not applied automatically; no blocking refusal mechanism is stated | No — its site bundles interview prep with building, checking, tailoring, and tracking; not evidence-graded | Free entry + paid plans; no price figure is relied on from the home page checked |
 | JobCopilot | Auto-apply at scale — vendor-stated applications across 500,000+ company career pages, up to 50 applications a day on its top tier (checked 2026-10-15, jobcopilot.com) | Resume + screening answers per copilot; multiple copilots allow different resumes for different searches | No — matching and filtering; no proof-state split | No — auto-apply is the product; a review mode exists and the user can switch a copilot to auto-apply | Partly, as copy — its FAQ states auto-filled answers are generated from the data the user provided and that it does not invent information about the user; no stripping or blocking refusal mechanism is stated | No — its AI mock interviewer tailors questions by job title and description and gives feedback on content, relevance, and structure; not evidence-graded | Paid tiers (Premium / Elite in its FAQ) |
@@ -539,7 +609,7 @@ rows**, checked 2026-10-15.
 | EarnBetter (now Earn Better by EarnIn) | Free job-search assistant: resume rewrite, personalised matches, per-job tailored documents, and interview prep (checked 2026-10-15, earnbetter.com) | Uploaded resume + profile and preferences | No — matches are ranked by fit; no proof-state split | No | No — it rewrites the resume; no refusal mechanism is stated on the site checked | No — a role-tailored cheat sheet and mock interview; not evidence-graded | Free — inside the EarnIn app, with no subscription or credit card, per its FAQ; the original launch was funded free (a $4.5M seed, per its launch post), so free in this space is not only a community posture |
 | AIHawk | **Historical / pivoted row, not a current competitor:** bulk job-application automation in its original form; the repository that housed it had roughly 29,000 stars in the audit's record and about 32,000 on the repo checked 2026-10-15, which now redirects to a different project, and secondary summaries record the original job applier as archived / pivoting in 2026 | Resume + preferences (original form) | No | No — the opposite (original form) | No | No | Free, open source (MIT), locally run in its original form — its existence, at that star count, is why free + open-source + local applying cannot be treated as ground only Resume Matcher and Veto occupy |
 | Career-Ops | Open-source, local-first job-search agent run in the user's AI coding CLI: board scanning, per-job scoring and evaluation, tailored CV and cover letter, interview suite, tracker (checked 2026-10-15, github.com/career-ops-hq/career-ops — about 74,800 stars and about 14,000 forks at check date) | CV + profile held locally; the tool works from the CV and the user's article digest | No — a job-description skill-gap module and per-requirement evaluation exist, and its fabrication check splits by record presence (in the CV or the digest versus in neither); an on-record item is not split into proven versus on-record-but-unproven, and there is no four-state proof classification | **Yes** — scores each job 1–5 against the CV and tells the user not to apply below 4.0/5; the user may override (its README states the tool "will say so"; whether an override is logged is not stated in the README checked and is not asserted here) | **Yes, in code as its README states** — a check stops PDF generation when numbers or facts appear in neither the CV nor the user's article digest; the README itself limits this: the check cannot judge every rewording yet | No — an interview suite (prep plans, practice with feedback, debriefs) and a story bank exist; not stated to be graded against a proof-state ledger or the user's own evidence | Free, open source (MIT), local-first; the user supplies their own AI CLI / model |
-| AI Applyd | Auto-apply agent with ATS scoring, per-job tailoring, a structured receipt or proof screenshot per submission with a public anonymised proof wall, and a public MCP server (checked 2026-10-15, its public showcase, github.com/whateverneveranywhere/aiapplyd-showcase, fronting the live product at aiapplyd.com) | Uploaded resume parsed into a profile | No — job-description demands the user lacks are surfaced as a gap rather than forged (its showcase's wording); no proof-state split, and a gap is not split into on-record-but-unproven versus absent | No — the opposite (auto-apply); its showcase states the default is manual approval with a preview of each application before it sends | Yes, as stated guardrails in its showcase — it states the system refuses to invent job titles, certifications, metrics, or skills not on the resume; the showcase is documentation for a live product, not the product's source, so this cell grades the statement, not verified code | No — company-specific questions and practice answers grounded in the resume (its showcase's wording); not evidence-graded against a proof-state ledger | Free tier + paid plans at $39 / $79 per month, per its showcase pricing |
+| AI Applyd | Auto-apply agent with ATS scoring, per-job tailoring, a structured receipt or proof screenshot per submission with a public anonymised proof wall, and a public MCP server (checked 2026-10-15, its public showcase, github.com/whateverneveranywhere/aiapplyd-showcase, fronting the live product at aiapplyd.com) | Uploaded resume parsed into a profile | No — job-description demands the user lacks are surfaced as a gap rather than forged (its showcase's wording); no proof-state split, and a gap is not split into on-record-but-unproven versus absent | No — the opposite (auto-apply); its showcase states the default is manual approval with a preview of each application before it sends | Yes, as stated guardrails in its showcase — it states the system refuses to invent job titles, certifications, metrics, or skills not on the resume; the showcase is documentation for a live product, not the product's source, so this cell grades the statement, not verified code | No — company-specific questions and practice answers grounded in the resume (its showcase's wording); not evidence-graded against a proof-state ledger | Free tier + paid plans at $38.99 / $89.99 per month on the live pricing page (checked 2026-10-15, aiapplyd.com/pricing; weekly billing at $21.99 / $37.99 also offered). **Showcase-versus-live disagreement, flagged and resolved here:** its showcase states $39 / $79 per month; where the showcase and the live pricing page disagree, this table follows the live pricing page — the same flag-and-resolve treatment the Jobscan row applies to that vendor's self-contradiction |
 | Adzuna ApplyIQ | Platform-embedded free AI application agent on the Adzuna job platform (checked 2026-10-15, adzuna.com/apply-iq; the platform claims 10m+ jobseekers a month on that page) | Uploaded resume + stated preferences | No — applications are targeted to strong matches; no proof-state split is stated | Qualified-only applying, not a user-facing verdict — its page states it only applies when the user's skills match the role and the job fits their needs; no do-not-apply verdict shown to the user is stated | Partly, as copy — its page states it applies "never rewriting your resume" and "We don't fake your resume"; no blocking or stripping mechanism is stated | No prep is stated on the ApplyIQ page checked | Free — its page states no premium tier and 100% free for users |
 | **Veto** | **The tool that refuses: no invented claims by construction [S]; proof-state labels [B]; a named delta [B]** | **Evidence ledger [B] — thin flat profile [S]** | **[B] — core matching is binary [S]** | **Yes [S] — score veto (this branch tree); classified veto with a path [B]** | **Partly [S] — by construction in tailoring; the standalone letter scan flags but does not block; the blocking gate checks skills/years/keywords only and is framework-conditional (see §3); resume-wide blocking at approval [B] — "backed" means proven in A1's sense: traced to an `approved` ledger entry with proof attached** | **[B] — craft grading [S]** | **Free, open source, local-first [P] — a posture Resume Matcher and Career-Ops also hold; the claimed differences from named products are the four stated in §2, not this posture** |
 
@@ -565,7 +635,12 @@ Jobright — hirecarta.com/blog/jobright-review and
 jobscan.co/blog/jobscan-vs-jobright/. Huntr — huntr.co and
 jobscan.co/blog/jobscan-vs-huntr/. AIApply —
 aiapply.co/compare/aiapply-vs-sonara. Resume Matcher —
-scored.tools/blog/huntr-vs-resume-matcher-best-ai-job-application-tools/.
+github.com/srbhr/Resume-Matcher (its README's Interview
+Preparation feature: structured, resume-grounded prep for saved
+tailored resumes, through the Builder's Interview Prep tab or
+automatic generation in Settings; checked 2026-10-15 — this
+vendor source supersedes the earlier secondary summary for the
+prep cell).
 
 **Round-2 methods note — check date and source per corrected or
 new row (all fetched 2026-10-15; primary sources only, and no
@@ -657,6 +732,31 @@ cell flags the contradiction instead of asserting either half —
 the same treatment the round-2 note applied to Jobscan's split
 Auto Apply wording.
 
+**Round-4 methods note — price, prep, and criteria corrections
+(all fetched 2026-10-15 from the products' own pages or
+repositories).** AI Applyd pricing — aiapplyd.com/pricing (the
+live product's own pricing page: free plan; Hired in 30 at
+$38.99/month and Hired Yesterday at $89.99/month, with weekly
+billing at $21.99 / $37.99). The round-3 note above sourced the
+price cell to the showcase's $39/$79 figure; that sourcing is
+superseded for the price cell — where the showcase and the live
+pricing page disagree, the cell now follows the live pricing
+page and flags the disagreement in the cell, and the $39/$79
+figure in the round-3 note stands only as the record of what
+the showcase states. The row's other cells remain showcase
+statements, graded as such. Resume Matcher prep —
+github.com/srbhr/Resume-Matcher (README Key Features, Interview
+Preparation, and the How It Works step listing optional
+interview preparation; about 28,700 stars at the check date).
+Keel and the scale floor — github.com/KeelDev-tech/keel
+(repository record: 3 stars / 4 forks, created 2026-09-15,
+Apache-2.0; README: fit scoring, truthful tailoring from a
+verified profile, prescreen gates that park what cannot be
+answered honestly, a never-invents / never-submits contract, and
+the 271-verified-submissions figure for its private production
+pipeline's ledger, as of 2026-10-05) — the worked application
+of the revised criterion (2) is stated with the criteria above.
+
 **Named contrasts — this section replaces the former
 open-ground claim, which is deleted.** This brief no longer
 states that any combination is unoccupied, that any named
@@ -699,7 +799,7 @@ tailoring); requirement-to-evidence mapping in record-presence
 form (MaxCV; Career-Ops' CV/digest fact check); a do-not-apply
 verdict below a score threshold, with user override (Career-Ops);
 job-specific prep in general form (Final Round AI, Teal,
-LinkedIn, Rezi, JobCopilot, EarnBetter — Jobscan's consumer prep
+LinkedIn, Rezi, JobCopilot, EarnBetter, Resume Matcher — Jobscan's consumer prep
 availability is contradicted on its own pages and is not counted
 either way, see its flagged cell); free, open-source, local-first tailoring and
 scoring (Resume Matcher; Career-Ops; AIHawk's original form for free,
@@ -747,14 +847,24 @@ stated inside the entry.
 ### Claims debt — public statements to correct, before any launch
 
 The marketing site and docs currently state things the code does not
-support. The list has five layers: the original thirteen items
+support. The list has seven layers: the original thirteen items
 (CD-01…CD-13, from the code audit's fourteen claim risks), nine more
 found by the adversarial audit (CD-14…CD-22), three more found by
 the re-sweep in rework round 1 (CD-23…CD-25), seven more found
-in rework round 2 (CD-26…CD-32), and seven more found by the
-round-2 audit and added in rework round 3 (CD-33…CD-39), with locations and scope added to
+in rework round 2 (CD-26…CD-32), seven more found by the
+round-2 audit and added in rework round 3 (CD-33…CD-39), eight
+more found by the re-scoped whole-repo + rendered-live-site
+sweep in rework round 4 (CD-40…CD-47), and five more adopted in
+round 4 from the widened homepage + README sweep (CD-48…CD-52 —
+its H1, H2, H3, R1, and R2; its H4 is already CD-05 and its H5
+is already CD-33, and its R3 was verified true, so none of those
+three is numbered again), with locations and scope added to
 CD-01, CD-02, CD-05, CD-14, and CD-22 and CD-11 rewritten (its
-stated code reality was itself false). **Round-2 sweep method —
+stated code reality was itself false). **The register's final
+count at this revision is 52 items, CD-01…CD-52
+(13 + 9 + 3 + 7 + 7 + 8 + 5 = 52), and roadmap initiative 0.1's
+scope is this register as it stands at its gate, at that count
+subject to 0.1's own self-updating repeat-sweep step.** **Round-2 sweep method —
 changed because the list missed surfaces in two consecutive
 audits:** the round-2 sweep did not start from a list of known
 files. It swept by **claim concept**: a grep for guarantee
@@ -792,6 +902,11 @@ product's own site must pass the check first.
    salary among the question kinds, and its grill feature card lists
    "missing skills, unquantified wins, salary, logistics" — the same
    non-existent salary kind, on surfaces this item did not name.
+   **Additional location added in round 4 (re-scoped sweep,
+   §3b):** the README's 60-second tour, grill step, lists "salary"
+   among the grill's topics (branch tree `README.md:24`; live tree
+   `README.md:20`) — the same non-existent salary question kind,
+   on the README surface this item did not name.
 3. (CD-03) Site fit-score spec: "weights are fixed constants, never learned"
    — contradicted by the shipped, gated model-card design
    (`model_card.py`); the honest claim is "static until evidence and
@@ -886,6 +1001,20 @@ product's own site must pass the check first.
     ("an evidence library of your real achievements") and "Fit
     decoder and career graph" ("a map of how your skills connect to
     target roles"), which list both as shipped product.
+    **Fifth feature in the same entry, added in round 4:** the
+    same **Shipped** "The application studio" entry also claims
+    "an ATS readiness check on your resume's format —
+    parser-friendly structure, keyword coverage, completeness"
+    as shipped product. Code reality: `ats_readiness_check`
+    exists only in the unwired i05 initiative package
+    (`initiatives/i05/ats_check.py`), and its only
+    callers are inside that same package
+    (`initiatives/i05/packet.py`, `initiatives/i05/studio.py`) —
+    no caller exists in any core surface (`server.py`,
+    `dashboard.py`, `webui.py`, `cli.py`, `crew.py`) in either
+    tree. The ATS readiness check is therefore a fifth
+    built-unwired feature in this item's scope, corrected with
+    the entry's other four, not a shipped capability.
 13. (CD-13) "Veto learns you over time / your profile gets deeper with use"
     wording anywhere it appears — no write-back exists, so the
     profile today is what the user typed on day one (claim 13;
@@ -915,6 +1044,24 @@ product's own site must pass the check first.
     item's, the ledger sentence is accurate as qualified and is not
     debt. The crew subsystem's separate version of this guarantee
     is CD-26, and the drip queue's is CD-30.
+    **Additional locations added in round 4 (re-scoped sweep,
+    §3b):** the home page's step card "Review & confirm" (branch
+    tree `site/src/App.tsx:279`; live tree `:270`) — "The veto
+    checks run, you review, and only your explicit confirm records
+    anything"; the DocsPage tool row for the apply tool (branch
+    tree `site/src/pages/DocsPage.tsx:75`, the same in the live
+    tree) — "Governed end to end."; and the README governance
+    table's veto-screen row (branch tree `README.md` Fail-open /
+    fail-closed table; live tree the same table) — "Veto screen |
+    **Fail closed** — blocks (`governance_error`)". Each states
+    the conditional gate unconditionally, under this item's code
+    reality unchanged: veto-check errors inside a loaded gate
+    fail closed, but a framework that cannot be loaded returns
+    the gate disabled and the caller proceeds — the table row's
+    "on framework error" framing does not distinguish the two.
+    (The README row came to this item from round-3 finding
+    A3-02, whose other half — the qualification row of the same
+    table — is folded into CD-33 below.)
 15. (CD-15) **[Blocker]** Cover-letter suppression guarantee: a draft
     that fails its honesty scan "never reaches you". Surfaces:
     `site/src/pages/specs/cover-letters.ts` ("the scan result must be
@@ -1033,6 +1180,17 @@ product's own site must pass the check first.
     (`email_sync.py:61,215`; the README discloses it, the spec page
     does not). CD-11 covers outbound contact wording, not
     inbound-driven stage mutation.
+    **Additional locations added in round 4 (re-scoped sweep,
+    §3b) — three live-tree locations where the Gmail path's
+    availability limit is dropped (the branch tree hedges all
+    three):** `site/src/pages/specs/the-grill.ts:19-20` ("Three
+    channels… Gmail… ingested automatically") and `:65-66`;
+    `site/src/pages/specs/email-sync.ts:8` (the lede presents
+    Gmail reading as the plain behaviour); and
+    `site/src/pages/specs/followups.ts:32` ("Drafts go through
+    your connected Gmail path"). Each is this item's
+    availability overstatement on a further surface, corrected
+    under this item.
 21. (CD-21) **[Major]** Product docs present removed boards as
     working. Surface: `docs/compliance.md` (LinkedIn, Indeed,
     Glassdoor, ZipRecruiter listed as a working scraping tier —
@@ -1249,6 +1407,16 @@ product's own site must pass the check first.
     that disposition was wrong and is withdrawn in the sweep table
     in this version; a register that calls a contradicted page
     accurate cannot claim completeness about itself.
+    **Additional location added in round 4 (re-scoped sweep,
+    §3b):** the README governance table's qualification row
+    (branch tree `README.md:686`; live tree `README.md:676`) —
+    "Qualification | Fail open — warns, never blocks". The same
+    false sentence this item grades on the spec page, in the
+    operator README, directly under a step list
+    (`README.md:~664-672`, both trees) that correctly says a low
+    score blocks. (This location is also the qualification half
+    of round-3 finding A3-02; the same table's veto-screen row
+    is folded into CD-14 above.)
 34. (CD-34) **[Major]** (round 3, A2-02) The fit-score "veto" sold
     as slot-protecting enforcement that no apply path consults.
     Surfaces: `site/src/pages/specs/fit-score.ts` lede ("Veto
@@ -1256,7 +1424,13 @@ product's own site must pass the check first.
     60+… Anything under 60 is vetoed with a concrete reason") and
     its "Veto under 60" point ("A score below 60 blocks the
     application and says exactly why… No silent skips, no
-    mystery"), and `site/src/pages/DocsPage.tsx` FAQ ("How do the
+    mystery"), **the interactive radar demo component,
+    `site/src/demos/radar.tsx` (rendered on the homepage and the
+    demo page; added in round 4: "Drag the sliders and watch the
+    score move. Veto spends your five daily applications only on
+    postings scoring 60+" — the same slot-protection claim, on
+    the most visible demo surface, under this item's code
+    reality unchanged)**, and `site/src/pages/DocsPage.tsx` FAQ ("How do the
     5/day cap and the fit-score veto relate?" — postings under 60
     "are vetoed with a reason and never consume a slot… a posting
     has to clear both to become an application"). Code reality:
@@ -1310,7 +1484,21 @@ product's own site must pass the check first.
     named it. **Fix vehicle: roadmap task 0-C4 (see CD-35) — its
     inventory-and-rewrite scope covers this note as an
     `outbound_for_channel()` note, and Slot 0 does not close
-    until 0-C4 passes.**
+    until 0-C4 passes.** **Additional carrier added in round 4
+    (D3-07): the same "only proactive channel" framing stands
+    in a second module's outbound text — the WhatsApp
+    deliverable note in `mock_interview.py` (branch tree lines
+    419–425), which feature D1 names as an outbound-text
+    inventory line for the D features. Its framing is
+    superseded by feature E1's initiation model, its truthful
+    "did not send anything" half is kept, and it is rewritten
+    before any D1/D2 surface on that module ships; roadmap task
+    0-C4's inventory now carries it as a named carrier beside
+    the two grill notes and the `grill.py` module docstring
+    (D3-02 / C3-09), so no brief or roadmap inventory of the
+    proactive-channel note carriers is complete without it.
+    (§7 enumerates no carrier inventory of its own; this item
+    is the brief's inventory for these carriers.)**
 37. (CD-37) **[Minor]** (round 3, A2-04) The ledger "you'll see a
     warning, not a silent gap" promise is not kept on the apply
     path. Surfaces: the Changelog page's **Shipped** "Decision
@@ -1366,27 +1554,447 @@ product's own site must pass the check first.
     same page. (Tree note: the branch tree's DocsPage already
     reads "seventeen"; the contradiction as stated is the live
     tree's, which is the tree a visitor sees.)
+40. (CD-40) **[Major]** (round 4, re-scoped sweep) The i12
+    education guides state the approved-evidence trace as
+    shipped. Surfaces (both trees; user-facing guides under
+    `docs/i12/education/`, written for users in the second
+    person, cross-linked as a library):
+    `docs/i12/education/evidence-writing.md:3` — "Every tailored
+    statement in Veto traces to an approved evidence item";
+    the same file at `:17` — "Veto stores this provenance";
+    the same file at `:31` — "The honesty layer verifies that
+    tailored claims stay within the bounds of approved
+    evidence. If a draft claims something your evidence doesn't
+    support, that's a finding, not a suggestion"; and
+    `docs/i12/education/qualified-applications.md:23` — "Every
+    tailored claim traces to an approved evidence item. If you
+    can't source it, don't claim it." Code reality: there is no
+    approved-evidence state for a claim to trace to today. The
+    per-line provenance function exists only as built, unwired
+    code (claim 4 / CD-12's family: `tailor_with_provenance()`
+    has no core caller in either tree); intake is flat
+    self-reported fields with no approval state (claim 20, a
+    bet); and the wired honesty machinery checks a cover letter
+    against profile *text* (skills, years, veto keywords at the
+    gate — `adapter.py:616`), not against approved evidence
+    items, and blocks nothing outside the conditional gate
+    (CD-50). The register's earlier disposition of the
+    `docs/i12` subtree as design records that make no public
+    product statement does not fit these files: the decision
+    records under `docs/i12/decisions/` are records, but the
+    education guides are product guides that state, in the
+    present tense, the exact mechanism this package grades as a
+    bet. Honest replacement (`evidence-writing.md:3`): "Tailored
+    statements are built only from what your profile contains —
+    Veto adds nothing to what you told it. A per-claim trace to
+    approved evidence is planned; today the trace is to your
+    profile text." **Fix vehicle: roadmap initiative 0.1
+    corrects this item against the named code facts, as it does
+    every register item.**
+41. (CD-41) **[Major]** (round 4, re-scoped sweep) The i12
+    methodology page describes four public tools that are not
+    public, and a provenance-linked scorer that does not exist.
+    Surface (both trees, identical): `docs/i12/methodology.md`
+    — at `:5-7`: "Four interactive demos. Each runs entirely on
+    your device, needs no account, and never asks for your
+    resume", followed by a table (`:9-14`) naming a JD decoder,
+    a fit explainer, an application-risk check, and a role
+    comparison ("Compares up to 4 roles"); and at `:23`: "Real
+    scoring links every claim to evidence in your local profile
+    with provenance." Code reality: (a) of the four, only the
+    JD decoder exists as a public tool a visitor can use (the
+    site's `#/decoder/try` page, a TypeScript port — CD-29
+    covers its "exactly" wording). The other three exist only
+    as functions in the repo package `initiatives/i12/tools.py`
+    (with `initiatives/i12/__main__.py` as a command-line
+    runner); the package's own integration notes state the
+    position plainly — `initiatives/i12/integration_notes.md:1-6`:
+    the initiative "does not touch `site/`", its site surfaces
+    are specs for a later team, and "nothing goes public without
+    the operator's explicit order"; `tools.py` itself leaves the
+    public methodology URL as a to-be-set placeholder. No site
+    route renders any of the three (the served bundle contains
+    no fit-explainer, risk-check, or role-comparison strings).
+    (b) The real scorer, `match.py: score_job()`, links no
+    claim to anything: core matching is binary skill-list
+    overlap (claim 14 / §3 Pillar 2), and provenance is the
+    built, unwired code of CD-40. Honest replacements: (`:7`)
+    "Four interactive tools, one of them public today: the JD
+    decoder runs on this site. The fit explainer, the
+    application-risk check, and role comparison exist as a
+    local package in the repository and are not yet wired to a
+    public page." (`:23`) "Real scoring today is a five-factor
+    score over the skills and fields in your profile; it does
+    not link claims to evidence — that link is planned work."
+    **Fix vehicle: roadmap initiative 0.1.**
+42. (CD-42) **[Minor]** (round 4, re-scoped sweep) The site
+    dashboard page claims a tracking totality its own wiring
+    cannot deliver. Surface (both trees; on the rendered site):
+    `site/src/pages/DashboardPage.tsx:173-176` — "Every
+    application Veto touches, every posting edit it catches,
+    every stage change — detected as deltas and tracked here."
+    Code reality: the page detects deltas only over data it is
+    handed. `DashboardPage.tsx:15-28` (`loadData()`) reads a
+    localStorage key (`dash/types.ts:8`, `veto.dashboard.v1`)
+    and otherwise falls back to a seeded demo dataset — the
+    page does label that state in the same lede ("Showing
+    seeded demo data"), and its footnote
+    (`DashboardPage.tsx:~215`) discloses the manual wiring:
+    export a report as JSON and store it under the key
+    yourself. No product code writes that key: a grep for the
+    key across both trees finds only the site code, its
+    comments, and the capability report's description of it.
+    So "every application Veto touches… tracked here" is true
+    only for applications a user has manually exported into
+    this page; nothing is tracked here by the product itself.
+    The delta detection itself is real (`dash/deltas.ts:
+    detectDeltas()` computes stage, veto, posting-edit,
+    new-match, and stale deltas over the two snapshots it is
+    given) — the totality is the debt. Honest replacement:
+    "Applications you export here, diffed snapshot to snapshot:
+    posting edits, stage changes, vetoes, and stale entries,
+    detected as deltas." **Fix vehicle: roadmap initiative 0.1.**
+43. (CD-43) **[Minor]** (round 4, re-scoped sweep) The
+    capability report's site claims are stale in both
+    directions. Surface (both trees):
+    `docs/capability-report.md`. The branch copy carries the
+    report forward in the present tense — `:3`: "content is
+    carried forward for the v1.0.0 public tip" — but its site
+    section describes the 2026-09-14 build: `:269-296` (section
+    head at `:269`): the decoder page and the site bundle
+    contain "no analytics, error-reporting, or tracking SDK",
+    and the site "now makes zero third-party network requests
+    — no scripts, no analytics"; and `:442-445`, summary item
+    5: "The site collects nothing. … no analytics; the only
+    third-party requests are Google Fonts." Code reality
+    today: the site ships analytics on every page —
+    `site/src/main.tsx:3,17` renders the Vercel Analytics
+    component, `site/src/lib/routeAnalytics.ts` fires a
+    `route_view` event per hash navigation, `@vercel/analytics`
+    is a declared dependency (`site/package.json:15`), the
+    served bundle contains the analytics script path, and the
+    site's own privacy text (`site/src/content/privacy.txt`,
+    branch tree) discloses Vercel Web Analytics by name. The
+    same summary sentence is also wrong in the other direction:
+    fonts are self-hosted (the report's own §5 body says the
+    Google Fonts links were removed), so Google Fonts is no
+    longer a third-party request at all. The README points
+    readers at this report as evidence for its privacy section
+    (branch `README.md:~55-75`), which is what lifts a stale
+    internal report into a public claim. Graded Minor because
+    the report is date-stamped at its head; the carry-forward
+    sentence and the README's reliance on it are the debt.
+    Honest replacement (item 5): "The site sets no cookies and
+    keeps no accounts. It uses Vercel Web Analytics to count
+    page visits and link clicks, as the site's privacy text
+    states. Fonts are self-hosted; the analytics service is the
+    site's one third-party request." **Fix vehicle: roadmap
+    initiative 0.1.**
+44. (CD-44) **[Minor]** (round 4, re-scoped sweep) The
+    changelog page's release history contradicts the repo's
+    own changelog in both trees. Surfaces: branch
+    `site/src/pages/ChangelogPage.tsx:67` — "If something isn't
+    listed here, it didn't ship" — followed by an "Unreleased"
+    section and a single release entry at `:110-112`, "v0.1.0 —
+    2026-09-12 / First release." The branch tree's own
+    `CHANGELOG.md:5-7` says instead: "## v1.0.0 — 2026-09-29 /
+    Initial public release of Veto MCP", with no v0.1.0 entry
+    and none of the page's Unreleased items; the branch README's
+    release instructions (`README.md:534,541`) also use
+    `v1.0.0`. The page's header comment claims it "mirrors the
+    repo-root CHANGELOG.md" and that staleness "is caught by
+    comparing this file against CHANGELOG.md at release time" —
+    in the branch tree it mirrors neither the version, the
+    date, nor the contents. The mismatch is not branch-only: in
+    the live tree the page and the root file also disagree (the
+    live page's "Shipped / In testing / Being built" entries
+    appear nowhere in the live root `CHANGELOG.md`, whose
+    Unreleased list is the branch *page's* list). The rendered
+    site serves the branch page, so a visitor today reads
+    v0.1.0 as the first and only release while the repo the
+    page links to records v1.0.0 as the initial public release.
+    Neither version claim was verified against a tag or release
+    record in this sweep; the debt is the contradiction itself,
+    on a page whose own stated rule is completeness. Honest
+    replacement: until the two files are reconciled, drop the
+    completeness sentence ("If something isn't listed here, it
+    didn't ship") from the page; then align the page to the
+    root changelog's version history, or the reverse, in one
+    pass. **Fix vehicle: roadmap initiative 0.1.**
+45. (CD-45) **[Minor]** (round 4, re-scoped sweep) The demo
+    surfaces display an honesty-check result that no demo code
+    ran. Surfaces (both trees; both on the rendered site):
+    `site/src/pages/DemoPage.tsx:246`, inside the veto verdict
+    panel — "> honesty check: no invented skills +"; and
+    `site/src/App.tsx:105-106` (homepage terminal animation;
+    live tree `:96-97`): the same honesty line, plus
+    "> qualification 0.87 · veto check passed +" presented as
+    steps of the flow the animation depicts. Code reality:
+    CD-16 already establishes that the DemoPage widget's
+    verdict is a self-contained function
+    (`DemoPage.tsx:23-39`) that calls no product code. This
+    item is the step *inside* that verdict: the widget checks
+    years, Kubernetes, and work authorisation only — no honesty
+    check of any kind runs in it, yet the panel reports one as
+    passed, in the same visual language as the real gate's
+    output. The homepage terminal is an animation, but it
+    likewise presents a qualification score and two passed
+    checks as the record of an apply flow, with no label
+    separating the illustration from a real run (its accessible
+    label calls it an "Animated demo", which is the only
+    qualifier on either surface). Distinct from CD-16 (the
+    page-level "real grill" labelling) and from CD-08 (which
+    artefact the real check covers): this is a check result
+    fabricated inside a demo. Honest replacement (DemoPage
+    panel): remove the honesty line, or relabel the panel as an
+    illustration: "In the real tool, an honesty check and a
+    veto screen run before this verdict — this demo runs
+    neither." **Fix vehicle: roadmap initiative 0.1.**
+46. (CD-46) **[Minor]** (round 4, re-scoped sweep) Live-tree
+    DocsPage states a fit-score weight split that does not sum
+    to the score. Surface (**live tree only** — not in the
+    branch tree, not on the rendered site, whose bundle carries
+    the branch wording): `job-apply-mcp/site/src/pages/DocsPage.tsx:131`
+    — "Fit score 0–100 per posting (skills 50,
+    seniority/salary/location 15, recency 5)"; repeated in the
+    same file's honesty FAQ at `:228`. Code reality: the
+    weights are five separate values — `match.py:44-49` (both
+    trees): skills 50, seniority 15, salary 15, location 15,
+    recency 5, summing to the 100 the same sentence claims.
+    Read as written, "seniority/salary/location 15" gives those
+    three axes 15 points between them and a 70-point total. The
+    branch tree states the split correctly in the same two
+    places. Minor, and confined to the live tree's working
+    copy — but that tree is a public surface in this sweep's
+    scope, and a numbers error in the one paragraph a reader
+    would quote is exactly the class the register exists to
+    catch. (CD-03 covers the fit-score spec's "never learned"
+    wording; CD-39 the module count. Neither names this split.)
+    Honest replacement: "(skills 50, seniority 15, salary 15,
+    location 15, recency 5)" — i.e. adopt the branch wording.
+    **Fix vehicle: roadmap initiative 0.1.**
+47. (CD-47) **[Minor]** (round 4, re-scoped sweep) Branch site
+    README's "measured live surface" table names the wrong
+    contact mailbox. Surface (branch tree only):
+    `site/README.md:31`, in a table headed "Measured against
+    the live site" — the contact row names a `hello@` mailbox
+    on the site's domain as the privacy/disclaimer contact.
+    Code reality: no surface uses that mailbox. The rendered
+    site's privacy and disclaimer texts and the footer contact
+    constant (`site/src/App.tsx:800`;
+    `site/src/content/privacy.txt`;
+    `site/src/content/disclaimer.txt`) all use the `info@`
+    mailbox on the same domain; the root README
+    (`README.md:~229`) names that same general mailbox plus a
+    separate security mailbox (also in `SECURITY.md:8`); the
+    served bundle contains the `info@` address three times and
+    the `hello@` address zero times. An internal ops table that
+    misstates the one contact a reader would copy is Minor,
+    but it is presented as *measured*, which is the register's
+    concern. Tree note: the live tree's `site/README.md` has
+    the opposite defect — it is the stock site-template
+    boilerplate and never describes this site at all; no
+    measured table exists there to be wrong. Honest
+    replacement: correct the row to the `info@` mailbox the
+    privacy and disclaimer texts actually publish. **Fix
+    vehicle: roadmap initiative 0.1.**
+48. (CD-48) **[Major]** (round 4, widened sweep H1, with the
+    volume half of round-3 finding A3-01) The homepage intro
+    states a universal volume claim this brief itself withdraws,
+    and states governance enforcement unconditionally. Surface:
+    the homepage "Why it says no" intro (branch tree
+    `site/src/App.tsx:1073-1074`; live tree `:1008-1009`; the
+    served bundle contains the branch wording) — "Every other
+    apply-bot is optimized for volume. Veto is optimized for not
+    putting you at risk." (the live tree's second sentence ends
+    "not embarrassing you") and "The refusals are mechanical,
+    not vibes. They are enforced by a governance framework
+    with an audit trail." Code reality: the enforcement half is
+    true only when the optional governance framework is
+    installed and usable — `governance/adapter.py:239`
+    (`governance_enabled()`), `:699` (`governance_gate()`),
+    with `:712` ("no framework: caller proceeds") and `:724`
+    returning `{"enabled": False}` when the framework cannot be
+    loaded; the gate's only caller, `server.py`'s
+    `_governance_precheck()`, returns `None, []` when the
+    adapter is unavailable or governance is not enabled, and
+    its wrapper is explicitly fail-open ("a crashed gate warns,
+    never blocks"). With no framework there are no refusals and
+    no audit trail, and ledger recording is best-effort in any
+    case (CD-05). The volume half is false by this package's
+    own research: §2's stress test withdraws the claim form —
+    "every other tool helps you apply to more jobs" is false
+    for most of the competitors in §5; only the auto-apply
+    tools sell volume. Honest replacements: for the enforcement
+    sentences — "When the governance framework is installed,
+    the refusals are mechanical, not vibes — enforced by checks
+    with an audit trail." For the volume sentences: delete the
+    universal — the honest form names the auto-apply tools
+    only, the set §2 and §5 actually support. CD-14 names the
+    home page only for the veto card line; this intro paragraph
+    was not in CD-01…CD-39 as a surface. **Fix vehicle: roadmap
+    initiative 0.1.**
+49. (CD-49) **[Major]** (round 4, widened sweep H2) The "Veto
+    gates" card states the veto screen's universality
+    unconditionally. Surface: the homepage `NO_CARDS` card
+    (branch tree `site/src/App.tsx:289`; live tree `:280`; the
+    served bundle contains it) — "Every confirmed application
+    passes a constitutional veto screen first. A trip blocks it
+    outright, and only a human can clear a veto." Code reality:
+    "every" is false when governance is disabled or absent —
+    the caller proceeds with no screen at all (the root cause
+    stated in CD-48). Inside the gate, the conditional half is
+    true: veto-check errors fail closed, a veto hit blocks, and
+    clearing is the framework's human-only overturn path. The
+    card's surface is named inside CD-14; the card text itself
+    is this item's wording, not CD-14's quote. Honest
+    replacement: "With governance enabled, every confirmed
+    application passes a constitutional veto screen first. A
+    trip blocks it, and only a human can clear a veto." **Fix
+    vehicle: roadmap initiative 0.1.**
+50. (CD-50) **[Major]** (round 4, widened sweep H3) The
+    "Honesty check" card states the honesty block
+    unconditionally. Surface: the homepage `NO_CARDS` card
+    (branch tree `site/src/App.tsx:296`; live tree `:287`; the
+    served bundle contains it) — "Cover letters are scanned for
+    skills and years your profile can't back up. Invented
+    experience blocks the application on the spot." Code
+    reality: in the gate path this holds only if a cover letter
+    is actually passed to `governance_gate()` and governance
+    is enabled — `check_cover_letter_honesty()` at
+    `adapter.py:616`, invoked only inside `governance_gate()`
+    with a letter attached. Outside that path it does not
+    block at all: the dashboard cover-letter workflow
+    (`dashboard.py: wf_cover_letter()`, branch `:540`, live
+    `:532`) prints the letter, lists the scan flags, and still
+    offers to save it as the approved local version; the
+    standalone scan action in `cover_letters.py` (branch
+    `:645-659`) prints flags either way. Same reality as CD-08,
+    on the card surface CD-08 does not name. Honest
+    replacement: "In a governed application, the cover letter
+    is scanned for skills and years your profile can't back
+    up — invented experience blocks that application." **Fix
+    vehicle: roadmap initiative 0.1.**
+51. (CD-51) **[Major]** (round 4, widened sweep R1) The
+    README's "three refusals" §3 states the veto screen and
+    the audit ledger with "every" twice. Surface (branch tree
+    `README.md:47-50`; live tree `README.md:45-48`) — "A
+    constitutional veto screen reviews every planned
+    application; every allow/block decision lands in an audit
+    ledger. Nothing is ever submitted without your explicit
+    confirmation." Code reality: the same root cause as CD-49
+    and CD-05 — "every" twice overstates a framework-conditional
+    screen and a best-effort ledger. The section's final
+    sentence (explicit confirmation / never submits) was
+    re-checked in the round-4 sweep and stands — it is not
+    debt, and this item does not direct any change to it. The
+    branch README's own Governance section (`README.md:~688`)
+    states the conditionality correctly ("when it is installed…
+    Without it, behavior is unchanged") — the §3 summary
+    contradicts the README's own later section. Honest
+    replacement: "With the governance framework installed, a
+    constitutional veto screen reviews every planned
+    application and allow/block decisions are written to an
+    audit ledger." **Fix vehicle: roadmap initiative 0.1.**
+52. (CD-52) **[Major]** (round 4, widened sweep R2) The
+    README's "three refusals" §1 states the honesty-scan block
+    unconditionally. Surface (branch tree `README.md:38-40`;
+    live tree `README.md:36-38`) — "The cover letter is
+    honesty-scanned; any skill or year count your profile can't
+    back up blocks the application." — including the trailing
+    sentence of the same numbered refusal, "Qualification
+    scoring warns or blocks on real gaps" (the same conditional
+    gate, added to this item's surface at integration on the
+    round-4 sweep's note). Code reality: the same as CD-50 —
+    true in the governed gate path with a letter attached; not
+    a blanket product behaviour (the dashboard flow above), and
+    the qualification sentence's warns/blocks are the gate's
+    step 3, which likewise runs only inside the enabled gate.
+    CD-08 covers this concept on site copy; the README surface
+    was not in CD-01…CD-39. Honest replacement (mirroring
+    CD-50, as the widened sweep directs): "In a governed
+    application, the cover letter is scanned for skills and
+    years your profile can't back up — invented experience
+    blocks that application." **Fix vehicle: roadmap
+    initiative 0.1.**
 
 
-**Round-2 concept sweep — disposition of the remaining hits.**
-The grep described in this section's introduction returned 579
-hit lines; the numbered items above (CD-01…CD-39, including the
-round-2 expansions of CD-01, CD-02, CD-05, and CD-14 and the
-round-3 additions CD-33…CD-39) account for every hit **identified
-by that sweep and by the round-2 audit's assigned finds** that
-states a product guarantee the code contradicts. **Stated
-plainly, because the round-2 version of this sentence claimed
-more and was false:** the round-2 sentence claimed the same
-completeness for CD-01…CD-32, and that claim did not hold — the
-qualification-scoring page (CD-33), the fit-score veto claims
-(CD-34), the grill's outbound notes (CD-35/CD-36), and the hits
-in CD-37…CD-39 were all standing text the sweep had read and not
-dispositioned, and one of them (CD-33) it had dispositioned as
-accurate. This version therefore claims completeness only over
-the hits the sweep plus the round-2 audit together identified,
-and no wider.
-The remaining hits disposition as follows, by class — each class
-was read in context, not assumed:
+**Sweep scope and completeness — the statement as it stands in
+round 4 (this replaces every earlier completeness sentence in
+this section, including the round-2 and round-3 forms, which
+claimed first too much and then only the round-2 sweep's hits;
+both are withdrawn as scope statements).** The register now
+rests on the round-2 concept sweep described in this section's
+introduction (579 hit lines, dispositioned in the table that
+follows) **plus** the round-4 re-scoped sweep, whose
+scope-and-method statement the register quotes here because it
+is the sweep actually performed for CD-40…CD-52 and for the
+round-4 locations added to CD-02, CD-14, CD-20, CD-33, and
+CD-34:
+
+> **Trees swept, in full, by reading and by a concept grep**
+> (grep vocabulary: "never", "always", "every", "exactly",
+> "guarantee", "fail-closed" / "fail closed", "no override",
+> "automatic", "instant", "live demo", "real time", run over
+> every file listed below in both trees; every hit was read in
+> context), on **2026-10-15**: (1) the **branch tree**
+> (`wt-veto-differentiator`, branch
+> `docs/veto-differentiator-2026-10-15`, tip `5558579`):
+> `README.md`; `CHANGELOG.md`; `CONTRIBUTING.md`;
+> `SECURITY.md`; `site/README.md`; `site/index.html`;
+> `site/src/` entire — `App.tsx`, all 7 page components, all
+> **29 spec files** in `pages/specs/*.ts`, `demos/*.tsx` (9
+> files), `dash/*.ts` (3 files), `lib/*.ts`, `content/*.txt`,
+> `px.tsx`, `main.tsx`; `docs/` entire — the top-level product
+> docs and the `docs/i06`, `docs/i09`, `docs/i11`, `docs/i12`
+> subtrees, including `docs/i12/education/*.md` and
+> `docs/i12/methodology.md`. (2) The **live tree**
+> (`job-apply-mcp`, branch `disposable-uat-stack`, HEAD
+> `70b690f`): the same paths, read from the **working tree**,
+> which carries unrelated uncommitted changes — this tree has
+> **32 spec files** (the 29 above plus 3 orphans), no
+> `site/src/content/` directory, and an untracked
+> `site/SITE_UPDATE_PROCESS.md` (read; no product claims found
+> in it). (3) The **rendered live site** (`vetomcp.com`,
+> fetched 2026-10-15 ~20:18 EDT): the site is a hash-routed
+> single-page app, so the method actually performed was to
+> fetch the served `index.html`, identify the JS bundle asset
+> it names (`./assets/index-DRCyK5s1.js`, 718,574 bytes), fetch
+> that bundle, and extract the user-visible claim strings from
+> it (2,814 distinct string literals of 25+ characters).
+> **Limits, stated plainly:** no browser was run — no route
+> was rendered, clicked, or screenshot; interactive behaviour
+> was verified against the source in the trees, not observed
+> live; data-dependent text cannot be observed from a bundle
+> at all. The scope claim is therefore: *every user-visible
+> string the served build can display was swept*, not *every
+> route was visited*. (4) **Branch-vs-live-build diff:** the
+> served bundle's copy was compared against both trees at 14
+> discriminator strings. **Result: the served build matches
+> the branch tree at all 14 points and the live-tree working
+> copy at none of them** — so several register items whose
+> surfaces exist only in the live tree (notably the Changelog
+> "Shipped" entries behind CD-05's expansion, CD-10, CD-23,
+> CD-37) are **not on the rendered site at all**; they stand
+> in the live tree's working copy only.
+
+Completeness is therefore claimed over exactly that scope —
+both trees in full as listed, and the served build's full
+string inventory, checked 2026-10-15 — and over no wider
+scope: not over routes as rendered, not over any tree or build
+after that date, and not over surfaces outside the listed
+paths. Code-reality checks were run against the tree that
+ships the copy (for rendered copy: the branch tree). The
+round-4 sweep also re-verified the widened sweep's eight items
+(H1–H5, R1–R3) with no drift — 8 of 8 stand — and verified 16
+further claim groups true (among them the daily cap of 5, the
+fit-score weights 50/15/15/15/5, the crew and AI-proficiency
+track counts, and a field-by-field reproduction of the JD
+demo's captured engine output); those verified-true groups are
+recorded with the sweep's findings, not as register items.
+**Round-2 concept sweep — disposition of its remaining hits.**
+The remaining hits of the round-2 sweep disposition as follows,
+by class — each class was read in context, not assumed:
 
 - **Accurate against a named code fact (site):** the fill-only /
   never-submits sentences in `fill-only-apply.ts`, `DocsPage.tsx`,
@@ -1449,7 +2057,13 @@ was read in context, not assumed:
   product statements; where a capability from those packages is
   sold on the site as current product, that sale is already a
   numbered item: CD-12, CD-17, CD-18, CD-19). No new public claim
-  was found in this class in round 2.
+  was found in this class in round 2. **Correction (round 4):
+  the `docs/i12/education/` guides and `docs/i12/methodology.md`
+  do not belong to this class** — they are user-facing product
+  guides, not decision records, and their present-tense claims
+  are CD-40 and CD-41; the decision records under
+  `docs/i12/decisions/` remain in this class, as the round-4
+  sweep re-verified.
 - **Ordinary quantifiers:** the balance of the hits — "every" /
   "always" / "exactly" in non-guarantee prose (stage histories,
   per-application logs, form fields, mentor-match weights, cap and
@@ -1523,11 +2137,25 @@ answer:**
    the limit, naming the deletion date and the backup's
    sole-copy status, and the same notice printed by the CLI on
    any run in that window; at the limit the backup is flagged
-   delete-due and the deletion executes in a local surface
-   whose own confirmation act carries the notice, and the
-   deletion is noted in the work log; no part of this notice
-   depends on the prepared check-in, which does not exist
-   until Phase 5);
+   delete-due, and **the first local run on or after the limit
+   deletes it in that run** and states the deletion plainly in
+   that same run, in the same words as the advance notices.
+   **This scheduled deletion is not a confirmation-gated act
+   and cannot be declined, paused, or postponed by any act or
+   absence of an act** — the limit is a hard limit, and this
+   item states the same single rule as feature A1 and the
+   data-lifecycle table's pre-migration row (round 4, C3-10:
+   the earlier confirmation-carried wording in this item,
+   under which a user who declined on every run kept the
+   backup past its limit indefinitely, is withdrawn — it
+   contradicted the hard limit it sat beside). Confirmation
+   governs only the user's voluntary acts **before** the
+   limit — deleting the backup early, or dispositioning it
+   under the encryption rule — and the deletion never happens
+   in a background process with no surface present; the
+   completed deletion is noted in the work log; no part of
+   this notice depends on the prepared check-in, which does
+   not exist until Phase 5);
    (c) encryption at rest for the ledger and its backups is
    **scheduled roadmap work, not a present mechanism**: it is a
    requirement on roadmap initiative 0.8 (the encrypted ledger
@@ -1585,8 +2213,14 @@ answer:**
      content — a win, a number, a role — and it leaves to a
      third-party messaging platform (Gmail, WhatsApp), inside a
      session the user initiated. A company-brief fetch
-     transmits the company name, and role context, to web search
-     and fetch endpoints. Neither flow is content-free, and this
+     transmits the company name only to web search
+     and fetch endpoints — `briefs.py: company_brief(company)`
+     takes only a company string, and its queries are built
+     solely from that string plus generic phrases; no role,
+     title, or other role context is transmitted (corrected in
+     round 4: an earlier version of this sentence overstated
+     the disclosure by adding role context the code does not
+     send). Neither flow is content-free, and this
      brief does not describe them as if they were.
    - *Automated-access terms:* Gmail delivery runs through an
      external Gmail CLI that is not publicly distributed (CD-20);
@@ -1729,8 +2363,25 @@ answer:**
    (initiative 1.1): as the roadmap's Row X records, an adverse
    or missing Gmail verdict gates the existing `email_sync.py`
    scan, grill-over-Gmail, and `reply_radar.py` flows on the
-   same audit outcome as 1.1, with a user-initiated manual
-   export / import path as the named fallback (the user exports
+   same audit outcome as 1.1, **and gates the one wired
+   third-party send on the same outcome: the follow-up send
+   (`followup.py: send_followup()` →
+   `email_sync.py: send_followup()`, over the same Gmail
+   channel, through the same Gmail layer) is an existing Gmail
+   flow for this audit's purposes, and its keep-as-model
+   disposition above governs its initiation form only — it
+   states no channel-terms consequence, and none is read into
+   it (round 4). An adverse or missing Gmail verdict therefore
+   has a stated consequence for the send as for the other
+   flows: the manual export / import fallback cannot serve a
+   send — a user-supplied copy of mail is an input path, not a
+   sending path — so where the verdict does not clear Gmail,
+   the follow-up send is suspended until a verdict clears its
+   channel, and the suspension is recorded with the verdict,
+   on the same terms as any flow the fallback cannot serve**,
+   with a user-initiated manual
+   export / import path as the named fallback for the flows it
+   can serve (the user exports
    or downloads their own mail, or pastes recruiter message
    text, and the product works on that copy locally) and a
    recorded suspension where that path cannot serve a flow;
@@ -1738,8 +2389,8 @@ answer:**
    deliverable, with in-product chat as its fallback. The company-brief fetch issues automated
    queries from `default_fetch()` to a search engine's HTML
    endpoint (`https://html.duckduckgo.com/html/?…`) — not a public
-   API — transmitting the company name (and, per item 2, role
-   context) to a third party; it is user-triggered (a brief is
+   API — transmitting the company name only (per item 2, as
+   corrected) to a third party; it is user-triggered (a brief is
    requested), and no initiation rule, automated-access terms
    posture, or disposition for this fetch path was stated in any
    earlier version. **The full enumerated set this item uses —
@@ -1783,7 +2434,14 @@ answer:**
    conformance scope cover all six groups named in this item,
    including the two named for the first time in round 3. Named
    work includes removing or re-scoping `watch.py`'s cron entry point
-   and re-scoping `apply_queue.py`'s scheduled-for / queue-run
+   and removing the same cron-scheduling instruction from every
+   other surface that prints it (round 4, D3-08) — the wizard's
+   setup output (`wizard.py`, which tells the user at setup to
+   run `python watch.py` "(or schedule it via cron)" — the third
+   surface of that instruction, named in feature E2 and in
+   roadmap 0.9's scope) and the server documentation describing
+   watched-company checks as runnable on a cron — and
+   re-scoping `apply_queue.py`'s scheduled-for / queue-run
    preset path so no scheduled or preset-consent run performs the
    browser form-fill / resume upload (that path runs only on a
    user act in the moment, or is removed, per the recorded
@@ -2604,3 +3262,58 @@ and §5's difference lists are the same four elements, §7 item 2's
 webhook removal now carries E1's "for check-ins or grill
 questions" scope, and a score-only veto's "what would change the
 answer" is stated as its axis-movement score statement.
+
+v17 (2026-10-15) folds in round 4 of the same fix loop — the
+round-3 standing findings (1 blocker, 14 majors, 17 minors) and
+the verification GAPs, worked in four parallel workstreams and
+closed by an integration pass across all three documents. What
+changed here, in this document. **Claims debt:** the register
+grows from 39 to **52 items (CD-01…CD-52)**: CD-40…CD-47 from
+the re-scoped sweep (both code trees in full plus the rendered
+live site's served bundle, checked 2026-10-15 — the register's
+scope statement in §6 is rewritten to state that sweep, its
+method, and its limits, and replaces every earlier completeness
+sentence), and CD-48…CD-52 adopted from the widened homepage +
+README sweep (its H1, H2, H3, R1, R2; H4 was already CD-05, H5
+already CD-33, R3 verified true). Locations from the re-scoped
+sweep were folded into CD-02, CD-14, CD-20, and CD-33 in place
+(CD-34's additional location was already folded by the brief
+workstream), and round-3 findings A3-01/A3-02 are closed by
+CD-48…CD-52 together with those CD-14/CD-33 locations.
+**Backup rule:** §7 item 1(b) now states the single hard-limit
+rule feature A1 and the lifecycle table state — deletion by
+the first local run on or after the limit, not
+confirmation-gated, not declinable, with the 30/7/1-day notices
+before it; the confirmation-carried wording with a decline
+path that one round-4 workstream had conformed this item to is
+withdrawn as contradicting that rule (C3-10). **Cross-document:**
+§7 item 6's named conformance work now includes the wizard's
+printed cron instruction (D3-08), CD-36's carrier inventory
+now includes the `mock_interview.py` note (D3-07), and the
+appendix that follows records the round-4 debt check.
+
+## Appendix — Accepted debt — carried openly
+
+Checked at the round-4 integration pass, against the four
+round-4 workstream disposition files and this pass's own edits:
+**every round-3 standing item has a disposition, and no
+round-3 audit item is carried as accepted debt.** The
+categories checked, in full: the one standing blocker
+(C3-01); the fourteen standing majors (A3-01, A3-02, B3-01,
+B3-02, B3-03, C3-02, C3-05, C3-06, C3-07, C3-10, C3-11, D3-03,
+D3-04, D3-05); the seventeen standing minors (A3-03, A3-04,
+A3-06, C3-03, C3-04, C3-08, C3-09, C3-12, C3-13, C3-14,
+C3-15, C3-16, D3-01, D3-02, D3-06, D3-07, D3-08); and the
+eleven verification-r3 gaps (GAP-1, GAP-2, GAP-3, GAP-4,
+GAP-5, GAP-6, GAP-7, GAP-8, GAP-9, GAP-N1, GAP-N2). Each is
+fixed in the round-4 feature-sets, brief, or roadmap text, in
+the register additions of this round, or in the integration
+edits recorded with this version — the per-item evidence is in
+the round-4 disposition files, not repeated here. (A3-05 was
+refuted in the round-3 refutation pass; it is not standing
+debt and appears in no list above.) One line, so the two kinds
+of debt are never confused: **the register items CD-40…CD-52
+added in this round are claims debt by nature — public copy
+awaiting the fix vehicles the register names for them
+(roadmap initiative 0.1, and task 0-C4 where an item says so) —
+they are not audit debt carried under this appendix.**

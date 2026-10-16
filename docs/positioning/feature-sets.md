@@ -129,13 +129,26 @@ tree.
   consequence, stated honestly (D2-07):** the pre-migration
   backup is the sole restore copy, and it **is deleted on
   schedule at its limit whether or not a restore was ever
-  needed** — the limit is not paused by disuse. The advance
-  notice for that deletion is given **before** the deadline
-  through the Phase-0-operable mechanism the lifecycle
-  table's pre-migration row specifies (local surfaces that
-  exist from Phase 0 — the profile view, the CLI, and the
-  dashboard — with the deletion's own confirmation act
-  carrying the notice), never through the prepared check-in,
+  needed** — the limit is not paused by disuse, and it is
+  not paused or defeated by declining a notice either:
+  **the scheduled deletion at the limit is not a
+  confirmation-gated act.** This paragraph and the lifecycle
+  table's pre-migration row state **one** rule, and it is
+  this one: notice is given **before** the deadline through
+  the Phase-0-operable mechanism the lifecycle table's
+  pre-migration row specifies (local surfaces that exist from
+  Phase 0 — the profile view, the CLI, and the dashboard), the
+  first local run on or after the limit deletes the backup
+  and states that deletion plainly in that same run, and the
+  deletion is noted in the local work log. A confirmation act
+  governs the user's own **early** deletion of the backup and
+  its disposition at encryption enablement — voluntary acts
+  before the limit — and no confirmation, decline, or absence
+  of a run extends the backup past its limit: a backup whose
+  limit has passed is deleted by the next run whenever it
+  happens, and the run's statement of that fact is a notice,
+  not an offer the user can refuse to keep the copy. Notice
+  is never given through the prepared check-in,
   which does not exist until Phase 5 and is not a mechanism
   any Phase 0–4 deletion may rely on.
   **Store-class rule (D-06 — confidentiality follows the content,
@@ -161,6 +174,8 @@ tree.
   | Offers store (`offers.json` + `offer_weights.json`) (D2-06) | User-supplied compensation figures (base, bonus, equity) and the user's offer weights — Tier 2-class content by this feature's own tiering (compensation), held outside the ledger | Yes — the same posture as the ledger: this row joins the encrypted bundle under the same key, and roadmap 0.8's scope and the lifecycle table's offers row are conformed to it (CROSS-DOC: 0.8's scope grows by this row) |
   | Preferences store (`preferences.json`) (D2-06) | The user's salary floor and related preference values — the salary floor is a Tier 2 compensation fact held outside the ledger | Yes — the same posture as the ledger, for the same reason as the offers row: Tier 2 content does not lose the ledger's posture by living in a second file (CROSS-DOC: 0.8's scope grows by this row) |
   | Filled-form screenshots (`screenshots/`) (D2-06) | Images of filled application forms holding the user's name, email, phone, and address as entered on third-party forms | No — permission posture only, with the same disclosure pattern as grill sessions: these are transient working images the browser-apply flow reads during a run, they are owner-only, never transmitted by the product, and the lifecycle table's screenshots row gives them a hard retention limit and a user delete act that does not depend on ever running browser-apply again |
+  | Approval-preview temp files (`veto-approval-preview-*.txt` in the OS temp directory) | The full body of an over-length approval draft for the product's one wired third-party send — send-bound draft content that may restate claims and contact details | No — permission posture only, and the exception is named: these files live in the OS temp directory, outside the protected store directory, because the approval flow's preview mechanism (`email_sync.py: _save_approval_preview()`, created `0600` via `mkstemp`) writes them there. Mitigations, all specified: `0600` creation, the lifecycle table's approval-preview row (10-newest and 7-day hard limit, pruning at startup and at each save, a named user delete path on the approval surface, and the path stated at save time), and no transmission by the product |
+  | Flat profile store (`profiles/*.json`, incl. `profile.json`) | The migration's source claim text — experience bullets, achievements, skills — in plaintext. It is **not** a copy of the ledger: it holds no proof payloads, no proof states, and no ledger timestamps, and no claim entered directly into the ledger after migration appears in it | No — outside the encrypted bundle (roadmap 0.8 lists it outside its scope by name). Its retention is disclosed in this table and in its lifecycle row, **and at encryption enablement**: the enablement act names this store and states that pre-migration claim text remains in it in plaintext — see the encryption section below, where that disclosure is a step of enablement, not a footnote |
 
   **What this feature does not ship:** built-in at-rest
   encryption. Encryption at rest is scheduled roadmap work —
@@ -199,6 +214,26 @@ tree.
     the user to disposition each one — encrypt it under the
     same key, or delete it — before enablement completes; no
     plaintext copy of an encrypted store may remain beside it.
+  - **The flat profile store, named at enablement (it is not a
+    copy of the ledger, and this rule does not pretend it is):**
+    the enablement list above also names the flat profile store
+    (`profiles/*.json`) **by name**, in its own line, and the
+    enablement act states in plain words, before the user
+    confirms, that this store is the migration's retained
+    source — it holds the user's pre-migration claim text
+    (bullets, achievements, skills) in plaintext, it is
+    **not** encrypted by enabling ledger encryption, and it
+    stays until the user deletes that profile under its own
+    lifecycle row. Enablement cannot complete until that line
+    has been shown and the user has recorded a choice for the
+    flat store — keep it (the choice the existing consumers
+    require), or delete the profile as its own act. Keeping it
+    is an allowed, recorded choice; **skipping the disclosure
+    is not an available path.** No product copy about
+    encryption may claim a wider scope than the bundle this
+    section defines, and the enablement surface is where that
+    limit is told to the user, not only in a table elsewhere
+    in this package.
   - **Exports are not encrypted by 0.8** (see the store-class
     table): the export's own protections are its Tier 2 default
     exclusion, its `0600` creation, and its protection note.
@@ -330,7 +365,12 @@ tree.
     the correct passphrase reproduces the fixture ledger exactly;
     and enabling encryption on a fixture that has a plaintext
     pre-migration backup cannot complete until that backup is
-    encrypted under the same key or deleted.
+    encrypted under the same key or deleted. On a fixture that
+    also has a flat profile store, enablement likewise cannot
+    complete until the flat-store line has been shown by name
+    and a keep-or-delete choice for it recorded; a build whose
+    enablement flow never mentions the flat store fails this
+    criterion even if every bundle file reads as ciphertext.
   - The ledger store and its backup are created owner-only; a
     fixture store with widened permissions produces the startup
     warning in the profile view.
@@ -413,9 +453,25 @@ tree.
   that carries either old note forward, in code, in a
   deliverable template, or in agent-facing instructions,
   fails this feature's acceptance, however the rest of the
-  feature behaves. **Roadmap home (CROSS-DOC, roadmap round
+  feature behaves. **The inventory expressly includes the
+  module docstring.** `grill.py`'s module docstring (lines
+  14–21 in both code trees) is agent-facing text in the very
+  module this feature reuses, and it states the same
+  scheduled-task routing as old note (b) — that a channel
+  message can only be sent from that channel's own side chat
+  and that proactive reach from the main chat requires a
+  scheduled task created inside the WhatsApp side chat. The
+  docstring is **inside** this supersession, not beside it:
+  it is rewritten to the prepare-only / user-initiated model
+  in the same act as the deliverable notes, and a build that
+  rewrites the notes and leaves the docstring standing fails
+  this feature's acceptance under the "in code, or in
+  agent-facing instructions" sentence above.
+  **Roadmap home (CROSS-DOC, roadmap round
   3): task 0-C4, inside 0-C2**, inventories and rewrites every
-  `grill.py` `outbound_for_channel()` note to the
+  `grill.py` `outbound_for_channel()` note **and the module
+  docstring at `grill.py:14–21`** (both trees, where the same
+  text stands) to the
   prepare-only / user-initiated model, with a
   zero-standing-approval test, and Slot 0 is gated on it; the
   brief carries the claims-debt items for these notes. This
@@ -460,7 +516,14 @@ tree.
     contains no standing-approval instruction and no
     scheduled-send or proactive-task instruction — asserted by
     text search over the deliverables the sender receives, on
-    both the email and the messaging-channel paths.
+    both the email and the messaging-channel paths. **The same
+    search also runs over `grill.py` itself** — its module
+    docstring (lines 14–21), its comments, and every
+    agent-facing string in the module — and over deliverable
+    templates: no carrier in that wider set may contain a
+    standing-approval, scheduled-send, or proactive-task
+    instruction either. A search that covers only the
+    deliverables does not pass this criterion.
   - Tier 2 rule: on a fixture ledger holding compensation,
     clearance, sponsorship, and work-authorisation values, the
     generated question payload for every channel contains none of
@@ -604,14 +667,28 @@ tree.
   authors it. A change to this definition is a revision of this
   section, made before any consumer's gate is measured against
   the changed text.
-  - *Normalisation.* A title is normalised by: lowercasing;
-    removing punctuation; collapsing whitespace; expanding the
+  - *Normalisation.* A title is normalised by these steps, in
+    this order: (1) lowercasing; (2) expanding the
     abbreviations in the alias table's title section (e.g.
-    "swe" → "software engineer"); and deleting every token on
-    the seniority/level list (`entry`, `junior`, `jr`, `senior`,
-    `sr`, `staff`, `principal`, `lead`, `head`) and every token
-    on the arrangement list (`remote`, `hybrid`, `onsite`,
-    `contract`, `full-time`, `part-time`). Both lists are
+    "swe" → "software engineer"); (3) splitting the title into
+    tokens on whitespace **and on hyphens**, so "Full-Time"
+    yields the two tokens `full`, `time` before any deletion
+    runs; (4) deleting every token — or, for a hyphenated list
+    entry, every token sequence — on the seniority/level list
+    (`entry`, `junior`, `jr`, `senior`, `sr`, `staff`,
+    `principal`, `lead`, `head`) and on the arrangement list
+    (`remote`, `hybrid`, `onsite`, `contract`, and the
+    two-token sequences `full` + `time` and `part` + `time`,
+    which are the list entries `full-time` and `part-time`
+    under this tokenisation); (5) removing any remaining
+    punctuation from the surviving tokens, dropping empty
+    tokens, and collapsing whitespace. Because the list
+    entries are matched at step (4), under the same splitting
+    that produced the title's tokens, `full-time` / `part-time`
+    are deletable exactly as written in a title (hyphenated or
+    written as two words) — no implementation
+    needs a special case, and none may add one that changes
+    another title's key. Both lists are
     versioned data files beside the alias table, changed only
     by reviewed change.
   - *Family key and clusters.* A title's **family key** is the
@@ -631,7 +708,14 @@ tree.
     in the target title itself and the skills B1 extracts from
     postings already assigned to that cluster by the title
     rule. No posting enters a cluster's skill set by way of the
-    skill set itself.
+    skill set itself. **The postings already assigned are an
+    input to this feature, not a detail of this paragraph:**
+    the *evaluated-posting history* — every posting the user
+    has had B1 extract, with its title-rule cluster assignment
+    and its extracted skill list — is the feature's third
+    stated input (Inputs/outputs below), and the depth score
+    is a function of ledger + targets + that history, never of
+    ledger + targets alone.
   - *No targets, no family.* With an empty `target_titles`
     list there are no clusters; B5 files such postings under
     "unassigned" (A5's rule) and no family trend is drawn.
@@ -652,9 +736,14 @@ tree.
   platform win at Acme (+6), add proof for Kubernetes (+5), one story
   for the 2023 role (+4)." Each gain links into an evidence grill (A2)
   pre-loaded with that claim.
-- **Inputs/outputs.** In: ledger + `target_titles` from the profile
-  (collected and validated at intake by A5, which owns them; this
-  feature only reads them).
+- **Inputs/outputs.** In: (1) the ledger; (2) `target_titles` from
+  the profile (collected and validated at intake by A5, which
+  owns them; this feature only reads them); and (3) the
+  **history of evaluated postings** — every posting B1 has
+  extracted for this user, with the cluster the title rule
+  assigned it to and the skills B1 extracted from it (the
+  cluster skill sets in the role-family definition are built
+  from this history and from nothing else).
   Out: score, per-area breakdown, ranked gain list.
 - **Reuses.** Nothing equivalent exists (audit §1: ABSENT in core);
   nearest neighbour is `linkedin_optimizer.py: audit_profile()`
@@ -681,12 +770,21 @@ tree.
   nothing else); empty `target_titles` and zero experience roles
   (the empty-denominator rule above).
 - **Acceptance criteria.**
-  - Score is deterministic for a fixed ledger + targets (same input,
-    same score, shown in a test).
+  - Score is deterministic for a fixed ledger + targets +
+    evaluated-posting history (same three inputs, same score,
+    shown in a test). A test that varies only the history —
+    corpus fixture F7 in B2 — changes the score by exactly the
+    fixture's stated amount, which is the positive proof that
+    the history is an input and not an accident.
   - Two fixture ledgers ship in the spec's test pack with
     **hand-computed expected scores** (computed from the formula
     above by the spec author, not by the code under test); the
-    implementation must reproduce both exactly.
+    implementation must reproduce both exactly. **Each fixture
+    also freezes its evaluated-posting history** (an empty
+    history, or the named postings with their cluster
+    assignments and extracted skills) as part of the fixture —
+    a fixture that does not state its history is incomplete
+    and may not be used to pass this criterion.
   - A gain list entry's predicted points equal the formula's output
     with that claim flipped to proven — verified against the
     hand-computed fixture, not against the implementation's own
@@ -695,7 +793,21 @@ tree.
   - The worked example above is a third fixture: 10 entries, 6
     matching, 3 of those proven reproduces first term 20 exactly,
     computed by the spec owner by hand from the predicate, not by
-    the code under test.
+    the code under test. Its frozen history is **empty** and its
+    six matches are by test (a) (role-family key equality), so
+    the history contributes nothing to this fixture's number.
+  - History fixture (corpus F7, frozen in B2): with the
+    fixture's ledger and target title fixed, depth is 45 with
+    an empty evaluated-posting history and 85 after the one
+    named posting is evaluated — the implementation reproduces
+    both figures exactly, from the three stated inputs.
+  - Normalisation fixture (hyphenated arrangement tokens): with
+    target title "Backend Engineer", a worked-in role titled
+    "Backend Engineer (Full-Time)" matches test (a) — its
+    family key is {backend, engineer}, the `full-time`
+    arrangement tokens having been deleted under the
+    normalisation steps above — and "Backend Engineer
+    (Part-Time)" produces the same key.
   - A fixture with empty `target_titles` scores first term 0,
     shows the "no target roles set" note, and does not error; a
     fixture with zero experience roles shows the second term as
@@ -709,7 +821,9 @@ tree.
     `calibration.py: role_family()`'s keyword buckets fails
     this fixture.
   - Non-quantified proof (C-05): the worked check in the
-    definition above is a fixture — 10 claims, all matching,
+    definition above is a fixture — 10 claims, all matching
+    (by test (a); its frozen evaluated-posting history is
+    empty),
     exactly one `approved` with a non-quantified proof, the rest
     unverified — and the implementation reproduces its
     hand-computed contribution of 7 points (term 1 = 4, term 3
@@ -751,6 +865,35 @@ tree.
   inventory, paths 4 and 5, states the gate behaviour).
   Attaching proof later moves it through the A3
   approval flow like any other proposal.
+- **Fallback for a descoped provenance surface (the fallback
+  roadmap Fork 0.6 Outcome B states is stated in feature-sets —
+  it is stated here, for this feature).** If the provenance
+  surface initiative ends in Fork 0.6 Outcome B (provenance
+  formally descoped, no wired per-line provenance surface),
+  this feature's labelling does **not** wait for a surface
+  that does not exist, and its acceptance reverts to this
+  fallback, word for word: (i) the unverified label renders on
+  the surfaces that exist without the descoped surface —
+  **starting with the profile view**, and including the delta
+  report **when Phase 2 builds it**, the C2 review surface's
+  claim list (each claim in a tailored draft listed with its
+  proof state, in place of a per-line provenance map), and the
+  resume-builder and LinkedIn draft reviews named above — the
+  same fallback roadmap Fork 0.6 Outcome B states, in the same
+  terms; (ii) no acceptance
+  assertion for this feature requires a provenance map or a
+  provenance surface, because none exists under the descope;
+  (iii) the assertions that do require a wired provenance
+  surface (any delta / provenance-map label assertion beyond
+  the claim-list form in (i)) stay **built, gate pending**
+  until a later, separately gated wiring initiative lands a
+  surface, exactly as Fork 0.6 Outcome B records for
+  initiative 1.5; and (iv) the rule itself does not change
+  under the fallback: an unverified claim is never presented
+  as proven on any fallback surface. Outcome A (the surface
+  is wired) leaves the primary text above untouched; this
+  fallback is the whole of the descoped behaviour, and a
+  builder at the descope trigger invents nothing further.
 - **User seat.** Adding a win at setup: "You wrote 'cut deploy time
   40%'. Add the source now (a review, a dashboard, your own note) or
   keep it marked unverified?" Downstream, the user sees the label
@@ -770,7 +913,12 @@ tree.
   attached (edited text returns to unverified until re-approved).
 - **Acceptance criteria.**
   - A claim entered with no proof renders with the unverified label
-    in profile view, provenance map, and delta report.
+    in profile view, provenance map, and delta report. **Under
+    Fork 0.6 Outcome B, this bullet is read in its fallback form
+    (the fallback section above): profile view, delta report,
+    and the C2 review claim list — no provenance map exists to
+    assert against, and the provenance-map assertions stay
+    built, gate pending until a wiring initiative lands.**
   - An unverified claim is never presented as proven anywhere in
     Phase 1's surfaces. (Its *classification* consequence — B2 must
     return evidence gap, never supported, for an unverified-but-
@@ -799,142 +947,47 @@ tree.
 - **Inputs/outputs.** In: posting text. Out: requirement list with
   verbatim quotes + the existing decode verdict. Each requirement
   carries three fields the rest of the B set consumes:
-  `requirement_level` — `must_have` when the posting states the
-  requirement as required, essential, or as a stated minimum
-  (including minimum years), otherwise `preferred`;
+  `requirement_level` — `must_have` or `preferred`, assigned
+  **only** by Step 2 of the closed classification decision
+  procedure in B2 (section-to-level mapping, bullet-wording
+  precedence, and the stated no-signal default). No other
+  sentence in this package defines the level, and no builder
+  assigns it from the old keyword-only reading: a bullet under
+  a must-have heading is `must_have` even when the words
+  required / essential / minimum appear nowhere in the posting;
   `extraction_confidence` — `high` or `low`, with a
   `confidence_reason` string. Confidence is `low` when the
   requirement was extracted from responsibility lines rather than
-  an explicit requirements section, when the posting text was
+  an explicit requirements section, when the level fell to the
+  procedure's no-signal default (Step 2), when the posting text was
   supplied in a non-English language, or when the quote had to be
   assembled from more than one line; otherwise `high`; and
-  `requirement_kind` (C-02 — the field B2's per-kind supported
-  test keys on) — exactly one of: `quantitative` (a skill or an
-  experience accomplishment, where proof is a number or a
-  measurable result), `threshold` (a stated numeric minimum,
-  in practice years), or `categorical` (a fact that is either
-  so or not, with no quantity to attach: location, work
-  authorisation, a named credential held, a seniority level, a
-  stated language). Extraction assigns the kind from the
-  requirement's own quote: a requirement quoting a number to
-  meet is `threshold` or `quantitative` as above; a requirement
-  quoting a place, a status, a credential, or a level is
-  `categorical`. There is no fourth field anywhere for this:
+  `requirement_kind` — exactly one of `quantitative`,
+  `threshold`, or `categorical`, assigned **only** by Step 4 of
+  the procedure in B2 (the ordered kind priority). The kind
+  names mean what Step 4 says they mean and nothing else.
+  There is no fourth field anywhere for this:
   B2 aggregates these values into the delta's confidence and
   its classification, B3 renders them, and no feature invents
   its own confidence mark or its own kind list.
-- **Atomicity, kind assignment, alternatives, seniority — the
-  producibility rules (C2-02 — stated here, once; B2 and B4
-  consume the counts these rules produce and restate none of
-  them).** B4 asserts that two builders implementing this
-  package produce the same veto; that is true only if the
-  requirement list itself is a function of the posting, so
-  extraction follows these four rules exactly.
-  - **(a) Atomicity — the presented unit is the requirement.**
-    A requirement is the smallest unit the posting's own
-    structure presents: one list item (a bullet, a numbered
-    item, one line of a requirements list) or, where the
-    posting presents requirements as prose, one presented
-    clause (text the posting itself separates by a line
-    break, a semicolon, or a sentence boundary inside a
-    requirements passage). A quote assembled from more than
-    one physical line is still one requirement when it is one
-    presented unit (its `extraction_confidence` is `low`, per
-    the field rule above — the count does not change).
-    Conjunctions inside one presented unit ("Kubernetes and
-    Go" in one bullet) stay **one** requirement, never two:
-    its satisfaction test is **conjunctive** — every part
-    (each distinct demand joined inside the unit) is tested
-    under its own kind's row of B2's per-kind test, through
-    B2's evidence-state gate, and the unit is *supported*
-    only when **all** parts are supported. When the parts
-    disagree, the unit's class is the **most severe part's
-    class**, in the severity order contested > skill gap >
-    evidence gap > supported. The delta counts presented
-    units, never extracted fragments: no builder may split a
-    presented unit into multiple requirements, merge two
-    presented units into one (the duplicate rule below is the
-    only merge: the same requirement presented twice is one
-    requirement carrying both quotes), or count a part as a
-    requirement. Re-presentation of the same posting content
-    — the same bullet wrapped across two lines, the same
-    clause re-flowed — changes no count.
-  - **(b) Kind priority — an ordered decision procedure.**
-    `requirement_kind` is assigned by the first step that
-    matches; the steps are a total order, applied in this
-    sequence, and no step is skipped because a later step
-    also matches:
-    1. **Threshold.** The unit states a candidate-facing
-       numeric minimum — a floor the candidate must meet,
-       marked by a minimum form in the quote ("5+", "at
-       least 5", "minimum of 5", "5 or more") applied to the
-       candidate's years, experience, or scale. A number with
-       no minimum form is not a threshold number.
-    2. **Categorical.** The unit is satisfied by a yes/no
-       fact with no quantity to meet and no accomplishment
-       to prove: a place, a status, a credential held, a
-       seniority level, a stated language.
-    3. **Quantitative.** Everything else: a skill or an
-       experience accomplishment whose proof is a number or
-       a measurable result the user has achieved.
-    The discriminator is the unit's satisfaction test, read
-    in that order — never the mere presence of a number.
-    *Worked fixture (frozen in the acceptance criteria):*
-    "5+ years operating Kubernetes clusters serving 2M
-    requests/day" is one presented unit; step 1 matches
-    ("5+" is a candidate-facing minimum) so the kind is
-    `threshold` and the satisfaction test is the threshold
-    test on the years number. "Serving 2M requests/day" is
-    an elaboration of that one demand — it carries no
-    minimum form and is joined by no conjunction presenting
-    a second candidate demand — so it creates no second,
-    quantitative requirement. By contrast, "Scaled a system
-    to 2M requests/day" (no minimum form, an accomplishment)
-    is `quantitative` under step 3, and "AWS Certified
-    Solutions Architect" (no minimum, a credential held) is
-    `categorical` under step 2. For a conjunctive unit whose
-    parts fall under different steps, the unit's
-    `requirement_kind` label is the kind the procedure
-    assigns to the whole unit, and satisfaction still tests
-    each part under its own kind's row (rule (a)).
-  - **(c) Disjunctions — "A or B" is one requirement.**
-    Alternatives presented inside one unit ("Bachelor's
-    degree or 7 years' equivalent experience") are one
-    requirement with a disjunctive satisfaction test, not
-    two requirements. Each disjunct is tested under its own
-    kind's row, through B2's evidence-state gate. The
-    requirement is **supported when any disjunct is
-    supported**. When no disjunct is supported, the class is
-    the most favourable disjunct class in the order
-    evidence gap > skill gap > contested — equivalently:
-    evidence gap if any disjunct is an evidence gap, else
-    skill gap if any disjunct is a skill gap, else contested,
-    which applies only when **every** disjunct is contested
-    (the record affirmatively blocks every alternative).
-  - **(d) Seniority — categorical, with an at-or-above
-    test.** A seniority requirement ("Senior", "Staff
-    level") is `categorical` — it is the seniority entry in
-    the kind list above and in this feature's feed list
-    (seniority signals are extracted as categorical
-    requirements). Its supported test is not verbatim
-    equality: levels are ordered **entry < mid < senior <
-    staff < principal** (the level order `match.py` scores
-    with; titles are normalised under A4's seniority-token
-    list before a level is read). The requirement is
-    supported when the user's level on record — read
-    through B2's evidence-state gate — is **at or above**
-    the required level; contested when that level is
-    **below** the required level; an evidence gap when no
-    approved level is on record (a seniority requirement
-    has no skill-gap outcome: the absence of level evidence
-    is a missing proof about a fact the user holds, not an
-    absent skill, and the scoring default of "mid" in
-    `match.py` is a scoring default, never classification
-    evidence). *Fixtures (frozen below):* requires "Senior",
-    user Staff on approved record → supported; requires
-    "Senior", user Mid on approved record → contested;
-    requires "Senior", level typed but unverified →
-    evidence gap.
+- **Extraction is governed by one procedure, stated in B2.**
+  B4 asserts that two builders implementing this package
+  produce the same veto; that is true only if the requirement
+  list itself is a function of the posting. Extraction,
+  level assignment, duplicate identity and merge, kind
+  assignment, the seniority rule, and location matching are
+  therefore **not** stated in this feature as separate rules.
+  They are Steps 1–6 of the single closed classification
+  decision procedure in B2 ("The closed classification
+  decision procedure"), which this feature and B2 both
+  implement and which no other text in this package restates
+  in a competing form. The former producibility rules (a)–(d)
+  — presented-unit atomicity and the conjunctive test,
+  ordered kind priority, the disjunction rule, and the
+  seniority at-or-above rule — are carried into that
+  procedure in substance (Steps 1, 4, and 5) and survive only
+  there. Where any summary of extraction in this feature
+  appears to differ from a procedure step, the step governs.
 - **Reuses.** `jd_decoder.py: decode_jd()` / `jd_verdict()` (posting
   side), `initiatives/i04/schemas.py` requirement shape,
   `initiatives/i04/file_ingest.py` parsing patterns. Requirement
@@ -943,8 +996,10 @@ tree.
 - **Edge cases.** Posting with no explicit requirements section
   (extract from responsibility lines, mark confidence lower, still
   quote-backed); requirements stated as years ("8+ years") map to the
-  years check, not a skill; duplicate requirements merged with both
-  quotes kept.
+  years check, not a skill; duplicate requirements are merged under
+  Step 3 of the procedure in B2 (alias-table identity, must-have
+  wins on a level conflict, both quotes kept, the losing
+  presentation recorded on the merged requirement).
 - **Acceptance criteria.**
   - Every extracted requirement carries a verbatim quote found in the
     posting text (test asserts quote ∈ posting for the fixture set).
@@ -956,12 +1011,23 @@ tree.
     tested against.
   - Duplicate requirements: a fixture posting stating the same
     requirement twice produces one extracted requirement carrying
-    both verbatim quotes (F4-20 coverage).
+    both verbatim quotes. The corpus fixtures in B2 assert the
+    harder cases: F2 (same requirement at two levels — one merged
+    requirement, `must_have`, both quotes, losing presentation
+    recorded) and F3 ("Kubernetes" / "k8s" — one merged requirement
+    under the alias table's identity rule).
+  - Level mapping (Procedure Step 2): corpus fixture F1 (a
+    "Requirements"-headed list with no required / essential /
+    minimum wording anywhere) extracts every bullet as
+    `must_have`; fixture F16 (a heading in neither closed set and
+    no bullet wording signal) extracts `preferred` by the stated
+    default, at `low` confidence with the default named as the
+    reason.
   - Confidence: the fixture posting with no requirements section
     yields `extraction_confidence: low` with a reason naming the
     responsibility-line source on each extracted requirement; the
     clean fixture yields `high` throughout.
-  - Atomicity (C2-02, rule (a)): the frozen split fixture — a
+  - Atomicity (Procedure Step 1): the frozen split fixture — a
     posting whose must-have bullets are "Kubernetes and Go"
     (one bullet) plus three further must-haves the fixture
     profile supports — extracts to **M = 4**, never 5; the same
@@ -974,30 +1040,33 @@ tree.
     score of 60 or above B4 fires no veto. An implementation
     that splits the bullet produces M = 5, S = 2 and a veto —
     and fails this fixture.
-  - Kind priority (C2-02, rule (b)): the three worked quotes in
-    rule (b) are fixtures with their stated kinds —
+  - Kind priority (Procedure Step 4): the three worked quotes in
+    Step 4 are fixtures with their stated kinds —
     "5+ years operating Kubernetes clusters serving 2M
     requests/day" → `threshold` (one requirement, not two),
     "Scaled a system to 2M requests/day" → `quantitative`,
     "AWS Certified Solutions Architect" → `categorical`.
-  - Disjunction (C2-02, rule (c)): the fixture requirement
+  - Disjunction (Procedure Step 4): the fixture requirement
     "Bachelor's degree or 7 years' equivalent experience" is
     one requirement; with 7 years' experience on approved
     record and no degree on record it classifies supported;
     with the degree claimed but unverified and 5 years on
     approved record (the threshold disjunct contested) it
     classifies evidence gap.
-  - Seniority (C2-02, rule (d)): the three fixtures in rule
-    (d) — Staff vs required Senior → supported; Mid vs
-    required Senior → contested; unverified level vs required
-    Senior → evidence gap.
+  - Seniority (Procedure Step 5 — the one place the seniority
+    rule is stated): the three cells of corpus fixture F14 —
+    Staff vs required Senior → supported; Mid vs required
+    Senior → contested; unverified level vs required Senior →
+    evidence gap — plus F4 (nothing on record → evidence gap,
+    never skill gap) and F5 (level token read from the raw title
+    before A4 normalisation deletes it → supported).
 
 ### B2. Delta classification (evidence gap vs skill gap)
 
 - **What it does.** For one job: run the requirement list (B1) against
   the ledger (A1) and classify each requirement —
-  **supported** (the requirement meets the per-kind supported
-  test below), **evidence gap** (claim on record,
+  **supported** (the requirement meets Step 7's per-kind
+  comparison in the procedure below), **evidence gap** (claim on record,
   proof missing, of the wrong kind for the requirement,
   alias-only, or not quotable),
   **skill gap** (nothing on record) —
@@ -1025,111 +1094,454 @@ tree.
   it, so a capped delta never presents as a plain `high`. B3
   renders the field, and E2's non-English case reaches it
   through B1 alone.
-- **The evidence-state gate (C2-01 — one rule for every
-  kind, stated here once; every per-kind test below routes
-  through it and no row restates a weaker form).** A
-  requirement classifies **supported only on evidence in the
-  approved / proven state**: the deciding evidence is a
-  ledger entry in state `approved` (A1), in the per-kind form
-  its row names (quantified proof for `quantitative`,
-  attestation or documentary evidence for `categorical`, an
-  approved number for `threshold`), whose proof is not stale
-  under A1's staleness policy. **Profile facts are not a
-  separate, exempt evidence class.** Every profile fact B2
-  consumes (years, authorisation, location, seniority level,
-  language, credential) is read through the ledger entry that
-  carries it, and that entry must carry both fields for the
-  fact to count as evidence at all: its proof state and its
-  `proof_verified_at`. **A fact with no `proof_verified_at`
-  is unverified by definition** — including a fact that
-  exists only as a typed value in the flat profile with no
-  ledger entry behind it — and anything resting on
-  unverified profile content caps at **evidence gap**, for
-  quantitative, threshold, and categorical kinds alike
-  (A5's rule, applied without a kind exception). Staleness
-  applies to profile facts exactly as it applies to any
-  entry: a fact whose `proof_verified_at` is over 36 months
-  old and not re-verified caps at evidence gap with the
-  reason "proof stale — re-verify". Classification then
-  proceeds in this order, and the order is the rule:
-  (1) if the deciding evidence passes the gate, apply the
-  kind's comparison — it yields supported, or contested
-  where the approved evidence affirmatively contradicts the
-  requirement; (2) if a claim or fact is on record but its
-  evidence fails the gate (unverified, no `proof_verified_at`,
-  stale, alias-only, unquantified where the kind requires a
-  quantity, or not quotable), the class is evidence gap —
-  never supported, and never contested, because an unproven
-  record does not affirmatively contradict anything;
-  (3) if nothing is on record for the requirement at all,
-  the class is skill gap (seniority is the one stated
-  exception: B1's rule (d) gives it no skill-gap outcome).
-  Compound and disjunctive requirements (B1's rules (a) and
-  (c)) apply this gate to each part or disjunct separately.
-- **Supported, per requirement kind (C-02 — the one test; B1's
-  `requirement_kind` selects the row, and no other supported
-  test exists in this package).** Each row below is read
-  **through the evidence-state gate above**: "on record" in
-  a row never means merely typed or listed — it means the
-  gate has passed for that evidence.
-  - `quantitative` (skills, experience accomplishments):
-    supported means **verbatim, quantified proof on record** —
-    an `approved` ledger entry whose proof states the fact and
-    its number or measurable result. A claim with proof that
-    carries no quantity is an evidence gap for this kind.
-  - `threshold` (stated numeric minimums, in practice years):
-    supported means the number carried by evidence that
-    passes the gate — an `approved` entry (a profile fact
-    counts only as the approved ledger entry carrying it,
-    with `proof_verified_at` set and not stale) — meets or
-    exceeds the stated minimum. An approved, non-stale number
-    below the minimum is contested, not a gap. A number on
-    record whose evidence fails the gate (typed years with
-    no approved entry, no `proof_verified_at`, or stale
-    proof) is an evidence gap, whether the number itself is
-    above or below the minimum. No number or claim on record
-    at all is a skill gap.
-  - `categorical` (location, work authorisation, a named
-    credential held, seniority level, stated language):
-    supported means an `approved` ledger entry states the
-    required fact, backed by the evidence kind that fits a
-    fact of this type — attestation or documentary evidence,
-    specifically: the user's stated authorisation status
-    recorded as an approved entry (the attestation is the
-    proof), located-in evidence (the user's base or address
-    locality matching the required place, **carried by an
-    approved entry with `proof_verified_at` set and not
-    stale** — a typed, unverified base is not located-in
-    evidence), or the credential itself on record (issuer and
-    credential name; a certificate or issuer record attached
-    where the user has one). The seniority instance of this
-    row uses B1's rule (d) at-or-above test in place of
-    verbatim equality. No quantity is required, and none
-    may be demanded: a categorical requirement whose fact is
-    on record in this form is supported in full. A
-    categorical fact claimed but failing the gate (no
-    approved entry behind it, no `proof_verified_at`, or
-    stale) is an evidence gap; approved, non-stale evidence
-    that states the opposite (a different location, a
-    conflicting authorisation status, a lower seniority
-    level under B1's rule (d)) is contested; nothing on
-    record claiming the fact at all is a skill gap.
-  *Worked fixture (C-02, frozen in the acceptance criteria):*
-  a posting with M=3 must-haves, all `categorical` — located
-  in Philadelphia, US work authorisation, and a named
-  certification — where the user's record holds all three
-  verbatim, each with its approved attestation or documentary
-  evidence, `proof_verified_at` set and not stale for each,
-  classifies **supported = 3, E = 0, S = 0, C = 0**:
-  no thin-evidence veto fires, and B6's location axis renders
-  green for this job.
+- **The closed classification decision procedure (one
+  procedure for B1 and B2 — every extraction and every
+  classification in this package is produced by running these
+  nine steps in this order, and by nothing else).** The
+  procedure's only inputs are the posting text, the ledger
+  (read through Step 7's gate), the versioned alias table and
+  metro-locality table (both defined in "Three shared
+  definitions" below), and the fixture
+  or system clock for staleness. Each step is a function of
+  those inputs. **A case a step does not cover falls to the
+  default that step states; no step, and no case, is left to
+  builder judgment.** Earlier rounds stated pieces of this
+  procedure as separate rules in B1 and B2 (the producibility
+  rules (a)–(d), the evidence-state gate, the per-kind rows);
+  those pieces are carried into the steps below in substance,
+  survive only there, and are not restated anywhere else in
+  this package in a competing form. B3, B4, B5, and B6 consume
+  the procedure's outputs and restate none of its steps.
+  - **Step 1 — Presented units and atomicity.** A requirement
+    is the smallest unit the posting's own structure
+    presents: one list item (a bullet, a numbered item, one
+    line of a requirements list) or, where the posting
+    presents requirements as prose, one presented clause (text
+    the posting itself separates by a line break, a semicolon,
+    or a sentence boundary inside a requirements passage). A
+    quote assembled from more than one physical line is still
+    one requirement when it is one presented unit (its
+    `extraction_confidence` is `low` — the count does not
+    change). Conjunctions inside one presented unit
+    ("Kubernetes and Go" in one bullet) stay **one**
+    requirement, never two: its satisfaction test is
+    **conjunctive** — every part (each distinct demand joined
+    inside the unit) is tested under its own kind's comparison
+    in Step 7, through Step 7's gate, and the unit is
+    *supported* only when **all** parts are supported. When
+    the parts disagree, the unit's class is the **most severe
+    part's class**, in the severity order contested > skill
+    gap > evidence gap > supported. The delta counts
+    presented units, never extracted fragments: no builder may
+    split a presented unit into multiple requirements, merge
+    two presented units into one (Step 3's merge is the only
+    merge), or count a part as a requirement. Re-presentation
+    of the same posting content — the same bullet wrapped
+    across two lines, the same clause re-flowed — changes no
+    count. *Default:* text that presents no demand on the
+    candidate (company description, benefits, team prose) is
+    not a presented unit and extracts nothing.
+  - **Step 2 — Level: section-to-level mapping first, bullet
+    wording second, one precedence order.** Each presented
+    unit gets its `requirement_level` by applying, in this
+    exact order, the first rule that decides it:
+    1. **Bullet demotion wording.** If the unit's own text
+       contains any demoting phrase from this closed list —
+       "nice to have", "nice-to-have", "a plus", "preferred",
+       "bonus", "desirable", "ideally", "not required",
+       "optional" — the level is `preferred`, whatever heading
+       the unit sits under and whatever other wording it
+       carries. (A unit carrying both a demoting and a
+       promoting phrase is decided here: demotion wins, and
+       the conflict is recorded in the unit's
+       `confidence_reason`.)
+    2. **Bullet promotion wording.** Else, if the unit's own
+       text states it as required, essential, or as a stated
+       minimum — the closed promotion forms are the words
+       "required", "requirement", "essential", "must", and a
+       minimum form applied to the candidate ("5+", "at least
+       5", "minimum of 5", "5 or more", including minimum
+       years) — the level is `must_have`.
+    3. **Heading.** Else, the heading of the section the unit
+       sits under decides, by this closed table. Heading
+       comparison is case-insensitive, ignores trailing
+       punctuation and a trailing colon, and a heading's scope
+       runs until the next heading. **Must-have heading set:**
+       "Requirements", "Qualifications", "Must have",
+       "Must-haves", "Minimum qualifications", "Minimum
+       requirements", "Required qualifications", "Required
+       skills", "Essential qualifications", "What we're
+       looking for", "What we are looking for", "What you'll
+       bring", "What you will bring", "Who you are".
+       A unit under a heading in this set is `must_have`.
+       **Preferred heading set:** "Nice to have",
+       "Nice-to-have", "Preferred qualifications", "Preferred
+       skills", "Bonus", "Bonus points", "Pluses", "Desired
+       qualifications", "Desirable skills". A unit under a
+       heading in this set is `preferred` (rules 1–2 above
+       have already handled a unit whose own wording says
+       otherwise).
+    4. **No heading, or a heading in neither set.** A heading
+       that appears in neither set is treated as no heading —
+       that rule is stated here and has no exceptions. With
+       no deciding heading and no bullet wording signal under
+       rules 1–2, the level is the stated default:
+       **`preferred`**, the unit's `extraction_confidence` is
+       `low`, and its `confidence_reason` records "no heading
+       and no level wording — default preferred".
+    This step is also the whole interaction between heading
+    evidence and the keyword rules: bullet wording (rules
+    1–2) outranks the heading (rule 3), the heading outranks
+    the default (rule 4), and no other precedence exists.
+    The keyword forms that defined the level in earlier
+    drafts survive only as rule 2's promotion forms.
+  - **Step 3 — Requirement identity and merge (the only
+    merge).** Two presented units are **the same requirement**
+    when, after normalisation, they demand the same thing:
+    normalisation lowercases the demanded skill, fact,
+    credential, place, or level, strips punctuation, and maps
+    every alias in the alias table to its canonical form
+    ("k8s" → "Kubernetes"). **The alias table governs
+    extraction identity under this step, not only
+    classification matching in Step 7.** Identity includes
+    the demanded value where the demand carries one: two
+    threshold units for the same canonical skill with
+    different minima are the same requirement (the merged
+    minimum is the higher of the two, per the conflict rule
+    below); two categorical units naming different places,
+    statuses, credentials, or levels are different
+    requirements, because the value differs. Units demanding
+    different canonical things never merge, however similar
+    their wording. When two or more presented units are the
+    same requirement, they merge into **one** requirement:
+    - **Level conflict: must-have wins.** The merged level
+      is `must_have` if any presentation was `must_have`
+      under Step 2, else `preferred`.
+    - **Kind conflict:** the merged kind is the kind Step 4's
+      ordered priority assigns first among the presentations'
+      kinds (threshold before categorical before
+      quantitative); each presentation's own kind is still
+      used for its part's comparison in Step 7 where Step 4's
+      conjunctive test applies.
+    - **Threshold conflict:** the merged minimum is the
+      higher minimum presented.
+    - **Quotes and the losing presentation:** the merged
+      requirement carries **every** verbatim quote from every
+      presentation, and records, for each presentation that
+      did not supply the merged level, kind, or minimum, a
+      `merged_presentations` entry naming that presentation's
+      heading (or "no heading"), its Step 2 level, its kind,
+      and its quote — the losing presentation is recorded on
+      the merged requirement, never silently dropped.
+    *Default:* a unit that merges with nothing is one
+    requirement carrying its own quote, with no
+    `merged_presentations` entries.
+  - **Step 4 — Kind: ordered priority, conjunctions,
+    disjunctions.** `requirement_kind` is assigned by the
+    first step that matches; the steps are a total order,
+    applied in this sequence, and no step is skipped because
+    a later step also matches:
+    1. **Threshold.** The unit states a candidate-facing
+       numeric minimum — a floor the candidate must meet,
+       marked by a minimum form in the quote ("5+", "at
+       least 5", "minimum of 5", "5 or more") applied to the
+       candidate's years, experience, or scale. A number with
+       no minimum form is not a threshold number.
+    2. **Categorical.** The unit is satisfied by a yes/no
+       fact with no quantity to meet and no accomplishment
+       to prove: a place, a status, a credential held, a
+       seniority level, a stated language.
+    3. **Quantitative.** Everything else: a skill or an
+       experience accomplishment whose proof is a number or
+       a measurable result the user has achieved.
+    The discriminator is the unit's satisfaction test, read
+    in that order — never the mere presence of a number.
+    *Worked examples (also fixtures in B1's acceptance):*
+    "5+ years operating Kubernetes clusters serving 2M
+    requests/day" is one presented unit; step 1 matches
+    ("5+" is a candidate-facing minimum) so the kind is
+    `threshold` and the satisfaction test is the threshold
+    test on the years number. "Serving 2M requests/day" is
+    an elaboration of that one demand — it carries no
+    minimum form and is joined by no conjunction presenting
+    a second candidate demand — so it creates no second,
+    quantitative requirement. By contrast, "Scaled a system
+    to 2M requests/day" (no minimum form, an accomplishment)
+    is `quantitative` under step 3, and "AWS Certified
+    Solutions Architect" (no minimum, a credential held) is
+    `categorical` under step 2. For a conjunctive unit whose
+    parts fall under different steps, the unit's
+    `requirement_kind` label is the kind this procedure
+    assigns to the whole unit, and satisfaction still tests
+    each part under its own kind's comparison (Step 1's
+    conjunctive test, Step 7's comparisons).
+    **Disjunctions — "A or B" is one requirement.**
+    Alternatives presented inside one unit ("Bachelor's
+    degree or 7 years' equivalent experience") are one
+    requirement with a disjunctive satisfaction test, not
+    two requirements. Each disjunct is tested under its own
+    kind's comparison, through Step 7's gate. The
+    requirement is **supported when any disjunct is
+    supported**. When no disjunct is supported, the class is
+    the most favourable disjunct class in the order
+    evidence gap > skill gap > contested — equivalently:
+    evidence gap if any disjunct is an evidence gap, else
+    skill gap if any disjunct is a skill gap, else contested,
+    which applies only when **every** disjunct is contested
+    (the record affirmatively blocks every alternative).
+  - **Step 5 — Seniority: the one place this rule is
+    stated.** A seniority requirement ("Senior", "Staff
+    level") is `categorical` under Step 4. Its comparison is
+    not verbatim equality: levels are ordered **entry < mid <
+    senior < staff < principal** (the level order `match.py`
+    scores with). The requirement is supported when the
+    user's level on record — read through Step 7's gate — is
+    **at or above** the required level; contested when that
+    gated level is **below** the required level; and an
+    **evidence gap when no approved level is on record** —
+    a seniority requirement has **no skill-gap outcome**:
+    the absence of level evidence is a missing proof about a
+    fact the user holds, not an absent skill, and the scoring
+    default of "mid" in `match.py` is a scoring default,
+    never classification evidence. Every other passage that
+    touches seniority — the categorical comparison in Step 7,
+    B1's kind list, A4's family key — points at this step and
+    states no seniority classification of its own.
+    **Extract-then-delete order, stated explicitly:** a level
+    token is read from the **raw** title or raw requirement
+    text **before** any A4 normalisation runs. A4's
+    normalisation deletes seniority tokens to build a family
+    key; that key is a family-assignment output only and is
+    never an input to this step or to any classification.
+    (The existing mechanism this step cites,
+    `filters.py: detect_seniority()`, reads the raw lowercased
+    title the same way.) A title such as "Staff Backend
+    Engineer" therefore yields the level token `staff` for
+    this step first, and the family key {backend, engineer}
+    for A4 second — the two outputs never compete.
+  - **Step 6 — Location matching: one rule, no similarity
+    judgment.** This step decides only whether the record's
+    locality matches the posting's required place; Step 7's
+    gate decides whether that record counts as evidence at
+    all, and this step runs only on gated evidence.
+    Localities are normalised before comparison: lowercased,
+    punctuation stripped, and a trailing state / province /
+    country qualifier after a comma dropped ("Philadelphia,
+    PA" and "Philadelphia" are the same locality).
+    1. **Posting names a locality** (one place, or a list of
+       places joined by commas or "or"): a gated record whose
+       normalised locality **equals** a named locality is a
+       match (supported, through Step 7); a gated record
+       whose normalised locality equals **none** of the named
+       localities states a different location and is
+       **contested**. There is no near match.
+    2. **Posting uses metro phrasing** — the closed set of
+       forms is: "<Place> area", "Greater <Place>", "<Place>
+       metro", "<Place> metro area", "<Place> metropolitan
+       area": a gated record matches when its normalised
+       locality equals <Place>, **or** when the locality is
+       listed under that metro in the versioned
+       **metro-locality table** (defined with the alias table
+       in "Three shared definitions" below; a data table
+       changed only by reviewed change, never a judgment
+       made at classification time). A gated record whose
+       locality is neither <Place> nor listed under that
+       metro in the table is contested. *Default:* a
+       locality not in the metro table is not a metro match,
+       however close it is geographically.
+    3. **Posting states no locality demand** (remote wording,
+       or no location text at all): no location requirement
+       is extracted from that text under Step 1, so this step
+       is not reached for it.
+  - **Step 7 — Evidence-state gate, then the per-kind
+    comparison (one rule for every kind; every comparison
+    below routes through the gate and no comparison restates
+    a weaker form).** A requirement classifies **supported
+    only on evidence in the approved / proven state**: the
+    deciding evidence is a ledger entry in state `approved`
+    (A1), in the per-kind form the comparison names
+    (quantified proof for `quantitative`, attestation or
+    documentary evidence for `categorical`, an approved
+    number for `threshold`), whose proof is not stale under
+    A1's staleness policy. **Profile facts are not a
+    separate, exempt evidence class.** Every profile fact
+    this procedure consumes (years, authorisation, location,
+    seniority level, language, credential) is read through
+    the ledger entry that carries it, and that entry must
+    carry both fields for the fact to count as evidence at
+    all: its proof state and its `proof_verified_at`. **A
+    fact with no `proof_verified_at` is unverified by
+    definition** — including a fact that exists only as a
+    typed value in the flat profile with no ledger entry
+    behind it — and anything resting on unverified profile
+    content caps at **evidence gap**, for quantitative,
+    threshold, and categorical kinds alike (A5's rule,
+    applied without a kind exception). Staleness applies to
+    profile facts exactly as it applies to any entry: a fact
+    whose `proof_verified_at` is over 36 months old and not
+    re-verified caps at evidence gap with the reason "proof
+    stale — re-verify". Classification then proceeds in this
+    order, and the order is the rule: (1) if the deciding
+    evidence passes the gate, apply the kind's comparison
+    below — it yields supported, or contested where the
+    approved evidence affirmatively contradicts the
+    requirement; (2) if a claim or fact is on record but its
+    evidence fails the gate (unverified, no
+    `proof_verified_at`, stale, alias-only, unquantified
+    where the kind requires a quantity, or not quotable),
+    the class is evidence gap — never supported, and never
+    contested, because an unproven record does not
+    affirmatively contradict anything; (3) if nothing is on
+    record for the requirement at all, the class is skill
+    gap — **with the one stated exception in Step 5:
+    seniority never takes the skill-gap outcome under this
+    step; Step 5 gives it evidence gap instead, and this
+    step states no competing seniority outcome.**
+    Compound and disjunctive requirements (Steps 1 and 4)
+    apply this gate to each part or disjunct separately.
+    **The per-kind comparisons (the one supported test;
+    Step 4's kind selects the comparison, and no other
+    supported test exists in this package).** Each comparison
+    is read **through the gate above**: "on record" never
+    means merely typed or listed — it means the gate has
+    passed for that evidence.
+    - `quantitative` (skills, experience accomplishments):
+      supported means **verbatim, quantified proof on
+      record** — an `approved` ledger entry whose proof
+      states the fact and its number or measurable result. A
+      claim with proof that carries no quantity is an
+      evidence gap for this kind.
+    - `threshold` (stated numeric minimums, in practice
+      years): supported means the number carried by evidence
+      that passes the gate — an `approved` entry (a profile
+      fact counts only as the approved ledger entry carrying
+      it, with `proof_verified_at` set and not stale) —
+      meets or exceeds the stated minimum. An approved,
+      non-stale number below the minimum is contested, not
+      a gap. A number on record whose evidence fails the
+      gate (typed years with no approved entry, no
+      `proof_verified_at`, or stale proof) is an evidence
+      gap, whether the number itself is above or below the
+      minimum. No number or claim on record at all is a
+      skill gap.
+    - `categorical` (location, work authorisation, a named
+      credential held, seniority level, stated language):
+      supported means an `approved` ledger entry states the
+      required fact, backed by the evidence kind that fits a
+      fact of this type — attestation or documentary
+      evidence, specifically: the user's stated authorisation
+      status recorded as an approved entry (the attestation
+      is the proof), located-in evidence (the user's base or
+      address locality, matched to the required place by
+      **Step 6's rule and no other rule**, carried by an
+      approved entry with `proof_verified_at` set and not
+      stale — a typed, unverified base is not located-in
+      evidence), or the credential itself on record (issuer
+      and credential name; a certificate or issuer record
+      attached where the user has one). The seniority
+      instance of this comparison is decided by **Step 5**
+      and by nothing in this row. No quantity is required,
+      and none may be demanded: a categorical requirement
+      whose fact is on record in this form is supported in
+      full. A categorical fact claimed but failing the gate
+      (no approved entry behind it, no `proof_verified_at`,
+      or stale) is an evidence gap; approved, non-stale
+      evidence that states the opposite (a different location
+      under Step 6, a conflicting authorisation status) is
+      contested; nothing on record claiming the fact at all
+      is a skill gap — subject, for seniority only, to Step
+      5's exception, which this sentence does not restate or
+      override.
+    *Worked fixture (retained, frozen in the acceptance
+    criteria):* a posting with M=3 must-haves, all
+    `categorical` — located in Philadelphia, US work
+    authorisation, and a named certification — where the
+    user's record holds all three verbatim, each with its
+    approved attestation or documentary evidence,
+    `proof_verified_at` set and not stale for each,
+    classifies **supported = 3, E = 0, S = 0, C = 0**:
+    no thin-evidence veto fires, and B6's location axis
+    renders green for this job.
+    **Evidence-state transitions (how a class changes over
+    time — the only ways it can).** A requirement's class is
+    recomputed by running this procedure again; it is never
+    edited in place. The transitions that move an input, and
+    therefore can move a class on the next run, are exactly:
+    a claim moves `unverified` → `approved` (or an entry is
+    superseded) through A3 — an evidence gap on gate-fail can
+    become supported, or contested if the newly gated evidence
+    contradicts the requirement; proof ages fresh → ageing →
+    stale under A1's staleness clock — a supported requirement
+    becomes an evidence gap ("proof stale — re-verify") at the
+    stale boundary and at no earlier moment; a proof is
+    deleted or withdrawn — the entry reverts to `unverified`
+    under A1 and the class follows the gate on the next run;
+    and a dispute outcome under B2's dispute flow supplies
+    evidence, corrects the record, or corrects the extraction,
+    each of which re-runs the procedure for that job from
+    Step 1. A stored delta keeps its as-of class and ledger
+    version until a recompute run replaces it (B3's
+    invalidation rule); no transition rewrites a stored delta
+    or a recorded verdict retroactively.
+  - **Step 8 — The four classes and the contested class's
+    path.** The procedure outputs exactly one class per
+    merged requirement: **supported** (Step 7's comparison
+    passed on gated evidence), **evidence gap** (a claim or
+    fact is on record but its evidence failed Step 7's gate,
+    or Step 5's no-approved-level case), **skill gap**
+    (nothing on record at all, seniority excepted by Step 5),
+    or **contested** (gated, approved, non-stale evidence
+    affirmatively contradicts the requirement — a number
+    below a threshold minimum, a different locality under
+    Step 6, a conflicting status, or a lower seniority level
+    under Step 5). A hard requirement the user simply lacks
+    is a skill gap, not contested: contested requires the
+    affirmative contradiction, never mere absence.
+    **Contested is not exempt from the change-my-answer
+    statement.** Every contested requirement feeds Step 9's
+    counts and, where B4 vetoes, B4's "what would change the
+    answer" statement names for that requirement the same
+    prove-it / disprove-it paths B4 specifies (correct the
+    record through the dispute flow, or correct the
+    extraction or level through the dispute flow, or the
+    named date or condition at which the contradiction
+    resolves) — a contested class with no change path named
+    is a defect in the delta, not a closed case. When a
+    contested must-have vetoes is decided by B4's thresholds
+    in Step 9, stated there and nowhere else.
+  - **Step 9 — Counts, and the feed into B4's veto and
+    headline.** From the merged requirement list (Step 3),
+    after Steps 4–8 have run on every requirement:
+    **M** = the number of merged requirements whose Step 2 /
+    Step 3 level is `must_have`. Among those must-haves only:
+    **S** = the count classified skill gap, **E** = the count
+    classified evidence gap, **C** = the count classified
+    contested, and **supported** = the count classified
+    supported (so M = S + E + C + supported, always).
+    Preferred requirements are classified by the same steps
+    and listed in the report, but they enter none of M, S, E,
+    C, or supported, and they never decide a veto or a
+    headline. B4 then applies its veto thresholds to these
+    counts and the job's score, exactly as B4 states them —
+    score < 60; C ≥ 1; skill-gap heavy (S ≥ 2, or S ≥ 1 and
+    S ÷ M ≥ 0.40); thin evidence (supported ÷ M < 0.50 and
+    E ≥ 2, or the insufficient-signal rule) — and, only when
+    a veto fires, produces the headline word by B4's headline
+    production rule (the word of the most severe class
+    present among the must-haves, contested > skill gap >
+    evidence gap; supported → neither word; evidence gap →
+    *unproven*; skill gap or contested → *unqualified (for
+    this posting as written)*, the qualifier never dropped).
+    This step states how each count derives; B4 owns the
+    thresholds and the headline rule, and no text in this
+    procedure changes either.
 - **User seat.** The delta report (B3) — classification itself is the
   engine, not a screen.
 - **Inputs/outputs.** In: requirement list + ledger + profile facts
   (years, authorization, location for the contested checks) —
   profile facts are consumed **only** as the ledger entries
   carrying them, each with its proof state and
-  `proof_verified_at` (the evidence-state gate above); a flat
+  `proof_verified_at` (Step 7 of the procedure above); a flat
   profile value with no ledger entry behind it is an
   unverified input, never a second evidence source. Out:
   per-requirement classification with the ledger entry (or absence)
@@ -1138,14 +1550,27 @@ tree.
   (classification core), `match.py: score_job()` components (the fit
   axes stay; the delta explains them), `grill.py`'s per-application
   two-way split (quantify/gap) as the behavioural precedent.
-- **Two shared definitions.** (1) The **alias table**
+- **Three shared definitions.** (1) The **alias table**
   ("k8s" ↔ "Kubernetes"), owned here: it lives in a versioned
   data file in the repo; entries are added by reviewed change,
   never by user machines silently, and every alias-based match
   is recorded in the delta as alias-based (visible, not
   hidden). Its initial version — the title/skill aliases the
   Phase 1 consumers need — is implemented under roadmap 1.3;
-  this feature extends the table in Phase 2. (2) **Role
+  this feature extends the table in Phase 2. The table
+  governs two things, both stated in the procedure: extraction
+  identity and merge (Step 3) and classification matching
+  (Step 7). (2) The **metro-locality table**, owned here with
+  the alias table: a versioned data file beside the alias
+  table, changed only by the same reviewed-change process,
+  mapping a metro name (as Step 6's metro forms name it) to
+  the closed list of localities that count as that metro. Its
+  initial version lists, under "Greater Philadelphia" /
+  "Philadelphia" metro, at least the fixture locality King of
+  Prussia, PA (corpus fixture F6). A locality absent from a
+  metro's list is not a metro match for that metro (Step 6's
+  default); no classification-time judgment adds one.
+  (3) **Role
   family:** this feature uses the **target role family**
   definition **frozen in A4** (C-04 — normalisation, family
   key, clusters, the non-circular cluster skill set, and the
@@ -1179,7 +1604,7 @@ tree.
   the entry it replaces (A3's supersession rule), and a correction
   that would leave the entry in a weaker evidence state than the
   original (for example, removing its proof) re-classifies under
-  the evidence-state gate like any other state — it produces an
+  the evidence-state gate (Step 7) like any other state — it produces an
   evidence gap, never a supported result carried over from the
   superseded entry. (3) **"The posting was misread"**: the user
   corrects the extracted requirement or its level; B1's extraction
@@ -1193,7 +1618,9 @@ tree.
   posting is refused and the original classification stands;
   (ii) a level correction (`must_have` ↔ `preferred`) is accepted
   only where the posting's own wording supports the corrected
-  level, and the correction records that wording (for example,
+  level **under Step 2 of the procedure** (a heading in Step 2's
+  closed tables, or a Step 2 bullet promotion / demotion phrase),
+  and the correction records that wording (for example,
   the section heading or the "nice to have" phrasing the
   requirement sits under); a level correction with no such
   wording in the posting is refused; (iii) a correction may fix
@@ -1247,10 +1674,10 @@ tree.
   entries **together** supply the proof the requirement's kind
   requires (for a `quantitative` requirement: verbatim,
   quantified proof; for a `categorical` requirement: the
-  attestation or documentary evidence its row of the per-kind
-  test names); no single entry need cover it alone, and the delta
+  attestation or documentary evidence Step 7's categorical
+  comparison names); no single entry need cover it alone, and the delta
   names both entries and which part each proves). Combined
-  support routes through the evidence-state gate per entry:
+  support routes through the evidence-state gate (Step 7) per entry:
   every cited entry must itself pass the gate (`approved`,
   `proof_verified_at` set, not stale) — a pair in which one
   entry is unverified classifies at best as evidence gap.
@@ -1270,7 +1697,7 @@ tree.
     that jointly prove one requirement classify it supported with
     both entries cited, and a pair whose joint proof is
     unquantified classifies evidence gap (F4-20 coverage).
-  - Evidence-state gate (C2-01, frozen constructions): the
+  - Evidence-state gate (Procedure Step 7, frozen constructions): the
     fixture posting requiring "5+ years" (threshold, must-have)
     against a profile whose years value is 7, typed at intake,
     sitting `unverified` with no approved entry and
@@ -1285,6 +1712,13 @@ tree.
     attestation approved but with `proof_verified_at` 37
     months before the fixture clock: evidence gap with the
     reason "proof stale — re-verify".
+  - Frozen fixture corpus: every fixture F1–F17 in the
+    B1/B2 frozen fixture corpus following this feature
+    reproduces exactly as written there — extraction, levels,
+    kinds, classes, M / S / E / C / supported counts, veto
+    outcome, and headline word — when the procedure's nine
+    steps are run on the fixture's stated posting, ledger, and
+    fixture score.
   - Dispute: disputing the fixture skill-gap requirement by path 1
     and approving the supplied evidence re-classifies it, writes
     the dispute and both classifications to the verdict record,
@@ -1310,7 +1744,7 @@ tree.
     the original classification stands; a level correction
     with no supporting wording in the posting is refused.
   - Categorical fixture (C-02): the worked fixture in the
-    per-kind test above — M=3 categorical must-haves (Philadelphia
+    Step 7 comparison above — M=3 categorical must-haves (Philadelphia
     location, US work authorisation, a named certification), all
     three on record verbatim with approved attestation or
     documentary evidence — classifies supported = 3 with E = 0,
@@ -1323,6 +1757,287 @@ tree.
     cell in the same fixture, in which the certification is
     claimed with no approved entry behind it, classifies
     evidence gap, never supported.
+
+
+### B1/B2 frozen fixture corpus (the rulebook's fixtures)
+
+These fixtures are part of the spec. Each one states its posting
+and ledger inputs, the expected extraction, levels, kinds,
+classes, the Step 9 counts (M / S / E / C / supported — S, E, and
+C count must-haves only), a fixture score where a veto outcome
+is asserted (the score is a fixture input; the procedure does
+not compute scores), the veto outcome under B4's thresholds,
+and the headline word under B4's production rule (a headline
+exists only when a veto fires). A re-audit or an implementation
+must be able to re-derive every line mechanically from the
+procedure's nine steps; a build that reproduces the posting and
+ledger and reaches a different line in any fixture fails that
+fixture. Unless a fixture says otherwise, every approved entry
+named carries `proof_verified_at` set and not stale, and every
+fixture clock is the date the delta is computed.
+
+- **F1 — "Requirements"-headed list, no level keywords
+  anywhere.** *Posting:* title "Backend Engineer"; one section
+  headed "Requirements" with four bullets: "Kubernetes
+  experience", "Go experience", "PostgreSQL experience",
+  "Python experience". The words required / essential /
+  minimum appear nowhere in the posting. *Ledger:* approved,
+  quantified proof for Go, PostgreSQL, and Python; nothing on
+  record for Kubernetes. *Expected:* Step 2 rule 3 (must-have
+  heading) makes all four bullets `must_have` — Step 1 units,
+  all `quantitative` under Step 4 step 3. Classes: Kubernetes
+  skill gap; the other three supported. **M = 4, S = 1, E = 0,
+  C = 0, supported = 3.** Fixture score 72: S ÷ M = 0.25 (not
+  skill-gap heavy), supported ÷ M = 0.75 (not thin), C = 0,
+  score ≥ 60 — **no veto, no headline word.**
+- **F2 — The same requirement at two levels (merge and
+  conflict).** *Posting:* under "Requirements", the bullet
+  "Kubernetes experience"; under "Nice to have", the bullet
+  "Kubernetes a plus". *Ledger:* nothing on record for
+  Kubernetes. *Expected:* Step 3 identity (same canonical
+  demand) merges the two presentations into **one**
+  requirement carrying both verbatim quotes; the merged level
+  is `must_have` (must-have wins); the merged requirement
+  records a `merged_presentations` entry for the "Nice to
+  have" presentation (its Step 2 level `preferred`, its quote,
+  its heading). Kind `quantitative`. Class: skill gap.
+  **M = 1, S = 1, E = 0, C = 0, supported = 0.** Fixture score
+  78: S ≥ 1 and S ÷ M = 1.00 ≥ 0.40 — skill-gap heavy —
+  **veto fires; headline *unqualified (for this posting as
+  written)*.**
+- **F3 — Alias identity ("Kubernetes" / "k8s").** *Posting:*
+  under "Requirements", two bullets: "Kubernetes experience"
+  and "k8s experience". *Ledger:* one approved entry with
+  verbatim, quantified proof for Kubernetes. *Expected:*
+  Step 3 normalisation maps "k8s" to the canonical
+  "Kubernetes" through the alias table, so the two bullets are
+  the same requirement and merge into **one** requirement
+  carrying both quotes, level `must_have`, kind
+  `quantitative`. The deciding entry matches the merged
+  requirement's canonical demand, so this is a canonical
+  match, not an alias-only evidence case. Class: supported.
+  **M = 1, S = 0, E = 0, C = 0, supported = 1.** Fixture score
+  80 — **no veto, no headline word.** (A build that counts
+  two requirements here fails identity under Step 3.)
+- **F4 — Seniority, nothing on record.** *Posting:* under
+  "Requirements", the bullet "Senior level". *Ledger:* no
+  seniority level on record at all — no entry, approved or
+  otherwise, states a level. *Expected:* kind `categorical`
+  (seniority, Step 4 step 2), level `must_have`; Step 5
+  decides the class: **evidence gap** — a seniority
+  requirement has no skill-gap outcome, and Step 7 step (3)
+  states no competing outcome for it. **M = 1, S = 0, E = 1,
+  C = 0, supported = 0.** Fixture score 75: thin evidence
+  needs E ≥ 2 — **no veto, no headline word.**
+- **F5 — "Staff Backend Engineer" as level evidence
+  (extract-then-delete).** *Posting:* under "Requirements",
+  the bullet "Senior level". *Ledger:* an approved seniority
+  entry, `proof_verified_at` set and not stale, stating the
+  user's level as Staff — the level value that was read from
+  the raw worked-in role title "Staff Backend Engineer" when
+  the entry was created. *Expected:* Step 5 reads the level
+  token `staff` from the raw title **before** A4 normalisation
+  deletes seniority tokens (the role's A4 family key is
+  {backend, engineer}; the key is not a classification input).
+  Staff is at or above Senior — class: supported. **M = 1,
+  S = 0, E = 0, C = 0, supported = 1.** Fixture score 80 —
+  **no veto, no headline word.**
+- **F6 — Location: named locality vs metro phrasing (two
+  cells, one record).** *Ledger (both cells):* an approved
+  located-in entry stating the user's base as King of Prussia,
+  PA, `proof_verified_at` set and not stale.
+  - **F6a — posting names a locality.** *Posting:* under
+    "Requirements", the bullet "Based in Philadelphia".
+    *Expected:* kind `categorical`, level `must_have`; Step 6
+    rule 1 — the record's normalised locality (king of
+    prussia) equals none of the named localities
+    (philadelphia) — class: **contested**. **M = 1, S = 0,
+    E = 0, C = 1, supported = 0.** Fixture score 82: C ≥ 1 —
+    **veto fires at any score; headline *unqualified (for
+    this posting as written)*;** the change-my-answer
+    statement names the contested paths (Step 8 / B4).
+  - **F6b — posting uses metro phrasing.** *Posting:* the
+    same bullet as "Based in the Greater Philadelphia area".
+    *Expected:* Step 6 rule 2 — "Greater <Place>" is a closed
+    metro form, and the metro-locality table lists King of
+    Prussia under the Philadelphia metro — class:
+    **supported**. **M = 1, S = 0, E = 0, C = 0,
+    supported = 1.** Fixture score 82 — **no veto, no
+    headline word.**
+- **F7 — A4 depth score before / after one evaluated posting
+  (the evaluated-posting history is an A4 input).** *Target
+  titles:* "Backend Engineer" (one cluster, family key
+  {backend, engineer}; the title names no skills). *Ledger
+  (fixed in both runs):* entry A — worked in the role
+  "Operations Engineer", skill tags {kubernetes}, `approved`
+  with verbatim, quantified proof ("operated Kubernetes
+  clusters for 14 services"); entry B — worked in the role
+  "Operations Engineer", skill tags {python}, `unverified`.
+  *Evaluated posting (the second run only):* title "Backend
+  Engineer", under "Requirements" the bullet "Kubernetes
+  experience" — assigned to the Backend Engineer cluster by
+  A4's title rule, and B1 extracts Kubernetes from it.
+  *Expected extraction / classification for that posting:*
+  one unit, `must_have` (Step 2 rule 3), `quantitative`,
+  supported by entry A — **M = 1, S = 0, E = 0, C = 0,
+  supported = 1**; fixture score 80 — **no veto, no headline
+  word.** *Expected depth (A4's formula):* terms 2 and 3 are
+  the same in both runs — one experience role (Operations
+  Engineer) carrying a quantified, proven win gives term 2 =
+  30 × 1/1 = 30; one of two claims proven gives term 3 =
+  30 × 1/2 = 15. Term 1 turns on the history. **Before** any
+  posting is evaluated (history empty): the cluster skill set
+  is empty, entry A's family key {engineer, operations} does
+  not equal the cluster key and its kubernetes tag is in no
+  cluster skill set, so no entry matches — term 1's
+  denominator is 0, term 1 = 0 ("no data yet"), **depth =
+  45**. **After** that one posting is evaluated (history =
+  that posting): the cluster skill set is {kubernetes}, entry
+  A matches by test (b) and is proven — term 1 = 40 × 1/1 =
+  40, **depth = 85**. Same ledger, same targets, different
+  history, different score — the fixture names the history as
+  an input, which is what makes both runs deterministic.
+- **F8 — Unverified threshold.** *Posting:* under
+  "Requirements", "5+ years of backend development".
+  *Ledger:* years = 7, typed at intake, `unverified`, no
+  approved entry behind it, `proof_verified_at` null.
+  *Expected:* kind `threshold`, level `must_have`; Step 7's
+  gate fails (the 7 ≥ 5 comparison is never reached) —
+  class: **evidence gap**, never supported and never
+  contested. **M = 1, S = 0, E = 1, C = 0, supported = 0.**
+  Fixture score 72 — **no veto, no headline word.**
+- **F9 — Unverified categorical.** *Posting:* under
+  "Requirements", "Located in Philadelphia". *Ledger:* a
+  Philadelphia base typed at intake, `unverified`, no approved
+  entry behind it, `proof_verified_at` null. *Expected:*
+  kind `categorical`, level `must_have`; Step 7's gate fails
+  (a typed, unverified base is not located-in evidence) —
+  class: **evidence gap**, never supported. **M = 1, S = 0,
+  E = 1, C = 0, supported = 0.** Fixture score 72 — **no
+  veto, no headline word.**
+- **F10 — Stale proof (37 months).** *Posting:* as F9.
+  *Ledger:* the Philadelphia attestation is an approved entry,
+  but its `proof_verified_at` is 37 months before the fixture
+  clock and it has not been re-verified. *Expected:* Step 7's
+  gate fails on staleness — class: **evidence gap** with the
+  reason "proof stale — re-verify", never supported.
+  **M = 1, S = 0, E = 1, C = 0, supported = 0.** Fixture score
+  72 — **no veto, no headline word.**
+- **F11 — Split-bullet counts (atomicity).** *Posting:* under
+  "Requirements", four bullets: "Kubernetes and Go" (one
+  bullet) plus three further must-have bullets the ledger
+  supports. *Ledger:* Kubernetes supported on approved,
+  quantified proof; nothing on record for Go; the other three
+  bullets supported. *Expected:* Step 1 counts presented
+  units — **M = 4**, never 5 (the same posting with the first
+  bullet wrapped across two physical lines still gives
+  M = 4). The compound unit's conjunctive test: Kubernetes
+  part supported, Go part skill gap, most severe part
+  governs — the unit's class is skill gap. **M = 4, S = 1,
+  E = 0, C = 0, supported = 3.** Fixture score 64: S ÷ M =
+  0.25 (not heavy), supported ÷ M = 0.75 (not thin) — **no
+  veto, no headline word.** (A splitting build reaches M = 5,
+  S = 2, a skill-gap-heavy veto — and fails this fixture.)
+- **F12 — Mixed-kind quote (kind priority).** *Posting:*
+  under "Requirements", one bullet: "5+ years operating
+  Kubernetes clusters serving 2M requests/day". *Ledger:* an
+  approved entry carrying years = 6, `proof_verified_at` set
+  and not stale. *Expected:* one presented unit; Step 4 step
+  1 matches first ("5+") — kind `threshold`, **one**
+  requirement, not two ("serving 2M requests/day" creates no
+  quantitative requirement). The threshold comparison on the
+  gated number: 6 ≥ 5 — class: supported. **M = 1, S = 0,
+  E = 0, C = 0, supported = 1.** Fixture score 77 — **no
+  veto, no headline word.**
+- **F13 — Disjunction (two cells).** *Posting (both cells):*
+  under "Requirements", one bullet: "Bachelor's degree or
+  7 years' equivalent experience" — one requirement, kind
+  assigned per disjunct under Step 4 (the degree disjunct is
+  `categorical`, the years disjunct is `threshold`).
+  - **F13a:** *Ledger:* 7 years on approved record; no degree
+    on record. The years disjunct is supported, so the
+    requirement is **supported**. **M = 1, S = 0, E = 0,
+    C = 0, supported = 1.** Fixture score 81 — **no veto, no
+    headline word.**
+  - **F13b:** *Ledger:* the degree is claimed but unverified;
+    5 years on approved record. Degree disjunct: evidence gap
+    (gate fail). Years disjunct: contested (approved 5 below
+    the 7 minimum). No disjunct supported; the most
+    favourable disjunct class in Step 4's order (evidence gap
+    > skill gap > contested) governs — class: **evidence
+    gap**. **M = 1, S = 0, E = 1, C = 0, supported = 0.**
+    Fixture score 81 — **no veto, no headline word.**
+- **F14 — Seniority, three cells.** *Posting (all cells):*
+  under "Requirements", "Senior level" — `categorical`,
+  `must_have`. Fixture score 85 in all three cells.
+  - **F14a:** approved level on record: Staff. At or above
+    Senior — **supported**. M = 1, supported = 1, S = E =
+    C = 0 — **no veto, no headline word.**
+  - **F14b:** approved level on record: Mid. Below Senior —
+    **contested**. M = 1, C = 1, S = E = 0, supported = 0 —
+    **veto fires (C ≥ 1, at any score); headline
+    *unqualified (for this posting as written)*.**
+  - **F14c:** a level typed at intake but `unverified`, no
+    approved entry, `proof_verified_at` null. Gate fail —
+    **evidence gap** (Step 5; never skill gap). M = 1, E = 1,
+    S = C = 0, supported = 0 — **no veto, no headline word.**
+- **F15 — Contested, with its change-my-answer path.**
+  *Posting:* under "Requirements", "5+ years of backend
+  development". *Ledger:* an approved entry carrying years =
+  3, `proof_verified_at` set and not stale. *Expected:* kind
+  `threshold`, level `must_have`; the gated number is below
+  the minimum — class: **contested**. **M = 1, S = 0, E = 0,
+  C = 1, supported = 0.** Fixture score 80: C ≥ 1 — **veto
+  fires; headline *unqualified (for this posting as
+  written)*.** The veto's change-my-answer statement is
+  present for this contested requirement — contested is not
+  exempt (Step 8): it names **prove it** (if the record is
+  wrong or out of date, supply correcting evidence through
+  the dispute flow, path 1 or 2, and the requirement
+  re-classifies), **disprove it** (if the posting was misread,
+  dispute path 3 corrects the extraction or level), and,
+  where neither can happen today, the plain condition: the
+  contradiction resolves when the approved record reaches
+  5 years. A rendering of this fixture with no
+  change-my-answer statement for the contested requirement
+  fails the fixture.
+- **F16 — No heading, no wording signal (the stated
+  default).** *Posting:* no section headings at all; after an
+  introductory paragraph, a bare list with the bullet
+  "Kubernetes experience". No demotion phrase, no promotion
+  word, no minimum form. *Ledger:* nothing on record for
+  Kubernetes. *Expected:* Step 2 rule 4 — the level is the
+  default **`preferred`**, `extraction_confidence` is `low`,
+  and `confidence_reason` records "no heading and no level
+  wording — default preferred". Kind `quantitative`; class
+  skill gap — **as a preferred requirement**: it is listed in
+  the report and enters none of the must-have counts.
+  **M = 0, S = 0, E = 0, C = 0, supported = 0** (over
+  must-haves). Fixture score 70 — **no veto from this
+  requirement, no headline word.** (The same bullet under a
+  heading that appears in neither of Step 2's closed sets —
+  for example "About the team" — reaches the identical
+  result by the same rule: an unlisted heading is treated as
+  no heading.)
+- **F17 — `delta_confidence` caps (three cells).** Each cell
+  is a one-must-have delta at fixture score 75, no veto in any
+  cell; the asserted output is the delta's `delta_confidence`
+  and its named capping reason (B2's definition of the field).
+  - **F17a — provisional alias:** the must-have's
+    classification rests on a provisional alias match
+    (dispute path 4; class evidence gap, M = 1, E = 1) —
+    `delta_confidence: low`, reason "provisional alias".
+  - **F17b — combined proof:** the must-have is supported by
+    two approved entries jointly (combined proof; M = 1,
+    supported = 1) — `delta_confidence: low`, reason
+    "combined proof".
+  - **F17c — ageing proof:** the must-have is supported on an
+    approved entry whose `proof_verified_at` is 30 months
+    before the fixture clock (A1's ageing band; M = 1,
+    supported = 1) — `delta_confidence: low`, reason "ageing
+    proof". (A must-have supported on fresh, single-entry,
+    canonical proof with `extraction_confidence: high`
+    renders `delta_confidence: high` — the uncapped case.)
 
 ### B3. Delta report (the per-job product surface)
 
@@ -1571,6 +2286,18 @@ tree.
      unclassified axis scored on a default is still an unknown
      axis for this rule, and a classified axis scored on a real
      value is not.
+     **What "unknown" means, by side (no narrower gloss is
+     correct):** an axis is unknown when the fact **it scores**
+     is missing, wherever that fact lives — and under the
+     pinned tests above most of those facts are **posting-side**
+     (no skill keywords detected in the posting, no seniority
+     marker in the posting's title, no salary hint parsed from
+     the posting, no determinable posting date); only the
+     salary floor and the location preferences are profile-side
+     facts in this list. Any summary of this rule — in any
+     document or surface — that glosses "unknown" as a missing
+     **profile** fact only misstates the rule and does not
+     conform to this section.
   A veto names **every** class that applies, checked in the order
   contested → skill-gap heavy → thin evidence, with contested
   first. The classes are the trigger conditions above:
@@ -1723,6 +2450,47 @@ tree.
   named change-my-answer condition having been met at override
   time. Below 10 reviewed vetoes the flag cannot be raised,
   whatever the share.
+  **"Reviewed", defined producibly (the denominator is a set
+  of veto records, not an impression).** A veto is **reviewed**
+  exactly when the verdict record holds at least one *review
+  event* for that veto's record id, where a review event is
+  exactly one of: (a) a `near_miss.py` resolution for that veto
+  (the queue covers the 50–59 band; a resolution is a review
+  event only for a veto that entered that queue); (b) a
+  recorded override for that veto; or (c) a **reviewed-upheld
+  mark** — the record surface offers, for **every** veto it
+  shows at any score and in any class, a "mark reviewed —
+  upheld" act, and using it writes a review event (veto record
+  id, timestamp, disposition upheld) to the verdict record.
+  Clause (c) is what makes a veto outside the near-miss band —
+  for example a contested veto at score 80 that the user read
+  and obeyed — capable of entering the denominator at all: it
+  enters when, and only when, the user marks it reviewed on
+  the record surface. The denominator is the number of
+  **distinct veto record ids** holding at least one review
+  event: a veto carrying both a near-miss resolution and an
+  override, or an override and an upheld mark, is **one**
+  denominator entry, never two — the sources are unioned by
+  veto id, not added. The numerator is the number of those
+  distinct vetoes that hold a recorded override; for the
+  routine-override flag, the numerator is the number of those
+  vetoes whose recorded override states the named
+  change-my-answer condition had **not** been met at override
+  time (a veto holds at most one override record for this
+  computation — a second override of the same veto updates
+  that veto's entry, it does not add a second one). A veto
+  with no review event of any of the three kinds is **not**
+  reviewed, however it was displayed. *Worked fixture (frozen
+  in the acceptance criteria):* 12 classified vetoes; 4 carry
+  recorded overrides, each stating the condition was not met;
+  the other 8 are contested vetoes at scores above 60, outside
+  the near-miss band, each carrying a reviewed-upheld mark.
+  Reviewed = 12 distinct vetoes, overturned-without-condition
+  = 4; 4 of 12 is 1 in 3, which is **not** more than 1 in 3 —
+  the routine-override flag does **not** fire. A build that
+  counts only the recorded-event vetoes (4 of 4) or that
+  double-counts a veto holding two event kinds fails this
+  fixture.
 - **Veto-moment return measure — the 14-day return (B-10;
   named here; roadmap initiative 2.8 carries it in its scope,
   acceptance, and the Phase 2 E2E).** This feature, which issues
@@ -1752,7 +2520,15 @@ tree.
   the log, the measure reads the log from then on, and a
   return already recorded from the marker is never
   recomputed or lost in the migration. No text in this
-  feature may imply the session-type log exists before 5.2. The
+  feature may imply the session-type log exists before 5.2.
+  **The marker is a store in its own right, with its own
+  lifecycle row** (the interim session marker row in the
+  data-lifecycle table: retention until 5.2 migration or user
+  deletion, export with the recap data, and the stated
+  consequence of deleting it for this measure) — that row
+  governs the marker from the day 2.8 ships it, and the
+  roadmap's reference to a retention rule "from the table"
+  points at that row. The
   record surface shows exactly one of three states for the
   measure: "returned on day N" (N = whole days from the veto
   to that session, 1–14), "window still open — day N of 14",
@@ -1830,6 +2606,13 @@ tree.
   - The overturn rate on the fixture record (seeded vetoes +
     resolutions) equals the hand-computed rate, count displayed
     alongside; a fixture with 0 reviewed vetoes shows no rate.
+    The worked fixture in the overturn-rate section is asserted
+    as written: 12 vetoes (4 overrides without the condition
+    met, 8 reviewed-upheld marks on above-60 contested vetoes)
+    compute reviewed = 12, overturned-without-condition = 4,
+    and the routine-override flag does **not** fire; a second
+    fixture cell gives one veto both a near-miss resolution and
+    an override and asserts it enters the denominator once.
 
 ### B5. Delta trending (the gap, over time)
 
@@ -1850,7 +2633,18 @@ tree.
   when the approval lands **and the proof is still present and
   not stale at the window's end**, whether or not a new posting was
   evaluated in that family). The brief §9 kill criterion reads
-  this measure.
+  this measure. **Zero denominator, stated:** when no evidence
+  gaps are open in a family at a window's start (denominator
+  0) — or, for the kill criterion's per-user form, in the
+  user's whole record — the rate is **not a percentage at
+  all**: it is reported as "no data — no gaps open at window
+  start", with its counts shown as 0 of 0. It is never
+  reported as 0%, never as 100%, and a no-data window cannot
+  fire, satisfy, or count toward the kill criterion's
+  "proof-closing rate near zero" reading — that reading
+  applies only to windows whose denominator is at least 1,
+  and the window's sample size is shown wherever the rate is
+  shown, as with every rate in this package.
 - **Ledger-version discipline (B3's invalidation, consumed here).**
   Trend roll-ups group deltas by the ledger version they were
   computed against and never mix versions in one trend line: the
@@ -1889,7 +2683,10 @@ tree.
     closings in the fixture proposal log), the computed rate
     equals the spec owner's hand-computed rate — including a
     closing whose approval landed with no new posting evaluated
-    in the family.
+    in the family. A second fixture window with **zero** gaps
+    open at its start renders "no data — no gaps open at window
+    start" (0 of 0), not 0% and not 100%, and the kill
+    criterion's near-zero reading does not fire on it.
   - Interviews-per-application: the fixture outcome set yields the
     hand-computed figure against the fixture baseline, displayed
     with its sample size.
@@ -2025,6 +2822,31 @@ tree.
   inputs to this job's tailoring, consumed in the flow the user
   is sitting in — they are not profile facts, and they enter the
   profile only through A3 approval.
+  **Fallback for a descoped provenance surface (the fallback
+  roadmap Fork 0.6 Outcome B states is stated in feature-sets —
+  it is stated here, for this feature).** This feature's
+  primary rendering of the grill provenance class is on the
+  provenance surface wired by roadmap initiative 0.6. If that
+  initiative ends in Fork 0.6 Outcome B (provenance formally
+  descoped), this feature renders grill provenance **without
+  that surface, as follows, and in no other improvised form —
+  the same fallback roadmap Fork 0.6 Outcome B states, in the
+  same terms:** (i) the C2 tailoring review shows the grill
+  provenance class as a **per-line source list** — the "from
+  your grill answers" list: each answer used, the job it
+  came from (`grill:<job_id>`), and its proof state — in place
+  of any per-line provenance rendering; (ii) the tailored
+  artefact's own session record carries the same list, so the
+  provenance class survives in the record even though no
+  surface renders it per line; (iii) no acceptance assertion
+  for this feature requires per-line rendering under the
+  descope, and any assertion that does require the wired
+  surface stays **built, gate pending** until the separately
+  gated wiring initiative Fork 0.6 Outcome B provides for
+  lands, or that trigger's amendment re-scopes this feature
+  to this fallback as its final form; and (iv) the
+  session-input distinction above is unchanged — the fallback
+  changes where provenance is shown, never what an answer is.
 - **User seat.** Tailoring for the job shows a "from your grill
   answers" section listing which answers were used where; an answer
   never silently becomes a permanent profile fact (that is A3's
@@ -2318,7 +3140,7 @@ tree.
   honest fallback — now labelled in the review UI so the user sees
   which paragraphs are proof and which are intent.
   **Paragraph classes (every paragraph in a letter has exactly
-  one, and the review balance counts all four):** `proof` — cites
+  one, and the review balance counts all five):** `proof` — cites
   an approved entry that backs one of **this job's** requirements;
   `transferable` — cites an approved entry that backs a different
   requirement or role, presented in the letter's own words as
@@ -2327,7 +3149,21 @@ tree.
   unevidenced requirement, carrying no factual claim; `motivation`
   — built from the user's motivation grill answer (a C1 session
   input, labelled as such in the review; it asserts enthusiasm and
-  fit in the user's own words and carries no proof claim).
+  fit in the user's own words and carries no proof claim);
+  `framing` — the letter's non-claim paragraphs: the salutation,
+  the sign-off, and any connective opening or closing paragraph
+  that carries **no factual claim about the user, no claim about
+  a requirement, and no proof claim of any kind**. `framing` is
+  not a hiding place for a claim: a paragraph that asserts a
+  fact about the user's work is classified by that fact's class
+  above (or fails the C3 scan where the fact is untraceable),
+  never as `framing` — an opening hook that cites an approved
+  entry for this job is `proof`, one built from the motivation
+  answer is `motivation`, and one asserting an untraced fact is
+  a defect, not a framing paragraph. The balance counts
+  `framing` paragraphs separately and never folds them into any
+  of the four claim classes, so the counts a reviewer reads are
+  counts of claim paragraphs plus an honest framing count.
 - **Reuses.** `cover_letters.py: draft_cover_letter()` (`proofs[]`
   mapping), `approve_letter()`, A1 ledger citations, C3 scan.
 - **Edge cases.** Job whose requirements have zero direct ledger
@@ -2335,7 +3171,7 @@ tree.
   requirements; approved proof for other requirements may still
   exist. The letter is then drafted from intent paragraphs plus,
   where one exists, a transferable paragraph labelled as such,
-  with the four-class balance shown honestly — never fabricated
+  with the five-class balance shown honestly — never fabricated
   proof, and a transferable paragraph is never counted or worded
   as direct proof. User has no motivation answer (letter omits the
   paragraph rather than generating generic enthusiasm).
@@ -2347,9 +3183,19 @@ tree.
   - A letter for the zero-direct-proof fixture that has one
     approved entry elsewhere contains **no proof paragraph**, one
     transferable paragraph labelled as such, and its review view
-    shows the four counts: 0 proof / 1 transferable / N intent /
-    M motivation, with M = 0 when the fixture has no motivation
-    answer and that paragraph absent.
+    shows the five counts: 0 proof / 1 transferable / N intent /
+    M motivation / K framing, with M = 0 when the fixture has no
+    motivation answer and that paragraph absent, and K equal to
+    the fixture letter's framing paragraphs as the fixture
+    authors them (its salutation and its sign-off at minimum).
+  - Exactly-one, over a whole letter: the fixture letter's full
+    paragraph list — salutation, hook, body, close, and sign-off
+    included — is classified paragraph by paragraph, every
+    paragraph carries exactly one of the five classes, the five
+    counts sum to the letter's paragraph count, and the
+    salutation and sign-off classify `framing`. A build that
+    leaves any paragraph unclassified, or classifies the
+    salutation as `intent` to make the counts fit, fails.
 
 ---
 
@@ -2380,6 +3226,25 @@ tree.
   machinery + channels, `briefs.py: prep_interview()` likely questions
   (becomes the filler source), `initiatives/i06/modes.py` banks,
   B2 classifications.
+  **Outbound-text inventory for the reused module (its runtime
+  note is in scope, not only grill and notify text).**
+  `mock_interview.py`'s WhatsApp deliverable carries a runtime
+  note (lines 419–425 in the branch tree) framing WhatsApp as
+  "the only proactive channel" and a message as sendable only
+  from the WhatsApp side chat. That framing is the same
+  agent-facing routing language this package retires for the
+  grill: **no channel is a proactive channel in this package**,
+  and a mock-session message, like every prepared item, is sent
+  only on the user's act in the moment under E1's initiation
+  model. The note's truthful half — that the function itself
+  sent nothing — is kept; its proactive-channel framing is
+  rewritten to the prepare-only / user-initiated model before
+  any D1/D2 surface built on this module ships. The inventory
+  that covers this text is named here because no other
+  inventory in the package reaches it: it is an inventory line
+  for the Slot 0 outbound-text work alongside the grill (0-C4)
+  and notify (0-C3) inventories, and the brief / roadmap owners
+  record it there (see the dispositions for this rework).
 - **Edge cases.** No delta for the job (falls back to today's
   behaviour exactly; the UI says questions are posting-based); delta
   exists but all supported (depth questions + one stretch question —
@@ -2392,6 +3257,12 @@ tree.
     equals today's selection for the same seed, exactly (UI copy and
     reason-tag text excluded — selection equality, not byte
     equality of rendered output).
+  - Outbound text: a text search over `mock_interview.py`'s
+    deliverable notes and agent-facing strings finds no
+    "proactive channel" framing and no side-chat-only routing
+    instruction; the WhatsApp deliverable note as built states
+    the prepare-only / user-initiated model and that the
+    function sent nothing.
 
 ### D2. Grading against evidence
 
@@ -2527,7 +3398,23 @@ tree.
   with delta one-liners), the action inbox (approvals waiting —
   including A3 evidence proposals and C2 stale artefacts), follow-ups
   due, and one question back to the user ("anything new to feed me —
-  a posting, an outcome, a story?"). **Assembling is local; sending
+  a posting, an outcome, a story?"). **The item cap, stated here
+  (the check-in never exceeds it: 5 jobs / 3 decisions / 1
+  question).** The jobs segment is the top five, fit-ranked. The
+  decisions segment shows **at most 3 decisions**, selected as
+  the first 3 items in `action_inbox.py: inbox()` order — that
+  function's own sort (kind priority first, then overdue before
+  upcoming, as the shipped code orders them) with its `limit`
+  applied at 3; no other selection order exists for this
+  segment. Decisions beyond the cap are **not dropped, consumed,
+  or reordered**: they stay in the action inbox, the check-in
+  states how many more are waiting ("+4 more decisions
+  waiting"), and they surface in later check-ins in the same
+  inbox order. The question segment is exactly the one feed
+  question. A builder that shows a fourth decision, or that
+  selects the three by any other rule, does not meet this
+  feature — and the roadmap's Phase 5 UAT cap line is testable
+  against this paragraph as written. **Assembling is local; sending
   is a human act.** A scheduler may run on the user's machine to
   *prepare* the day's check-in — assemble its content and hold it
   locally as a prepared item — and that is all a scheduler may do.
@@ -2621,6 +3508,24 @@ tree.
   (`APPROVAL_TTL_SECONDS` in the channel registry), and the
   send is refused without an interactive terminal. That gate
   is named here as the model any third-party send must take.
+  **Terms-audit consequence for this send, stated here so no
+  enumeration of Gmail flows can omit it:** the follow-up send
+  is a Gmail flow — it runs in `email_sync.py` over the same
+  external Gmail CLI as that module's recruiter-mail scan — and
+  it is **gated on the same channel-terms audit outcome** (the
+  brief §7 / roadmap Row X audit) as the scan, grill-over-Gmail,
+  `reply_radar.py`, and initiative 1.1's Gmail launch. Its
+  keep-as-model disposition covers its **initiation form only**;
+  it is not a terms verdict. If the audit's Gmail verdict is
+  adverse, or no Gmail verdict is recorded, the send does not
+  continue on the ground that it predates the audit: it is
+  **suspended**, the suspension is recorded with the verdict,
+  and the fallback is the user-initiated manual path — the
+  product prepares the exact draft locally and the user sends
+  it from their own mail tools, by their own act — until a
+  recorded verdict clears the Gmail channel. A verdict that
+  changes nothing for this send is not an available outcome of
+  the audit for this flow either.
   It stays the **only** third-party send: every other draft
   surface in this package — check-in and grill drafts,
   network and mentor drafts, prepared items of every kind —
@@ -2673,6 +3578,13 @@ tree.
 - **Acceptance criteria.**
   - Fixture state produces a prepared check-in containing exactly the seeded
     top-5, the 3 seeded decisions, and the feed question.
+  - Item cap, overflow case: a fixture state with **7 decisions**
+    waiting produces a check-in showing exactly 3 — the first 3
+    in `inbox()` order — a "+4 more decisions waiting" count,
+    and no fourth decision anywhere in the prepared item; the
+    other 4 remain in the action inbox afterwards, unshown and
+    unconsumed, and the next day's check-in selects from the
+    same inbox order.
   - With all event opt-ins off, nothing is prepared for sending and
     no remote delivery occurs (local log only) — the Initiative 03
     legal condition, tested.
@@ -2721,9 +3633,18 @@ tree.
   carries it forward unexamined or on a timer.) **Conformance
   has a roadmap home:** new initiative **0.9** implements
   retained-surface conformance with this posture — including
-  `watch.py`'s cron entry point and the apply queue's
-  scheduled / preset fill path, which 0.9 inventories and
-  conforms or dispositions — so a "keep" decision under the
+  `watch.py`'s cron entry point, the apply queue's
+  scheduled / preset fill path, **and a third surface of the
+  same cron instruction: `wizard.py`'s setup output, which
+  tells the user to run `python watch.py` "(or schedule it via
+  cron)" to check their watches (branch tree `wizard.py:531`;
+  the same line stands in the live tree)** — which 0.9
+  inventories and
+  conforms or dispositions, the wizard line included: it is
+  removed or reworded to a user-initiated run in the same
+  initiative, and a conformance pass that touches the entry
+  point and the server documentation but leaves the wizard's
+  printed instruction standing does not pass — so a "keep" decision under the
   Phase 0 disposition gate is a decision about a surface that
   an initiative has actually brought to this posture, not a
   paper decision over unchanged code.
@@ -2959,7 +3880,22 @@ for the JSON / JSONL / directory filenames those modules
 write — and **every store the sweep found is dispositioned
 in this table**: either it already had a row (the
 disposition record for this round cites the row), or it has
-a new row below. Scope of the claim: the wired core product
+a new row below. **The enumeration method is extended in one
+named respect, because the first sweep's method missed
+stores it should have caught:** the sweep also greps for
+temp-file and indirect creation calls (`tempfile.mkstemp`,
+preview / temp filename prefixes) in the same modules, and
+for stores a swept module's docstring or comments name as
+its store even where no matching constant pattern exists.
+Under that extended method the outcome-migration family
+(`outcomes_canonical.jsonl`, `outcomes_migration.jsonl`,
+`migration_watermark.json`), the autopsy outcome store
+(`outcomes.json`), the approval-preview temp files, and the
+interim session marker each have their own row below — the
+first enumeration's Outcomes row did not reach them, and no
+completeness claim in this section is read as covering a
+store by a neighbouring row's name again: a store is covered
+only by a row that names it. Scope of the claim: the wired core product
 (the repo-root modules and the governance log). Stores
 belonging to unwired initiative packages (`initiatives/`)
 are outside this table until the package is promoted — and
@@ -3006,17 +3942,23 @@ stores, streaks, AI proficiency, and the further stores the
 | Store | Retention | Export | Delete and propagation |
 |---|---|---|---|
 | Evidence ledger (A1) | Until the user deletes it; backups of it follow the backup rows | One-action JSON + readable text (A1), Tier 2 excluded by default per A1's export mechanism | Deletes the profile's claims with it (confirmation says so in plain words, **and discloses the derivatives in the same breath**: variants, deltas, verdict reasons, and D4 briefs citing its entries are flagged, listed by store and count, and persist until the user takes the confirmation's delete-source-and-derivatives act or deletes them later from the retained-derivatives view); proposal queue drafts that cite its entries are marked orphaned and removed on the user's confirm |
-| Pre-migration backup (A1) | **Hard limit (D-13):** kept until the earlier of (a) 30 days after the user verifies the migration, or (b) 90 days after the backup was created — the same 90-day age ceiling as ongoing backups. **Notice (D2-07 — Phase-0-operable; the prepared check-in is not the mechanism and no part of this notice depends on any E1 surface):** from 30 days before the limit, and again at 7 days and 1 day before it, every local surface that exists from Phase 0 carries the notice — a banner in the profile view and the dashboard naming the deletion date and that this backup is the sole pre-migration restore copy, and the same notice printed by the CLI on any command run in that window. At the limit the backup is flagged delete-due; the deletion itself executes in a local surface (the next CLI, dashboard, or profile-view run), and **that run's own confirmation act carries the notice**: the surface states, before deleting, that the sole restore copy is being deleted on schedule, whether or not a restore was ever needed, and the user confirms in that same act. If the user declines, the backup stays flagged delete-due, the notice repeats on every later run, and the deletion never happens silently or off-surface. The completed deletion is noted in the local work log. The user may delete it earlier (through the same confirmation, without waiting for the limit), or disposition it under A1's encryption rule (encrypt or delete) when enabling encryption | Part of the ledger export when present | Same owner-only protected directory and permissions as the ledger; deleting the ledger offers deleting the backup in the same action, and says what survives if the user declines |
+| Pre-migration backup (A1) | **Hard limit (D-13):** kept until the earlier of (a) 30 days after the user verifies the migration, or (b) 90 days after the backup was created — the same 90-day age ceiling as ongoing backups. **Notice (D2-07 — Phase-0-operable; the prepared check-in is not the mechanism and no part of this notice depends on any E1 surface):** from 30 days before the limit, and again at 7 days and 1 day before it, every local surface that exists from Phase 0 carries the notice — a banner in the profile view and the dashboard naming the deletion date and that this backup is the sole pre-migration restore copy, and the same notice printed by the CLI on any command run in that window. At the limit the backup is flagged delete-due, and **the first local run on or after the limit (the next CLI, dashboard, or profile-view run) deletes it in that run** and states the deletion plainly in that same surface, in the same words as the advance notices: the sole restore copy has been deleted on schedule, whether or not a restore was ever needed. **This scheduled deletion is not a confirmation-gated act and cannot be declined, paused, or postponed by any act or absence of an act** — the limit is a hard limit (A1 states the same rule; the two texts state one rule, not two). The deletion never happens silently or off-surface in the sense that matters here: it happens only inside a local run, and that run states it as it happens; it never happens in a background process with no surface present. A user who wants the copy gone sooner, or preserved under encryption, acts **before** the limit (the early-deletion and encryption-disposition acts described in this row), and those voluntary acts are confirmation-gated — the scheduled limit deletion is not. The completed deletion is noted in the local work log. The user may delete it earlier (through a confirmation act, without waiting for the limit), or disposition it under A1's encryption rule (encrypt or delete) when enabling encryption | Part of the ledger export when present | Same owner-only protected directory and permissions as the ledger; deleting the ledger offers deleting the backup in the same action, and says what survives if the user declines |
 | Ongoing ledger backups (A1) | The product keeps the most recent 5 backups and deletes any backup older than 90 days, whichever limit is reached first; excess and expired backups are deleted automatically and the deletion is noted in the local work log | Part of the ledger export when present | Same owner-only protected directory and permissions as the ledger; deleting the ledger offers deleting its ongoing backups in the same action |
 | Proposal queue + proposal log (A3) | Active proposals expire at 30 days (A3); expired/rejected entries stay in the log until the user dismisses them or clears the log | Included in the ledger export (proposals reference entries) | Clearing the log purges it; a proposal that was approved lives on as its ledger entry and is governed by the ledger row, which the log-clearing confirmation states |
 | Per-job delta store (B3/B5) | Until the user deletes the job or the store | Exportable per job with the job's record (JSON) | Deleting a job deletes its deltas and delta history; deleting a proof or superseding an entry marks citing deltas stale (B3) — it does not silently rewrite their history |
 | Verdict record (B4) | Until the user deletes it | One-action JSON + readable text (B4), Tier 2 values removed per A1's export mechanism unless the user makes the explicit inclusion act | Purges the local canonical store and the pointer entries in the framework and per-application logs (B4); the work-log note of the deletion is date + record-id hash only, retained under the work log's own row — and that residue is disclosed in B4's in-product description and delete confirmation before the user confirms (D-15) |
 | Local work log (B4) | Rolling 12 months of entries, then older entries are deleted by the product and the user is told the window in the log's own view | Exportable as text | User-deletable in full at any time; deleting it affects no other store |
 | Tailored artefacts + approved variants (C2) — the `tailored/` store, the cover-letter drafts store (`cover_letters/`), and resume-builder outputs (D2-08) | Until the user deletes the job or the artefact; a resume-builder output is kept until the user deletes that file or the profile it was built from | Export is the C2 handoff act (fresh human act each time) | Deleting an artefact deletes its stored variant and diff; deleting a builder output deletes the emitted Markdown / HTML / PDF files together; artefacts already handed off are outside the product (the standing limit above) |
-| Outcomes (`outcomes.jsonl` + its `outcomes_meta.json` sidecar) (E4/B5) | Until the user deletes the job or the outcome store | Exportable as JSON/CSV from the outcomes view | Deleting an outcome removes it from B5/E4 aggregates, which are recomputed without it; deleting a job deletes its outcomes with it |
+| Outcomes (`outcomes.jsonl` + its `outcomes_meta.json` sidecar) (E4/B5) | Until the user deletes the job or the outcome store | Exportable as JSON/CSV from the outcomes view | Deleting an outcome removes it from B5/E4 aggregates, which are recomputed without it; deleting a job deletes its outcomes with it. **The outcome family's other stores — the canonical store, the migration log, the watermark, and the autopsy store — are governed by their own rows immediately below, not by this row; a whole-outcome-store delete act names and purges all five stores** |
+| Outcome canonical store (`outcomes_canonical.jsonl`, `outcome_migration.py`) | Canonical outcome events, append-only in normal operation; kept until the user deletes the job or the outcome store | Exportable as JSON/CSV from the outcomes view, with the Outcomes row's export | Deleting an outcome removes its canonical events — append-only governs normal writes, not a user delete act: the delete act is the one operation that rewrites the file without the deleted events, and the rewrite is verified against the store; deleting a job deletes its canonical events with it; B5/E4 aggregates are recomputed without the deleted events. This row, not the Outcomes row above, governs this store |
+| Outcome migration log (`outcomes_migration.jsonl`, `outcome_migration.py`) | Migration and rollback records for the canonical store, append-only in normal operation; kept until the user deletes the outcome store or this log | Exportable as JSON with the outcome-store export | Deleting the outcome store purges this log with it (same rewriting mechanism as the canonical row, verified against the file); deleting this log alone purges only the migration/rollback records and does not delete any outcome — the confirmation states that, so a log delete is never mistaken for an outcome delete |
+| Migration watermark (`migration_watermark.json`, `outcome_migration.py` — named in the live tree; the branch-tree module carries the same migration without a separate watermark file) | Per-migration watermark state; kept until the user deletes the outcome store or resets the migration state | No separate export — operational state, shown in the outcomes / migration view; the settings are exportable as JSON with the outcome-store export | Deleting the outcome store purges it; deleting it alone resets the watermark to none and the next migration run re-creates it — the confirmation states that consequence before the act |
+| Autopsy outcome store (`outcomes.json`, `rejection_autopsy.py`) | One outcome record per job, with the user's notes, read and written by the autopsy / diagnose surfaces; kept until the user deletes the job or this store | Exportable as JSON from the outcomes view | Deleting a job deletes its autopsy record with it; deleting an outcome record removes it from E4's autopsy inputs, and any autopsy explanation is recomputed without it; deleting the whole store purges every record and affects no other outcome store — the confirmation names the stores it does not touch |
+| Approval-preview temp files (`veto-approval-preview-*.txt` in the OS temp directory, created by `email_sync.py: _save_approval_preview()`) | **Hard limit, two parts, whichever comes first:** at most the **10 newest** preview files (the count cap the code already enforces at each save), **and** no preview older than **7 days** — the age limit is checked, and expired previews are pruned, at product startup and at every new preview save, not only when a later preview happens to be saved; a preview that is never followed by another preview therefore does not persist indefinitely. Each file is created `0600` and holds the full body of an over-length approval draft — send-bound content, treated as such everywhere in this table and in A1's store-class table | No export — the file itself is the user's readable copy, and the save act shows its path; there is no second copy to export | **User deletion path, named:** the approval surface that saved a preview lists the existing preview files (path, age, size) and offers a delete act for any one of them or for all of them; deletion is verified against the temp directory's preview glob. The user may also delete the files directly in the OS temp directory at any time — the product states the path at save time so that act is available without the product running. Pruning under the hard limit above is noted in the local work log |
 | Grill sessions (per-job + profile) (A2/C1) | Session records kept until the user deletes the job (per-job) or the session (profile) | Included in the job record / ledger export as applicable | Deleting a session deletes its Q&A record; answers already approved into the ledger are governed by the ledger row, and the confirmation states that |
 | Mock / debrief history (D2/D3) | Until the user deletes the session history | Exportable as text/JSON from the practice view | Deleting a session deletes its transcript, scores, and debrief; proposals already created live in the proposal log row; ledger entries already approved live in the ledger row |
 | E1 session-type log | Detail kept 13 months; older detail is collapsed to monthly counts (types only, no content ever) and the detail is deleted | Monthly counts exportable with the weekly-recap data | User-deletable in full at any time from the companion settings |
+| Interim session marker (B4's veto-moment return measure; roadmap initiative 2.8) | A timestamped record of each user-initiated session start — **start time only; no session-type classification, no content**. Kept until initiative 5.2 migrates it into E1's session-type log, or the user deletes it; in no case kept as detail for longer than the E1 log's own detail window (13 months), after which unmigrated marker detail is collapsed to monthly counts on the same terms as that log | Timestamps exportable with the weekly-recap / session-type data | User-deletable in full at any time from the companion settings; the confirmation states the consequence for the return measure — returns not yet recorded from deleted marker history cannot be recorded afterwards, and the measure's surface then states that the marker history was deleted rather than presenting a "did not return" result from it. On 5.2 migration: the marker history migrates into E1's session-type log, the migration is reconciled (no recorded return is recomputed or lost — B4), and the marker store itself is then deleted; from that point the E1 session-type log row above governs the migrated history. **This row is the marker's lifecycle row from the day 2.8 ships it** — the table's closing rule (no new store ships without its row) is met by this row, not by the E1 log's row alone |
 | Connections import (E3) | Until the user deletes the import or a contact | CSV/JSON export of the user's import | Per-contact and whole-import delete per E3; derived paths, nudges, and mentor entries are removed in the same action |
 | Prepared check-ins (E1) | An unopened prepared item is replaced by the next preparation cycle; opened items become part of the session record | n/a (content is assembled from the stores above) | No separate store of sent content exists; the session-type log row governs what is counted |
 | Watches store (`watch.py`) (D-08) | Each watch (search terms, locations, target companies) is kept until the user deletes that watch or the whole store; no watch is kept silently after its company is removed from the user's targets without the watch list showing it as inactive | Exportable as JSON from the watches view | Deleting a watch purges its stored queries and results; deleting the whole store purges every watch in the same action. This row governs the store only — the surface's operating posture is E2's, and its conformance implementation is roadmap 0.9's |
