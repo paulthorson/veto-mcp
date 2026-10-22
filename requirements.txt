@@ -8,7 +8,7 @@ lxml==6.1.3
 #   python -m playwright install chromium
 # Pinned: browser automation must not float across major Playwright
 # releases (selector/launch behavior changes have broken fills before).
-playwright==1.62.0
+playwright==1.64.0
 # Optional: resume PDF output for resume_builder.py (pure Python, no
 # system dependencies). Without it, resume_builder emits resume.md +
 # resume.html. (WeasyPrint is a prettier alternative but needs system
