@@ -13,7 +13,7 @@ playwright==1.62.0
 # system dependencies). Without it, resume_builder emits resume.md +
 # resume.html. (WeasyPrint is a prettier alternative but needs system
 # libraries: pango, cairo.)
-reportlab==5.0.1
+reportlab==5.1.0
 # Initiative 04 local file ingestion (Epic 6): PDF and DOCX text
 # extraction. The module degrades gracefully when these are missing
 # (explicit preview + "paste the text instead" fallback), but the
